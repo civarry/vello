@@ -1,0 +1,276 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ArrowLeft, Save, Eye, Download, Loader2 } from "lucide-react";
+import {
+  useTemplateBuilderStore,
+  PaperSize,
+  Orientation,
+  PAPER_DIMENSIONS,
+} from "@/stores/template-builder-store";
+import { BlockRenderer } from "../blocks/block-renderer";
+import { toast } from "sonner";
+
+export function BuilderToolbar() {
+  const router = useRouter();
+  const {
+    templateId,
+    templateName,
+    setTemplateName,
+    paperSize,
+    setPaperSize,
+    orientation,
+    setOrientation,
+    blocks,
+    isDirty,
+    globalStyles,
+    getSchema,
+    resetDirty,
+  } = useTemplateBuilderStore();
+
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleSave = async () => {
+    if (!templateName.trim()) {
+      toast.error("Please enter a template name");
+      return;
+    }
+
+    if (blocks.length === 0) {
+      toast.error("Please add at least one element to the template");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const schema = getSchema();
+      const payload = {
+        name: templateName,
+        schema,
+        paperSize,
+        orientation,
+      };
+
+      const url = templateId ? `/api/templates/${templateId}` : "/api/templates";
+      const method = templateId ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to save template");
+      }
+
+      resetDirty();
+
+      if (!templateId && result.data?.id) {
+        // Redirect to edit URL for new templates
+        router.replace(`/templates/${result.data.id}/edit`);
+      }
+
+      toast.success(templateId ? "Template updated" : "Template saved");
+    } catch (error) {
+      console.error("Save error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to save template");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleExport = async () => {
+    if (blocks.length === 0) {
+      toast.error("Please add elements to the template before exporting");
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      // If template is saved, use GET endpoint, otherwise POST with current data
+      const url = templateId
+        ? `/api/templates/${templateId}/export`
+        : "/api/templates/export";
+
+      const response = templateId
+        ? await fetch(url)
+        : await fetch("/api/templates/export", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              blocks,
+              globalStyles,
+              paperSize,
+              orientation,
+              name: templateName,
+            }),
+          });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to export PDF");
+      }
+
+      // Download the PDF
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `${templateName || "template"}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+
+      toast.success("PDF exported successfully");
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to export PDF");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const dimensions = PAPER_DIMENSIONS[paperSize];
+  const canvasWidth = orientation === "PORTRAIT" ? dimensions.width : dimensions.height;
+  const canvasHeight = orientation === "PORTRAIT" ? dimensions.height : dimensions.width;
+
+  return (
+    <>
+      <div className="flex h-14 items-center justify-between border-b bg-background px-4">
+        <div className="flex items-center gap-4">
+          <Link href="/templates">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <Separator orientation="vertical" className="h-6" />
+          <Input
+            value={templateName}
+            onChange={(e) => setTemplateName(e.target.value)}
+            className="h-8 w-48 border-none bg-transparent px-2 text-sm font-medium focus-visible:ring-1"
+            placeholder="Template name"
+          />
+          {isDirty && (
+            <span className="text-xs text-muted-foreground">Unsaved changes</span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Select value={paperSize} onValueChange={(v) => setPaperSize(v as PaperSize)}>
+            <SelectTrigger className="h-8 w-24">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="A4">A4</SelectItem>
+              <SelectItem value="LETTER">Letter</SelectItem>
+              <SelectItem value="LEGAL">Legal</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={orientation} onValueChange={(v) => setOrientation(v as Orientation)}>
+            <SelectTrigger className="h-8 w-28">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="PORTRAIT">Portrait</SelectItem>
+              <SelectItem value="LANDSCAPE">Landscape</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Separator orientation="vertical" className="h-6" />
+
+          <Button variant="outline" size="sm" onClick={() => setIsPreviewOpen(true)}>
+            <Eye className="mr-2 h-4 w-4" />
+            Preview
+          </Button>
+
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={isExporting}>
+            {isExporting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
+            Export
+          </Button>
+
+          <Button size="sm" onClick={handleSave} disabled={isSaving}>
+            {isSaving ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            Save
+          </Button>
+        </div>
+      </div>
+
+      {/* Preview Modal */}
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Template Preview</DialogTitle>
+          </DialogHeader>
+          <div className="flex justify-center py-4 bg-muted/50 rounded-lg overflow-auto">
+            <div
+              className="bg-white shadow-lg relative"
+              style={{
+                width: `${canvasWidth * 3.78}px`,
+                height: `${canvasHeight * 3.78}px`,
+                fontSize: globalStyles.fontSize,
+                fontFamily: globalStyles.fontFamily,
+                color: globalStyles.primaryColor,
+                transform: "scale(0.5)",
+                transformOrigin: "top center",
+              }}
+            >
+              {blocks.length === 0 ? (
+                <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+                  No content to preview
+                </div>
+              ) : (
+                blocks.map((block) => (
+                  <div
+                    key={block.id}
+                    style={{
+                      position: "absolute",
+                      left: block.style.x,
+                      top: block.style.y,
+                      width: block.style.width,
+                      height: block.style.height,
+                    }}
+                  >
+                    <BlockRenderer block={block} isPreview />
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
