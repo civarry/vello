@@ -63,6 +63,10 @@ interface TemplateBuilderState {
   gridSize: GridSize;
   snapToGrid: boolean;
 
+  // Panel visibility
+  showLeftPanel: boolean;
+  showRightPanel: boolean;
+
   // Actions
   setTemplateName: (name: string) => void;
   setPaperSize: (size: PaperSize) => void;
@@ -139,6 +143,12 @@ interface TemplateBuilderState {
   setShowGrid: (show: boolean) => void;
   setGridSize: (size: GridSize) => void;
   setSnapToGrid: (snap: boolean) => void;
+
+  // Panel visibility actions
+  setShowLeftPanel: (show: boolean) => void;
+  setShowRightPanel: (show: boolean) => void;
+  toggleLeftPanel: () => void;
+  toggleRightPanel: () => void;
 }
 
 function generateId() {
@@ -190,6 +200,8 @@ const initialState = {
   showGrid: false,
   gridSize: 10 as GridSize,
   snapToGrid: false,
+  showLeftPanel: true,
+  showRightPanel: true,
 };
 
 // Helper to create a history snapshot from current state
@@ -1153,5 +1165,11 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
     setShowGrid: (show) => set({ showGrid: show }),
     setGridSize: (size) => set({ gridSize: size }),
     setSnapToGrid: (snap) => set({ snapToGrid: snap }),
+
+    // Panel visibility actions
+    setShowLeftPanel: (show) => set({ showLeftPanel: show }),
+    setShowRightPanel: (show) => set({ showRightPanel: show }),
+    toggleLeftPanel: () => set((state) => ({ showLeftPanel: !state.showLeftPanel })),
+    toggleRightPanel: () => set((state) => ({ showRightPanel: !state.showRightPanel })),
   })
 );

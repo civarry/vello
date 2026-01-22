@@ -90,7 +90,7 @@ export function PropertiesPanel() {
       const Icon = blockIcons[firstBlock.type] || Type;
 
       return (
-        <div className="w-72 border-l bg-muted/30 flex flex-col h-full overflow-hidden">
+        <div className="w-72 min-w-72 border-l bg-muted/30 flex flex-col h-full overflow-hidden">
           <div className="p-4 border-b space-y-3 flex-shrink-0">
             <div className="flex items-center gap-2">
               <Icon className="h-4 w-4 text-muted-foreground" />
@@ -203,7 +203,7 @@ export function PropertiesPanel() {
 
     // Heterogeneous selection (Mixed Types)
     return (
-      <div className="w-72 border-l bg-muted/30 flex flex-col h-full overflow-hidden">
+      <div className="w-72 min-w-72 border-l bg-muted/30 flex flex-col h-full overflow-hidden">
         <div className="p-4 border-b flex-shrink-0">
           <div className="flex items-center gap-2">
             <Layers className="h-4 w-4 text-muted-foreground" />
@@ -300,7 +300,7 @@ export function PropertiesPanel() {
 
   if (!selectedBlock) {
     return (
-      <div className="w-72 border-l bg-muted/30 p-4 h-full">
+      <div className="w-72 min-w-72 border-l bg-muted/30 p-4 h-full">
         <h3 className="mb-4 text-sm font-semibold">Properties</h3>
         <p className="text-sm text-muted-foreground">
           Select an element to edit its properties
@@ -312,7 +312,7 @@ export function PropertiesPanel() {
   const Icon = blockIcons[selectedBlock.type] || Type;
 
   return (
-    <div className="w-72 border-l bg-muted/30 flex flex-col h-full overflow-hidden">
+    <div className="w-72 min-w-72 border-l bg-muted/30 flex flex-col h-full overflow-hidden">
       <div className="p-4 border-b space-y-3 flex-shrink-0">
         <div className="flex items-center gap-2">
           <Icon className="h-4 w-4 text-muted-foreground" />
