@@ -26,8 +26,9 @@ import {
   Orientation,
   PAPER_DIMENSIONS,
 } from "@/stores/template-builder-store";
-import { BlockRenderer } from "../blocks/block-renderer";
 import { toast } from "sonner";
+import { LivePdfPreview } from "@/components/previews/live-pdf-preview";
+import { Template } from "@/types/template";
 
 export function BuilderToolbar() {
   const router = useRouter();
@@ -118,16 +119,16 @@ export function BuilderToolbar() {
       const response = templateId
         ? await fetch(url)
         : await fetch("/api/templates/export", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              blocks,
-              globalStyles,
-              paperSize,
-              orientation,
-              name: templateName,
-            }),
-          });
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            blocks,
+            globalStyles,
+            paperSize,
+            orientation,
+            name: templateName,
+          }),
+        });
 
       if (!response.ok) {
         const error = await response.json();
@@ -154,9 +155,20 @@ export function BuilderToolbar() {
     }
   };
 
-  const dimensions = PAPER_DIMENSIONS[paperSize];
-  const canvasWidth = orientation === "PORTRAIT" ? dimensions.width : dimensions.height;
-  const canvasHeight = orientation === "PORTRAIT" ? dimensions.height : dimensions.width;
+  // Construct a temporary template object for the preview
+  const previewTemplate: Template = {
+    id: templateId || "temp-preview",
+    name: templateName,
+    paperSize,
+    orientation,
+    schema: {
+      blocks,
+      globalStyles,
+      variables: [],
+    },
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 
   return (
     <>
@@ -230,43 +242,18 @@ export function BuilderToolbar() {
 
       {/* Preview Modal */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
-          <DialogHeader>
-            <DialogTitle>Template Preview</DialogTitle>
+        <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="p-4 border-b">
+            <DialogTitle>Template Preview (PDF)</DialogTitle>
           </DialogHeader>
-          <div className="flex justify-center py-4 bg-muted/50 rounded-lg overflow-auto">
-            <div
-              className="bg-white shadow-lg relative"
-              style={{
-                width: `${canvasWidth * 3.78}px`,
-                height: `${canvasHeight * 3.78}px`,
-                fontSize: globalStyles.fontSize,
-                fontFamily: globalStyles.fontFamily,
-                color: globalStyles.primaryColor,
-                transform: "scale(0.5)",
-                transformOrigin: "top center",
-              }}
-            >
-              {blocks.length === 0 ? (
-                <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                  No content to preview
-                </div>
-              ) : (
-                blocks.map((block) => (
-                  <div
-                    key={block.id}
-                    style={{
-                      position: "absolute",
-                      left: block.style.x,
-                      top: block.style.y,
-                      width: block.style.width,
-                      height: block.style.height,
-                    }}
-                  >
-                    <BlockRenderer block={block} isPreview />
-                  </div>
-                ))
-              )}
+          <div className="flex-1 bg-muted/50 p-4 overflow-hidden">
+            <div className="h-full w-full bg-white shadow-sm rounded-md overflow-hidden">
+              {/* Use the PDF Preview Component */}
+              <LivePdfPreview
+                template={previewTemplate}
+                data={{}}
+                debouncedDelay={500}
+              />
             </div>
           </div>
         </DialogContent>

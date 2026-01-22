@@ -12,12 +12,22 @@ import { cn } from "@/lib/utils";
 import { Trash2, Copy, Move, AlignLeft, AlignCenter, AlignRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+// Guide line type
+type Guide = {
+  orientation: "vertical" | "horizontal";
+  position: number;
+};
+
 interface DraggableBlockProps {
   block: Block;
   scale: number;
+  otherBlocks: Block[];
+  canvasWidth: number;
+  canvasHeight: number;
+  setGuides: (guides: Guide[]) => void;
 }
 
-function DraggableBlock({ block, scale }: DraggableBlockProps) {
+function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, setGuides }: DraggableBlockProps) {
   const {
     selectedBlockId,
     selectBlock,
@@ -34,6 +44,8 @@ function DraggableBlock({ block, scale }: DraggableBlockProps) {
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
   const dragStartRef = useRef<{ x: number; y: number; blockX: number; blockY: number } | null>(null);
   const resizeStartRef = useRef<{ x: number; y: number; width: number; height: number; blockX: number; blockY: number } | null>(null);
+
+  const SNAP_THRESHOLD = 5;
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
@@ -55,25 +67,119 @@ function DraggableBlock({ block, scale }: DraggableBlockProps) {
       if (!dragStartRef.current) return;
       const dx = (e.clientX - dragStartRef.current.x) / scale;
       const dy = (e.clientY - dragStartRef.current.y) / scale;
+
+      let newX = dragStartRef.current.blockX + dx;
+      let newY = dragStartRef.current.blockY + dy;
+
+      const activeGuides: Guide[] = [];
+
+      // SNAPPING LOGIC
+      const blockWidth = block.style.width;
+      const blockHeight = block.style.height;
+
+      // Define points of interest on the moving block (Left, Center, Right | Top, Center, Bottom)
+      // We check snapping for the NEW theoretical position
+      const myPointsX = [newX, newX + blockWidth / 2, newX + blockWidth]; // [Left, Center, Right]
+      const myPointsY = [newY, newY + blockHeight / 2, newY + blockHeight]; // [Top, Center, Bottom]
+
+      // Collect snap targets from other blocks & canvas center
+      const targetsX = [canvasWidth / 2];
+      const targetsY = [canvasHeight / 2];
+
+      otherBlocks.forEach(other => {
+        targetsX.push(other.style.x, other.style.x + other.style.width / 2, other.style.x + other.style.width);
+        targetsY.push(other.style.y, other.style.y + other.style.height / 2, other.style.y + other.style.height);
+      });
+
+      // Check X Snapping
+      let snapX = null;
+      let minDistX = SNAP_THRESHOLD;
+
+      // Iterate through my points (L, C, R) and compare with all target points
+      // We want to find the smallest snap distance.
+      // Optimization: This is O(3 * N), acceptable for < 100 blocks.
+      for (let i = 0; i < myPointsX.length; i++) {
+        const myX = myPointsX[i];
+        for (const targetX of targetsX) {
+          const diff = Math.abs(myX - targetX);
+          if (diff < minDistX) {
+            minDistX = diff;
+            // Calculate the snapped X for the block origin
+            // If my Left (i=0) snaps to target, newX = target
+            // If my Center (i=1) snaps to target, newX = target - width/2
+            // If my Right (i=2) snaps to target, newX = target - width
+            if (i === 0) snapX = targetX;
+            else if (i === 1) snapX = targetX - blockWidth / 2;
+            else if (i === 2) snapX = targetX - blockWidth;
+
+            // We only store one guide per axis for simplicity, or we could verify exact match
+          }
+        }
+      }
+
+      if (snapX !== null) {
+        newX = snapX;
+        // Add guide at the target position
+        // Recalculate which target it snapped to for visualization
+        // Just finding *any* target match is enough for visual line
+        // The strictly correct way is to add a guide for the *matched target*
+        // Re-find the matched target for visual:
+        const snappedCenter = newX + blockWidth / 2;
+        const snappedRight = newX + blockWidth;
+        if (targetsX.some(t => Math.abs(newX - t) < 0.1)) activeGuides.push({ orientation: "vertical", position: newX });
+        else if (targetsX.some(t => Math.abs(snappedCenter - t) < 0.1)) activeGuides.push({ orientation: "vertical", position: snappedCenter });
+        else if (targetsX.some(t => Math.abs(snappedRight - t) < 0.1)) activeGuides.push({ orientation: "vertical", position: snappedRight });
+      }
+
+      // Check Y Snapping
+      let snapY = null;
+      let minDistY = SNAP_THRESHOLD;
+
+      for (let i = 0; i < myPointsY.length; i++) {
+        const myY = myPointsY[i];
+        for (const targetY of targetsY) {
+          const diff = Math.abs(myY - targetY);
+          if (diff < minDistY) {
+            minDistY = diff;
+            if (i === 0) snapY = targetY;
+            else if (i === 1) snapY = targetY - blockHeight / 2;
+            else if (i === 2) snapY = targetY - blockHeight;
+          }
+        }
+      }
+
+      if (snapY !== null) {
+        newY = snapY;
+        const snappedCenter = newY + blockHeight / 2;
+        const snappedBottom = newY + blockHeight;
+        if (targetsY.some(t => Math.abs(newY - t) < 0.1)) activeGuides.push({ orientation: "horizontal", position: newY });
+        else if (targetsY.some(t => Math.abs(snappedCenter - t) < 0.1)) activeGuides.push({ orientation: "horizontal", position: snappedCenter });
+        else if (targetsY.some(t => Math.abs(snappedBottom - t) < 0.1)) activeGuides.push({ orientation: "horizontal", position: snappedBottom });
+      }
+
+      setGuides(activeGuides);
+
       updateBlockPosition(
         block.id,
-        Math.max(0, dragStartRef.current.blockX + dx),
-        Math.max(0, dragStartRef.current.blockY + dy)
+        Math.max(0, newX),
+        Math.max(0, newY)
       );
     };
 
     const handleMouseUp = () => {
       setIsDragging(false);
       dragStartRef.current = null;
+      setGuides([]); // Clear guides
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
 
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
-  }, [block.id, block.style.x, block.style.y, scale, selectBlock, updateBlockPosition]);
+  }, [block.id, block.style, scale, selectBlock, updateBlockPosition, otherBlocks, canvasWidth, canvasHeight, setGuides]);
 
   const handleResizeMouseDown = useCallback((e: React.MouseEvent, handle: string) => {
+    // ... (Resize Logic - keep existing, maybe add guides later but simplifying for now)
     e.stopPropagation();
     e.preventDefault();
     selectBlock(block.id);
@@ -266,6 +372,7 @@ export function BuilderCanvas() {
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const [scale] = useState(1);
+  const [guides, setGuides] = useState<Guide[]>([]);
 
   const { setNodeRef, isOver } = useDroppable({
     id: "canvas",
@@ -342,8 +449,33 @@ export function BuilderCanvas() {
           </div>
         )}
 
+        {/* Render Guides */}
+        {guides.map((guide, i) => (
+          <div
+            key={i}
+            className={cn(
+              "absolute bg-red-500 z-50 pointer-events-none",
+              guide.orientation === "vertical" ? "w-[1px] top-0 bottom-0" : "h-[1px] left-0 right-0"
+            )}
+            style={
+              guide.orientation === "vertical"
+                ? { left: guide.position }
+                : { top: guide.position }
+            }
+          />
+        ))}
+
         {blocks.map((block) => (
-          <DraggableBlock key={block.id} block={block} scale={scale} />
+          <DraggableBlock
+            key={block.id}
+            block={block}
+            scale={scale}
+            // Pass filtered blocks (excluding current) for snapping
+            otherBlocks={blocks.filter(b => b.id !== block.id)}
+            canvasWidth={canvasWidthPx} // Using PX value for calculation
+            canvasHeight={canvasHeightPx} // Using PX value for calculation
+            setGuides={setGuides}
+          />
         ))}
       </div>
     </div>
