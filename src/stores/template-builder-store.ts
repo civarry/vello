@@ -19,6 +19,17 @@ export const PAPER_DIMENSIONS: Record<PaperSize, { width: number; height: number
   LEGAL: { width: 216, height: 356 },
 };
 
+// History snapshot type (excludes history itself and transient state)
+interface HistorySnapshot {
+  blocks: Block[];
+  globalStyles: GlobalStyles;
+  paperSize: PaperSize;
+  orientation: Orientation;
+  templateName: string;
+}
+
+const MAX_HISTORY_SIZE = 50;
+
 interface TemplateBuilderState {
   templateId: string | null;
   templateName: string;
@@ -29,6 +40,16 @@ interface TemplateBuilderState {
   paperSize: PaperSize;
   orientation: Orientation;
   isDirty: boolean;
+
+  // History state for undo/redo
+  history: HistorySnapshot[];
+  historyIndex: number;
+
+  // Zoom state
+  zoom: number;
+
+  // Clipboard for copy/paste
+  clipboard: Block[] | null;
 
   // Actions
   setTemplateName: (name: string) => void;
@@ -45,8 +66,11 @@ interface TemplateBuilderState {
   updateBlockPositions: (updates: Map<string, { x: number; y: number }>) => void;
   updateBlockSize: (id: string, width: number, height: number) => void;
   removeBlock: (id: string) => void;
+  removeSelectedBlocks: () => void;
   duplicateBlock: (id: string) => void;
+  duplicateSelectedBlocks: () => void;
   selectBlock: (id: string | null, multi?: boolean) => void;
+  selectAllBlocks: () => void;
   groupSelectedBlocks: () => void;
   ungroupSelectedBlocks: () => void;
   setGlobalStyles: (styles: Partial<GlobalStyles>) => void;
@@ -54,6 +78,29 @@ interface TemplateBuilderState {
   getSchema: () => TemplateSchema;
   resetDirty: () => void;
   reset: () => void;
+
+  // Undo/Redo actions
+  undo: () => void;
+  redo: () => void;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
+
+  // Zoom actions
+  setZoom: (zoom: number) => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  zoomToFit: () => void;
+  resetZoom: () => void;
+
+  // Copy/Paste actions
+  copySelectedBlocks: () => void;
+  pasteBlocks: () => void;
+
+  // Nudge actions
+  nudgeSelectedBlocks: (dx: number, dy: number) => void;
+
+  // History actions
+  pushHistorySnapshot: () => void;
 
   // Alignment actions
   alignBlock: (id: string, alignment: "left" | "center" | "right" | "top" | "middle" | "bottom") => void;
@@ -110,20 +157,84 @@ const initialState = {
   paperSize: "A4" as PaperSize,
   orientation: "PORTRAIT" as Orientation,
   isDirty: false,
+  history: [] as HistorySnapshot[],
+  historyIndex: -1,
+  zoom: 1,
+  clipboard: null as Block[] | null,
 };
+
+// Helper to create a history snapshot from current state
+function createSnapshot(state: Pick<TemplateBuilderState, 'blocks' | 'globalStyles' | 'paperSize' | 'orientation' | 'templateName'>): HistorySnapshot {
+  return {
+    blocks: JSON.parse(JSON.stringify(state.blocks)),
+    globalStyles: JSON.parse(JSON.stringify(state.globalStyles)),
+    paperSize: state.paperSize,
+    orientation: state.orientation,
+    templateName: state.templateName,
+  };
+}
+
+// History model:
+// - history[] contains complete states (oldest first)
+// - historyIndex points to the current state being displayed/edited
+// - On change: save current state, then apply mutation
+// - Undo: decrement historyIndex, restore that state
+// - Redo: increment historyIndex, restore that state
+
+// Helper to push current state to history (call BEFORE mutation)
+function pushHistory(state: TemplateBuilderState): Partial<TemplateBuilderState> {
+  const snapshot = createSnapshot(state);
+
+  // Truncate any "future" states (from previous undos)
+  // historyIndex points to current state, so keep up to historyIndex + 1
+  const newHistory = state.historyIndex >= 0
+    ? state.history.slice(0, state.historyIndex + 1)
+    : [];
+
+  newHistory.push(snapshot);
+
+  // Limit history size
+  while (newHistory.length > MAX_HISTORY_SIZE) {
+    newHistory.shift();
+  }
+
+  return {
+    history: newHistory,
+    historyIndex: newHistory.length - 1,
+  };
+}
 
 export const useTemplateBuilderStore = create<TemplateBuilderState>(
   (set, get) => ({
     ...initialState,
 
-    setTemplateName: (name) => set({ templateName: name, isDirty: true }),
-    setPaperSize: (size) => set({ paperSize: size, isDirty: true }),
-    setOrientation: (orientation) => set({ orientation, isDirty: true }),
+    setTemplateName: (name) => set((state) => ({
+      ...pushHistory(state),
+      templateName: name,
+      isDirty: true,
+    })),
 
-    setBlocks: (blocks) => set({ blocks, isDirty: true }),
+    setPaperSize: (size) => set((state) => ({
+      ...pushHistory(state),
+      paperSize: size,
+      isDirty: true,
+    })),
+
+    setOrientation: (orientation) => set((state) => ({
+      ...pushHistory(state),
+      orientation,
+      isDirty: true,
+    })),
+
+    setBlocks: (blocks) => set((state) => ({
+      ...pushHistory(state),
+      blocks,
+      isDirty: true,
+    })),
 
     addBlock: (block) =>
       set((state) => ({
+        ...pushHistory(state),
         blocks: [...state.blocks, block],
         isDirty: true,
         selectedBlockId: block.id,
@@ -147,6 +258,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
           },
         };
         return {
+          ...pushHistory(state),
           blocks: [...state.blocks, newBlock],
           isDirty: true,
           selectedBlockId: id,
@@ -154,6 +266,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         };
       }),
 
+    // Note: These update functions don't push history - call pushHistorySnapshot() before starting edits
     updateBlock: (id, updates) =>
       set((state) => ({
         blocks: state.blocks.map((block) =>
@@ -172,7 +285,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         isDirty: true,
       })),
 
-    // NEW: Batch property update
+    // Batch property update - no history push, call pushHistorySnapshot() before batch edits
     updateBlocksProperties: (ids, properties) =>
       set((state) => ({
         blocks: state.blocks.map((block) =>
@@ -183,6 +296,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         isDirty: true,
       })),
 
+    // Style/position/size updates don't push history - call pushHistorySnapshot() before drag/resize
     updateBlockStyle: (id, style) =>
       set((state) => ({
         blocks: state.blocks.map((block) =>
@@ -203,7 +317,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         isDirty: true,
       })),
 
-    // NEW: Batch update for multi-drag
+    // Batch update for multi-drag - no history push
     updateBlockPositions: (updates) =>
       set((state) => ({
         blocks: state.blocks.map((block) => {
@@ -235,12 +349,25 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
 
     removeBlock: (id) =>
       set((state) => ({
+        ...pushHistory(state),
         blocks: state.blocks.filter((block) => block.id !== id),
         selectedBlockId:
           state.selectedBlockId === id ? null : state.selectedBlockId,
         selectedBlockIds: state.selectedBlockIds.filter((bid) => bid !== id),
         isDirty: true,
       })),
+
+    removeSelectedBlocks: () =>
+      set((state) => {
+        if (state.selectedBlockIds.length === 0) return state;
+        return {
+          ...pushHistory(state),
+          blocks: state.blocks.filter((block) => !state.selectedBlockIds.includes(block.id)),
+          selectedBlockId: null,
+          selectedBlockIds: [],
+          isDirty: true,
+        };
+      }),
 
     duplicateBlock: (id) =>
       set((state) => {
@@ -258,6 +385,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         };
 
         return {
+          ...pushHistory(state),
           blocks: [...state.blocks, newBlock],
           isDirty: true,
           selectedBlockId: newBlock.id,
@@ -265,7 +393,31 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         };
       }),
 
-    // NEW: Multi-select logic
+    duplicateSelectedBlocks: () =>
+      set((state) => {
+        if (state.selectedBlockIds.length === 0) return state;
+
+        const selectedBlocks = state.blocks.filter((b) => state.selectedBlockIds.includes(b.id));
+        const newBlocks: Block[] = selectedBlocks.map((block) => ({
+          ...JSON.parse(JSON.stringify(block)),
+          id: generateId(),
+          style: {
+            ...block.style,
+            x: block.style.x + 20,
+            y: block.style.y + 20,
+          },
+        }));
+
+        return {
+          ...pushHistory(state),
+          blocks: [...state.blocks, ...newBlocks],
+          isDirty: true,
+          selectedBlockId: newBlocks[0]?.id || null,
+          selectedBlockIds: newBlocks.map((b) => b.id),
+        };
+      }),
+
+    // Multi-select logic (no history push - selection is transient)
     selectBlock: (id, multi = false) =>
       set((state) => {
         if (id === null) {
@@ -290,7 +442,13 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         }
       }),
 
-    // NEW: Group logic
+    selectAllBlocks: () =>
+      set((state) => ({
+        selectedBlockIds: state.blocks.map((b) => b.id),
+        selectedBlockId: state.blocks[0]?.id || null,
+      })),
+
+    // Group logic
     groupSelectedBlocks: () =>
       set((state) => {
         if (state.selectedBlockIds.length < 2) return state;
@@ -303,8 +461,8 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         selectedBlocks.forEach(b => {
           const x = b.style.x ?? 0;
           const y = b.style.y ?? 0;
-          const w = b.style.width ?? 0; // Safe fallback
-          const h = b.style.height ?? 0; // Safe fallback
+          const w = b.style.width ?? 0;
+          const h = b.style.height ?? 0;
 
           if (x < minX) minX = x;
           if (y < minY) minY = y;
@@ -336,7 +494,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
           type: "container",
           properties: {
             direction: "column",
-            children, // These children will be rendered recursively by ContainerBlock
+            children,
           },
           style: {
             ...DEFAULT_BLOCK_STYLE,
@@ -346,7 +504,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
             height: containerHeight,
             backgroundColor: "transparent",
             paddingTop: 0, paddingBottom: 0, paddingLeft: 0, paddingRight: 0,
-            borderWidth: 1, // Optional visual indicator
+            borderWidth: 1,
             borderStyle: "dashed",
             borderColor: "#ccc",
           }
@@ -355,6 +513,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         // Remove original blocks and add container
         const newBlocks = state.blocks.filter(b => !state.selectedBlockIds.includes(b.id));
         return {
+          ...pushHistory(state),
           blocks: [...newBlocks, containerBlock],
           selectedBlockIds: [containerId],
           selectedBlockId: containerId,
@@ -362,7 +521,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         };
       }),
 
-    // NEW: Ungroup logic
+    // Ungroup logic
     ungroupSelectedBlocks: () =>
       set((state) => {
         // Find selected containers
@@ -376,7 +535,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         let newSelection: string[] = [];
 
         containersToUngroup.forEach(container => {
-          const props = container.properties as any;
+          const props = container.properties as { children?: Block[] };
           const children = (props.children || []) as Block[];
 
           // Reparent children to root
@@ -405,6 +564,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         const finalSelection = [...otherSelected, ...newSelection];
 
         return {
+          ...pushHistory(state),
           blocks: newBlocks,
           selectedBlockIds: finalSelection,
           selectedBlockId: finalSelection[0] || null,
@@ -429,6 +589,9 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         isDirty: false,
         selectedBlockId: null,
         selectedBlockIds: [],
+        // Reset history when loading a new template
+        history: [],
+        historyIndex: -1,
       }),
 
     getSchema: () => {
@@ -479,6 +642,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
           }
 
           return {
+            ...pushHistory(state),
             blocks: state.blocks.map((b) =>
               b.id === targetId ? { ...b, style: { ...b.style, x: newX, y: newY } } : b
             ),
@@ -530,6 +694,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         });
 
         return {
+          ...pushHistory(state),
           blocks: state.blocks.map((b) => {
             const up = updates.get(b.id);
             return up ? { ...b, style: { ...b.style, ...up } } : b;
@@ -569,6 +734,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
       });
 
       return {
+        ...pushHistory(state),
         blocks: state.blocks.map((b) => {
           const update = updates.get(b.id);
           if (update) {
@@ -587,7 +753,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
       };
     }),
 
-    // NEW: Center entire selection on page
+    // Center entire selection on page
     centerSelectionOnPage: () => set((state) => {
       const selectedBlocks = state.blocks.filter(b => state.selectedBlockIds.includes(b.id));
       if (selectedBlocks.length === 0) return state;
@@ -617,6 +783,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
       const dy = targetY - minY;
 
       return {
+        ...pushHistory(state),
         blocks: state.blocks.map((b) =>
           state.selectedBlockIds.includes(b.id)
             ? { ...b, style: { ...b.style, x: b.style.x + dx, y: b.style.y + dy } }
@@ -632,6 +799,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         if (!block) return state;
 
         return {
+          ...pushHistory(state),
           blocks: [
             ...state.blocks.filter((b) => b.id !== id),
             block,
@@ -646,6 +814,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         if (!block) return state;
 
         return {
+          ...pushHistory(state),
           blocks: [
             block,
             ...state.blocks.filter((b) => b.id !== id),
@@ -672,6 +841,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         newRows.splice(insertIndex, 0, newRow);
 
         return {
+          ...pushHistory(state),
           blocks: state.blocks.map((b) =>
             b.id === blockId
               ? { ...b, properties: { ...props, rows: newRows } }
@@ -692,6 +862,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         const newRows = props.rows.filter((_, i) => i !== rowIndex);
 
         return {
+          ...pushHistory(state),
           blocks: state.blocks.map((b) =>
             b.id === blockId
               ? { ...b, properties: { ...props, rows: newRows } }
@@ -715,6 +886,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         });
 
         return {
+          ...pushHistory(state),
           blocks: state.blocks.map((b) =>
             b.id === blockId
               ? { ...b, properties: { ...props, rows: newRows } }
@@ -738,6 +910,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         }));
 
         return {
+          ...pushHistory(state),
           blocks: state.blocks.map((b) =>
             b.id === blockId
               ? { ...b, properties: { ...props, rows: newRows } }
@@ -765,6 +938,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         );
 
         return {
+          ...pushHistory(state),
           blocks: state.blocks.map((b) =>
             b.id === blockId
               ? { ...b, properties: { ...props, rows: newRows } }
@@ -773,5 +947,144 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
           isDirty: true,
         };
       }),
+
+    // Undo/Redo actions
+    // Model: history[] stores states, historyIndex is current position
+    // - pushHistory saves current state BEFORE a change happens
+    // - historyIndex points to the last saved pre-change state
+    // - After changes, current editor state differs from history[historyIndex]
+    // - Undo restores history[historyIndex], saves current for redo
+    // - Redo restores the next state after historyIndex
+    undo: () =>
+      set((state) => {
+        if (state.historyIndex < 0) return state;
+
+        // Save current state for redo (only if at tip of history)
+        let newHistory = state.history;
+        if (state.historyIndex === state.history.length - 1) {
+          const currentSnapshot = createSnapshot(state);
+          newHistory = [...state.history, currentSnapshot];
+        }
+
+        // Restore state at historyIndex
+        const snapshot = newHistory[state.historyIndex];
+        return {
+          history: newHistory,
+          historyIndex: state.historyIndex - 1,
+          blocks: snapshot.blocks,
+          globalStyles: snapshot.globalStyles,
+          paperSize: snapshot.paperSize,
+          orientation: snapshot.orientation,
+          templateName: snapshot.templateName,
+          isDirty: true,
+        };
+      }),
+
+    redo: () =>
+      set((state) => {
+        // After undo, historyIndex points before the state we came from
+        // So historyIndex + 1 is what we undid FROM, and historyIndex + 2 is where we want to go
+        const targetIndex = state.historyIndex + 2;
+        if (targetIndex >= state.history.length) return state;
+
+        const snapshot = state.history[targetIndex];
+        return {
+          historyIndex: state.historyIndex + 1,
+          blocks: snapshot.blocks,
+          globalStyles: snapshot.globalStyles,
+          paperSize: snapshot.paperSize,
+          orientation: snapshot.orientation,
+          templateName: snapshot.templateName,
+          isDirty: true,
+        };
+      }),
+
+    canUndo: () => {
+      const state = get();
+      return state.historyIndex >= 0;
+    },
+
+    canRedo: () => {
+      const state = get();
+      return state.historyIndex + 2 < state.history.length;
+    },
+
+    // Zoom actions
+    setZoom: (zoom) => set({ zoom: Math.max(0.25, Math.min(2, zoom)) }),
+
+    zoomIn: () =>
+      set((state) => ({
+        zoom: Math.min(2, state.zoom + 0.1),
+      })),
+
+    zoomOut: () =>
+      set((state) => ({
+        zoom: Math.max(0.25, state.zoom - 0.1),
+      })),
+
+    zoomToFit: () => set({ zoom: 1 }), // Simple implementation - reset to 100%
+
+    resetZoom: () => set({ zoom: 1 }),
+
+    // Copy/Paste actions
+    copySelectedBlocks: () =>
+      set((state) => {
+        if (state.selectedBlockIds.length === 0) return state;
+        const selectedBlocks = state.blocks.filter((b) => state.selectedBlockIds.includes(b.id));
+        return {
+          clipboard: JSON.parse(JSON.stringify(selectedBlocks)),
+        };
+      }),
+
+    pasteBlocks: () =>
+      set((state) => {
+        if (!state.clipboard || state.clipboard.length === 0) return state;
+
+        const newBlocks: Block[] = state.clipboard.map((block) => ({
+          ...JSON.parse(JSON.stringify(block)),
+          id: generateId(),
+          style: {
+            ...block.style,
+            x: block.style.x + 20,
+            y: block.style.y + 20,
+          },
+        }));
+
+        return {
+          ...pushHistory(state),
+          blocks: [...state.blocks, ...newBlocks],
+          selectedBlockIds: newBlocks.map((b) => b.id),
+          selectedBlockId: newBlocks[0]?.id || null,
+          isDirty: true,
+        };
+      }),
+
+    // Nudge actions
+    nudgeSelectedBlocks: (dx, dy) =>
+      set((state) => {
+        if (state.selectedBlockIds.length === 0) return state;
+
+        return {
+          ...pushHistory(state),
+          blocks: state.blocks.map((block) =>
+            state.selectedBlockIds.includes(block.id)
+              ? {
+                ...block,
+                style: {
+                  ...block.style,
+                  x: Math.max(0, block.style.x + dx),
+                  y: Math.max(0, block.style.y + dy),
+                },
+              }
+              : block
+          ),
+          isDirty: true,
+        };
+      }),
+
+    pushHistorySnapshot: () =>
+      set((state) => ({
+        ...pushHistory(state),
+      })),
   })
 );

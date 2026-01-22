@@ -19,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Save, Eye, Download, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Eye, Download, Loader2, RotateCcw, RotateCw, Minus, Plus, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   useTemplateBuilderStore,
@@ -46,6 +46,16 @@ export function BuilderToolbar() {
     globalStyles,
     getSchema,
     resetDirty,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    zoom,
+    setZoom,
+    zoomIn,
+    zoomOut,
+    zoomToFit,
+    resetZoom,
   } = useTemplateBuilderStore();
 
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -193,6 +203,30 @@ export function BuilderToolbar() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Undo/Redo Buttons */}
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={undo}
+              disabled={!canUndo()}
+              title="Undo (Ctrl+Z)"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={redo}
+              disabled={!canRedo()}
+              title="Redo (Ctrl+Shift+Z)"
+            >
+              <RotateCw className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <Separator orientation="vertical" className="h-6" />
+
           <Select value={paperSize} onValueChange={(v) => setPaperSize(v as PaperSize)}>
             <SelectTrigger className="h-8 w-24">
               <SelectValue />
@@ -213,6 +247,39 @@ export function BuilderToolbar() {
               <SelectItem value="LANDSCAPE">Landscape</SelectItem>
             </SelectContent>
           </Select>
+
+          <Separator orientation="vertical" className="h-6" />
+
+          {/* Zoom Controls */}
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={zoomOut}
+              disabled={zoom <= 0.25}
+              title="Zoom Out (Ctrl + Scroll Down)"
+            >
+              <Minus className="h-4 w-4" />
+            </Button>
+            <span className="text-xs w-12 text-center">{Math.round(zoom * 100)}%</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={zoomIn}
+              disabled={zoom >= 2}
+              title="Zoom In (Ctrl + Scroll Up)"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={resetZoom}
+              title="Reset Zoom (100%)"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+          </div>
 
           <Separator orientation="vertical" className="h-6" />
 

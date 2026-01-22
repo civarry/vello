@@ -11,6 +11,7 @@ import { BlockRenderer } from "../blocks/block-renderer";
 import { cn } from "@/lib/utils";
 import { Trash2, Copy, Move, AlignLeft, AlignCenter, AlignRight, ArrowUpToLine, ArrowDownToLine, AlignCenterVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 
 // Guide line type
 type Guide = {
@@ -38,7 +39,8 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
     updateBlockPositions,
     updateBlockSize,
     alignBlock,
-    blocks, // Need access to all blocks to find selected ones for drag
+    blocks,
+    pushHistorySnapshot,
   } = useTemplateBuilderStore();
 
   const isSelected = selectedBlockIds.includes(block.id);
@@ -122,6 +124,9 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
         initialPositions.set(b.id, { x: b.style.x, y: b.style.y });
       }
     });
+
+    // Push history snapshot before starting drag (capture state before drag)
+    pushHistorySnapshot();
 
     dragStartRef.current = {
       x: e.clientX,
@@ -235,22 +240,24 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
     const handleMouseUp = () => {
       setIsDragging(false);
       dragStartRef.current = null;
-      setGuides([]); // Clear guides
+      setGuides([]);
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
 
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
-  }, [block.id, block.style, scale, selectedBlockIds, selectBlock, updateBlockPositions, otherBlocks, canvasWidth, canvasHeight, setGuides]);
+  }, [block.id, block.style, scale, selectedBlockIds, selectBlock, updateBlockPositions, otherBlocks, canvasWidth, canvasHeight, setGuides, pushHistorySnapshot]);
 
   const handleResizeMouseDown = useCallback((e: React.MouseEvent, handle: string) => {
-    // ... (Resize Logic - keep existing, maybe add guides later but simplifying for now)
     e.stopPropagation();
     e.preventDefault();
     selectBlock(block.id);
     setIsResizing(true);
     setResizeHandle(handle);
+
+    // Push history snapshot before starting resize
+    pushHistorySnapshot();
 
     resizeStartRef.current = {
       x: e.clientX,
@@ -298,7 +305,7 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
 
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
-  }, [block.id, block.style, scale, selectBlock, updateBlockPosition, updateBlockSize]);
+  }, [block.id, block.style, scale, selectBlock, updateBlockPosition, updateBlockSize, pushHistorySnapshot]);
 
   const resizeHandles = ["n", "e", "s", "w", "ne", "se", "sw", "nw"];
 
@@ -473,8 +480,10 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
 }
 
 export function BuilderCanvas() {
-  const { blocks, selectBlock, addBlockAtPosition, paperSize, orientation, selectedBlockIds } =
+  const { blocks, selectBlock, addBlockAtPosition, paperSize, orientation, selectedBlockIds, zoom, setZoom } =
     useTemplateBuilderStore();
+
+  useKeyboardShortcuts();
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const [scale] = useState(1);
@@ -519,10 +528,21 @@ export function BuilderCanvas() {
     e.dataTransfer.dropEffect = "copy";
   };
 
+  const handleWheel = (e: React.WheelEvent) => {
+    // Check if Ctrl/Cmd key is pressed for zooming
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      const newZoom = Math.max(0.25, Math.min(2, zoom + delta));
+      setZoom(newZoom);
+    }
+  };
+
   return (
     <div
       className="flex-1 overflow-auto bg-muted/50 p-8"
       onClick={() => selectBlock(null)}
+      onWheel={handleWheel}
     >
       <div
         ref={(node) => {
@@ -536,7 +556,7 @@ export function BuilderCanvas() {
         style={{
           width: canvasWidthPx,
           height: canvasHeightPx,
-          transform: `scale(${scale})`,
+          transform: `scale(${zoom})`,
           transformOrigin: "top center",
         }}
         onClick={handleCanvasClick}
