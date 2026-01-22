@@ -135,19 +135,10 @@ export function TableBlock({ block, isPreview, data }: TableBlockProps) {
       const fullKey = `{{${cleanKey}}}`;
       updateTableCell(block.id, customVarCell.row, customVarCell.col, {
         variable: fullKey,
-        content: fullKey, // Use key as content initially, user can rename content if they want, or maybe keep content?
-        // Actually, usually we set content to something readable. Let's stick to key for now or just don't touch content if it has text?
-        // Standard behavior: handleBindVariable sets content to label or key.
-        // Let's set content to key for clarity, user can edit it.
-        // Wait, existing handleBindVariable sets content to variable.label || variableKey.
-        // So here we should probably set it to the key.
+        content: fullKey,
         isLabel: false,
         labelId: undefined,
       });
-      // Allow user to keep existing content if they prefer?
-      // Logic: if cell is empty, set content. If not, maybe ask?
-      // Simpler: Set content to `{{key}}` visual style or just the key string.
-      // Let's match standard behavior: update content.
     }
     setCustomVarDialogOpen(false);
     setCustomVarCell(null);
@@ -319,7 +310,8 @@ export function TableBlock({ block, isPreview, data }: TableBlockProps) {
                       /* ... existing CellTag props ... */
                       key={colIndex}
                       className={cn(
-                        "px-3 py-2 text-left relative",
+                        props.compact ? "px-1 py-0.5" : "px-3 py-2",
+                        "text-left relative",
                         props.showBorders && "border",
                         !isPreview && "cursor-text hover:bg-muted/30",
                         hasVariable && !isPreview && "bg-primary/5",

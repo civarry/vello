@@ -9,7 +9,7 @@ import {
 import { Block, BlockType, DEFAULT_BLOCK_SIZES } from "@/types/template";
 import { BlockRenderer } from "../blocks/block-renderer";
 import { cn } from "@/lib/utils";
-import { Trash2, Copy, Move, AlignLeft, AlignCenter, AlignRight } from "lucide-react";
+import { Trash2, Copy, Move, AlignLeft, AlignCenter, AlignRight, ArrowUpToLine, ArrowDownToLine, AlignCenterVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // Guide line type
@@ -25,24 +25,31 @@ interface DraggableBlockProps {
   canvasWidth: number;
   canvasHeight: number;
   setGuides: (guides: Guide[]) => void;
+  showToolbar: boolean;
 }
 
-function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, setGuides }: DraggableBlockProps) {
+function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, setGuides, showToolbar }: DraggableBlockProps) {
   const {
-    selectedBlockId,
+    selectedBlockIds,
     selectBlock,
     removeBlock,
     duplicateBlock,
     updateBlockPosition,
+    updateBlockPositions,
     updateBlockSize,
     alignBlock,
+    blocks, // Need access to all blocks to find selected ones for drag
   } = useTemplateBuilderStore();
 
-  const isSelected = selectedBlockId === block.id;
+  const isSelected = selectedBlockIds.includes(block.id);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
-  const dragStartRef = useRef<{ x: number; y: number; blockX: number; blockY: number } | null>(null);
+  const dragStartRef = useRef<{
+    x: number;
+    y: number;
+    initialPositions: Map<string, { x: number; y: number }>
+  } | null>(null);
   const resizeStartRef = useRef<{ x: number; y: number; width: number; height: number; blockX: number; blockY: number } | null>(null);
 
   const SNAP_THRESHOLD = 5;
@@ -50,17 +57,76 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
     e.stopPropagation();
-    selectBlock(block.id);
 
     const target = e.target as HTMLElement;
-    if (target.closest('[data-resize-handle]')) return;
+
+    // Don't change selection when clicking on toolbar buttons
+    if (target.closest('[data-block-toolbar]')) return;
+
+    // Don't start drag when clicking on resize handles
+    if (target.closest('[data-resize-handle]')) {
+      selectBlock(block.id, e.shiftKey);
+      return;
+    }
+
+    // Multi-select logic is handled by store action
+    selectBlock(block.id, e.shiftKey);
 
     setIsDragging(true);
+
+    // Capture initial positions of currently selected blocks (including the one just clicked)
+    // Note: State update for selection might not be immediate, so we calculate what SHOULD be selected
+    // OR we rely on the fact that we just called selectBlock. 
+    // Actually, reading from 'blocks' from store might be stale or 'selectedBlockIds' stale in this closure.
+    // Ideally we use a ref or effect, but for drag start we need snapshots.
+    // Let's assume for now we drag the current block + others if they were already selected.
+
+    // Better interaction: If I click an unselected block without shift, it becomes the ONLY selection.
+    // If I click a selected block, I drag the group.
+
+    // We can't easily access the *updated* selection state immediately after selectBlock call.
+    // However, if we are clicking a block:
+    // 1. If Shift is down, toggle selection.
+    // 2. If Shift is UP:
+    //    a. If block is ALREADY selected, keep selection (might be starting a drag of the group).
+    //    b. If block is NOT selected, select ONLY this block.
+
+    // Let's refine the selectBlock call above.
+    // If we want to drag a group, we shouldn't deselect others when clicking a member.
+    // But duplicate logic in store?
+    // Let's rely on store 'selectBlock' doing the right thing, but we need to know what to drag.
+
+    // Hack: We need the list of IDs to drag.
+    let draggingIds: string[] = [];
+    if (e.shiftKey) {
+      // Toggling. If we just added it, it's dragging. If removed, we probably shouldn't drag it?
+      // Actually typically you don't drag on the same click as shift-select.
+      // But let's support it. 
+      // For simplicity, let's look at `selectedBlockIds`. 
+      // If currently selected, stay selected.
+      draggingIds = [...selectedBlockIds];
+      if (!draggingIds.includes(block.id)) draggingIds.push(block.id);
+    } else {
+      if (selectedBlockIds.includes(block.id)) {
+        // Already selected, drag all
+        draggingIds = [...selectedBlockIds];
+      } else {
+        // New single selection
+        draggingIds = [block.id];
+      }
+    }
+
+    const initialPositions = new Map<string, { x: number; y: number }>();
+    useTemplateBuilderStore.getState().blocks.forEach(b => {
+      if (draggingIds.includes(b.id)) {
+        initialPositions.set(b.id, { x: b.style.x, y: b.style.y });
+      }
+    });
+
     dragStartRef.current = {
       x: e.clientX,
       y: e.clientY,
-      blockX: block.style.x,
-      blockY: block.style.y,
+      initialPositions,
     };
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -68,25 +134,26 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
       const dx = (e.clientX - dragStartRef.current.x) / scale;
       const dy = (e.clientY - dragStartRef.current.y) / scale;
 
-      let newX = dragStartRef.current.blockX + dx;
-      let newY = dragStartRef.current.blockY + dy;
+      // Primary block (this block) logic for snapping
+      const initialPos = dragStartRef.current.initialPositions.get(block.id);
+      if (!initialPos) return; // Should not happen
+
+      let newX = initialPos.x + dx;
+      let newY = initialPos.y + dy;
 
       const activeGuides: Guide[] = [];
 
-      // SNAPPING LOGIC
+      // SNAPPING LOGIC (Only for the primary dragged block for now)
       const blockWidth = block.style.width;
       const blockHeight = block.style.height;
-
-      // Define points of interest on the moving block (Left, Center, Right | Top, Center, Bottom)
-      // We check snapping for the NEW theoretical position
-      const myPointsX = [newX, newX + blockWidth / 2, newX + blockWidth]; // [Left, Center, Right]
-      const myPointsY = [newY, newY + blockHeight / 2, newY + blockHeight]; // [Top, Center, Bottom]
-
-      // Collect snap targets from other blocks & canvas center
+      const myPointsX = [newX, newX + blockWidth / 2, newX + blockWidth];
+      const myPointsY = [newY, newY + blockHeight / 2, newY + blockHeight];
       const targetsX = [canvasWidth / 2];
       const targetsY = [canvasHeight / 2];
 
       otherBlocks.forEach(other => {
+        // Don't snap to other dragging blocks
+        if (dragStartRef.current?.initialPositions.has(other.id)) return;
         targetsX.push(other.style.x, other.style.x + other.style.width / 2, other.style.x + other.style.width);
         targetsY.push(other.style.y, other.style.y + other.style.height / 2, other.style.y + other.style.height);
       });
@@ -94,36 +161,26 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
       // Check X Snapping
       let snapX = null;
       let minDistX = SNAP_THRESHOLD;
-
-      // Iterate through my points (L, C, R) and compare with all target points
-      // We want to find the smallest snap distance.
-      // Optimization: This is O(3 * N), acceptable for < 100 blocks.
       for (let i = 0; i < myPointsX.length; i++) {
         const myX = myPointsX[i];
         for (const targetX of targetsX) {
           const diff = Math.abs(myX - targetX);
           if (diff < minDistX) {
             minDistX = diff;
-            // Calculate the snapped X for the block origin
-            // If my Left (i=0) snaps to target, newX = target
-            // If my Center (i=1) snaps to target, newX = target - width/2
-            // If my Right (i=2) snaps to target, newX = target - width
             if (i === 0) snapX = targetX;
             else if (i === 1) snapX = targetX - blockWidth / 2;
             else if (i === 2) snapX = targetX - blockWidth;
-
-            // We only store one guide per axis for simplicity, or we could verify exact match
           }
         }
       }
 
+      // Apply X Snap
+      let snapedDx = dx;
       if (snapX !== null) {
         newX = snapX;
-        // Add guide at the target position
-        // Recalculate which target it snapped to for visualization
-        // Just finding *any* target match is enough for visual line
-        // The strictly correct way is to add a guide for the *matched target*
-        // Re-find the matched target for visual:
+        snapedDx = newX - initialPos.x; // Recalculate dx based on snap
+
+        // Guides
         const snappedCenter = newX + blockWidth / 2;
         const snappedRight = newX + blockWidth;
         if (targetsX.some(t => Math.abs(newX - t) < 0.1)) activeGuides.push({ orientation: "vertical", position: newX });
@@ -134,7 +191,6 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
       // Check Y Snapping
       let snapY = null;
       let minDistY = SNAP_THRESHOLD;
-
       for (let i = 0; i < myPointsY.length; i++) {
         const myY = myPointsY[i];
         for (const targetY of targetsY) {
@@ -148,8 +204,13 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
         }
       }
 
+      // Apply Y Snap
+      let snapedDy = dy;
       if (snapY !== null) {
         newY = snapY;
+        snapedDy = newY - initialPos.y; // Recalculate dy based on snap
+
+        // Guides
         const snappedCenter = newY + blockHeight / 2;
         const snappedBottom = newY + blockHeight;
         if (targetsY.some(t => Math.abs(newY - t) < 0.1)) activeGuides.push({ orientation: "horizontal", position: newY });
@@ -159,11 +220,16 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
 
       setGuides(activeGuides);
 
-      updateBlockPosition(
-        block.id,
-        Math.max(0, newX),
-        Math.max(0, newY)
-      );
+      // Apply calculated delta (snapedDx, snapedDy) to ALL dragging blocks
+      const updates = new Map<string, { x: number; y: number }>();
+      dragStartRef.current.initialPositions.forEach((pos, id) => {
+        updates.set(id, {
+          x: Math.max(0, pos.x + snapedDx),
+          y: Math.max(0, pos.y + snapedDy),
+        });
+      });
+
+      updateBlockPositions(updates);
     };
 
     const handleMouseUp = () => {
@@ -176,7 +242,7 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
 
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
-  }, [block.id, block.style, scale, selectBlock, updateBlockPosition, otherBlocks, canvasWidth, canvasHeight, setGuides]);
+  }, [block.id, block.style, scale, selectedBlockIds, selectBlock, updateBlockPositions, otherBlocks, canvasWidth, canvasHeight, setGuides]);
 
   const handleResizeMouseDown = useCallback((e: React.MouseEvent, handle: string) => {
     // ... (Resize Logic - keep existing, maybe add guides later but simplifying for now)
@@ -253,7 +319,6 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
       onMouseDown={handleMouseDown}
       onClick={(e) => {
         e.stopPropagation();
-        selectBlock(block.id);
       }}
     >
       {/* Selection outline */}
@@ -269,9 +334,13 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
         <BlockRenderer block={block} />
       </div>
 
-      {/* Controls toolbar - show on selection */}
-      {isSelected && (
-        <div className="absolute -top-9 left-0 flex items-center gap-1 bg-background border rounded-md shadow-sm p-1">
+      {/* Controls toolbar - show only on one block for selection */}
+      {isSelected && showToolbar && (
+        <div
+          className="absolute -top-9 left-0 flex items-center gap-1 bg-background border rounded-md shadow-sm p-1"
+          data-block-toolbar="true"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
           <Button
             variant="ghost"
             size="icon"
@@ -307,6 +376,43 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
             title="Align right"
           >
             <AlignRight className="h-3 w-3" />
+          </Button>
+          <div className="w-px h-4 bg-border" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={(e) => {
+              e.stopPropagation();
+              alignBlock(block.id, "top");
+            }}
+            title="Align top"
+          >
+            <ArrowUpToLine className="h-3 w-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={(e) => {
+              e.stopPropagation();
+              alignBlock(block.id, "middle");
+            }}
+            title="Center vertically"
+          >
+            <AlignCenterVertical className="h-3 w-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={(e) => {
+              e.stopPropagation();
+              alignBlock(block.id, "bottom");
+            }}
+            title="Align bottom"
+          >
+            <ArrowDownToLine className="h-3 w-3" />
           </Button>
           <div className="w-px h-4 bg-border" />
           <Button
@@ -367,7 +473,7 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
 }
 
 export function BuilderCanvas() {
-  const { blocks, selectBlock, addBlockAtPosition, paperSize, orientation } =
+  const { blocks, selectBlock, addBlockAtPosition, paperSize, orientation, selectedBlockIds } =
     useTemplateBuilderStore();
 
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -465,18 +571,23 @@ export function BuilderCanvas() {
           />
         ))}
 
-        {blocks.map((block) => (
-          <DraggableBlock
-            key={block.id}
-            block={block}
-            scale={scale}
-            // Pass filtered blocks (excluding current) for snapping
-            otherBlocks={blocks.filter(b => b.id !== block.id)}
-            canvasWidth={canvasWidthPx} // Using PX value for calculation
-            canvasHeight={canvasHeightPx} // Using PX value for calculation
-            setGuides={setGuides}
-          />
-        ))}
+        {blocks.map((block) => {
+          // Show toolbar only on the first selected block
+          const isFirstSelected = selectedBlockIds.length > 0 && selectedBlockIds[0] === block.id;
+          return (
+            <DraggableBlock
+              key={block.id}
+              block={block}
+              scale={scale}
+              // Pass filtered blocks (excluding current) for snapping
+              otherBlocks={blocks.filter(b => b.id !== block.id)}
+              canvasWidth={canvasWidthPx} // Using PX value for calculation
+              canvasHeight={canvasHeightPx} // Using PX value for calculation
+              setGuides={setGuides}
+              showToolbar={isFirstSelected}
+            />
+          );
+        })}
       </div>
     </div>
   );

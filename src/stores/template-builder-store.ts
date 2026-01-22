@@ -23,7 +23,8 @@ interface TemplateBuilderState {
   templateId: string | null;
   templateName: string;
   blocks: Block[];
-  selectedBlockId: string | null;
+  selectedBlockId: string | null; // Deprecated: getter for backward compatibility
+  selectedBlockIds: string[];
   globalStyles: GlobalStyles;
   paperSize: PaperSize;
   orientation: Orientation;
@@ -38,12 +39,16 @@ interface TemplateBuilderState {
   addBlockAtPosition: (type: BlockType, x: number, y: number) => void;
   updateBlock: (id: string, updates: Partial<Block>) => void;
   updateBlockProperties: (id: string, properties: Partial<Block["properties"]>) => void;
+  updateBlocksProperties: (ids: string[], properties: Partial<Block["properties"]>) => void;
   updateBlockStyle: (id: string, style: Partial<BlockStyle>) => void;
   updateBlockPosition: (id: string, x: number, y: number) => void;
+  updateBlockPositions: (updates: Map<string, { x: number; y: number }>) => void;
   updateBlockSize: (id: string, width: number, height: number) => void;
   removeBlock: (id: string) => void;
   duplicateBlock: (id: string) => void;
-  selectBlock: (id: string | null) => void;
+  selectBlock: (id: string | null, multi?: boolean) => void;
+  groupSelectedBlocks: () => void;
+  ungroupSelectedBlocks: () => void;
   setGlobalStyles: (styles: Partial<GlobalStyles>) => void;
   loadTemplate: (schema: TemplateSchema & { id?: string; name?: string; paperSize?: PaperSize; orientation?: Orientation }) => void;
   getSchema: () => TemplateSchema;
@@ -52,6 +57,8 @@ interface TemplateBuilderState {
 
   // Alignment actions
   alignBlock: (id: string, alignment: "left" | "center" | "right" | "top" | "middle" | "bottom") => void;
+  distributeBlocks: (axis: "horizontal" | "vertical", gap?: number) => void;
+  centerSelectionOnPage: () => void;
   bringToFront: (id: string) => void;
   sendToBack: (id: string) => void;
 
@@ -98,6 +105,7 @@ const initialState = {
   templateName: "Untitled Template",
   blocks: [] as Block[],
   selectedBlockId: null as string | null,
+  selectedBlockIds: [] as string[],
   globalStyles: DEFAULT_GLOBAL_STYLES,
   paperSize: "A4" as PaperSize,
   orientation: "PORTRAIT" as Orientation,
@@ -119,6 +127,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         blocks: [...state.blocks, block],
         isDirty: true,
         selectedBlockId: block.id,
+        selectedBlockIds: [block.id],
       })),
 
     addBlockAtPosition: (type, x, y) =>
@@ -141,6 +150,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
           blocks: [...state.blocks, newBlock],
           isDirty: true,
           selectedBlockId: id,
+          selectedBlockIds: [id],
         };
       }),
 
@@ -156,6 +166,17 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
       set((state) => ({
         blocks: state.blocks.map((block) =>
           block.id === id
+            ? { ...block, properties: { ...block.properties, ...properties } as Block["properties"] }
+            : block
+        ),
+        isDirty: true,
+      })),
+
+    // NEW: Batch property update
+    updateBlocksProperties: (ids, properties) =>
+      set((state) => ({
+        blocks: state.blocks.map((block) =>
+          ids.includes(block.id)
             ? { ...block, properties: { ...block.properties, ...properties } as Block["properties"] }
             : block
         ),
@@ -182,6 +203,26 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         isDirty: true,
       })),
 
+    // NEW: Batch update for multi-drag
+    updateBlockPositions: (updates) =>
+      set((state) => ({
+        blocks: state.blocks.map((block) => {
+          const update = updates.get(block.id);
+          if (update) {
+            return {
+              ...block,
+              style: {
+                ...block.style,
+                x: update.x,
+                y: update.y,
+              },
+            };
+          }
+          return block;
+        }),
+        isDirty: true,
+      })),
+
     updateBlockSize: (id, width, height) =>
       set((state) => ({
         blocks: state.blocks.map((block) =>
@@ -197,6 +238,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         blocks: state.blocks.filter((block) => block.id !== id),
         selectedBlockId:
           state.selectedBlockId === id ? null : state.selectedBlockId,
+        selectedBlockIds: state.selectedBlockIds.filter((bid) => bid !== id),
         isDirty: true,
       })),
 
@@ -219,10 +261,156 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
           blocks: [...state.blocks, newBlock],
           isDirty: true,
           selectedBlockId: newBlock.id,
+          selectedBlockIds: [newBlock.id],
         };
       }),
 
-    selectBlock: (id) => set({ selectedBlockId: id }),
+    // NEW: Multi-select logic
+    selectBlock: (id, multi = false) =>
+      set((state) => {
+        if (id === null) {
+          return { selectedBlockIds: [], selectedBlockId: null };
+        }
+
+        if (multi) {
+          const alreadySelected = state.selectedBlockIds.includes(id);
+          const newSelection = alreadySelected
+            ? state.selectedBlockIds.filter((bid) => bid !== id)
+            : [...state.selectedBlockIds, id];
+
+          return {
+            selectedBlockIds: newSelection,
+            selectedBlockId: newSelection.length > 0 ? newSelection[newSelection.length - 1] : null,
+          };
+        } else {
+          return {
+            selectedBlockIds: [id],
+            selectedBlockId: id,
+          };
+        }
+      }),
+
+    // NEW: Group logic
+    groupSelectedBlocks: () =>
+      set((state) => {
+        if (state.selectedBlockIds.length < 2) return state;
+
+        const selectedBlocks = state.blocks.filter((b) => state.selectedBlockIds.includes(b.id));
+        if (selectedBlocks.length === 0) return state;
+
+        // Calculate bounding box
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        selectedBlocks.forEach(b => {
+          const x = b.style.x ?? 0;
+          const y = b.style.y ?? 0;
+          const w = b.style.width ?? 0; // Safe fallback
+          const h = b.style.height ?? 0; // Safe fallback
+
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+          if (x + w > maxX) maxX = x + w;
+          if (y + h > maxY) maxY = y + h;
+        });
+
+        // Safety check if blocks have weird coords
+        if (minX === Infinity || minY === Infinity) return state;
+
+        const containerX = minX;
+        const containerY = minY;
+        const containerWidth = Math.max(10, maxX - minX);
+        const containerHeight = Math.max(10, maxY - minY);
+
+        // Reparent blocks to relative coordinates
+        const children = selectedBlocks.map(b => ({
+          ...b,
+          style: {
+            ...b.style,
+            x: (b.style.x ?? 0) - containerX,
+            y: (b.style.y ?? 0) - containerY
+          }
+        }));
+
+        const containerId = generateId();
+        const containerBlock: Block = {
+          id: containerId,
+          type: "container",
+          properties: {
+            direction: "column",
+            children, // These children will be rendered recursively by ContainerBlock
+          },
+          style: {
+            ...DEFAULT_BLOCK_STYLE,
+            x: containerX,
+            y: containerY,
+            width: containerWidth,
+            height: containerHeight,
+            backgroundColor: "transparent",
+            paddingTop: 0, paddingBottom: 0, paddingLeft: 0, paddingRight: 0,
+            borderWidth: 1, // Optional visual indicator
+            borderStyle: "dashed",
+            borderColor: "#ccc",
+          }
+        };
+
+        // Remove original blocks and add container
+        const newBlocks = state.blocks.filter(b => !state.selectedBlockIds.includes(b.id));
+        return {
+          blocks: [...newBlocks, containerBlock],
+          selectedBlockIds: [containerId],
+          selectedBlockId: containerId,
+          isDirty: true,
+        };
+      }),
+
+    // NEW: Ungroup logic
+    ungroupSelectedBlocks: () =>
+      set((state) => {
+        // Find selected containers
+        const containersToUngroup = state.blocks.filter(
+          b => state.selectedBlockIds.includes(b.id) && b.type === "container"
+        );
+
+        if (containersToUngroup.length === 0) return state;
+
+        let newBlocks = [...state.blocks];
+        let newSelection: string[] = [];
+
+        containersToUngroup.forEach(container => {
+          const props = container.properties as any;
+          const children = (props.children || []) as Block[];
+
+          // Reparent children to root
+          const liberatedChildren = children.map(child => ({
+            ...child,
+            style: {
+              ...child.style,
+              x: container.style.x + child.style.x,
+              y: container.style.y + child.style.y
+            }
+          }));
+
+          // Remove container
+          newBlocks = newBlocks.filter(b => b.id !== container.id);
+          // Add children
+          newBlocks.push(...liberatedChildren);
+          // Select children
+          newSelection.push(...liberatedChildren.map(c => c.id));
+        });
+
+        // Keep other selected items that weren't ungrouped
+        const otherSelected = state.selectedBlockIds.filter(id =>
+          !containersToUngroup.find(c => c.id === id)
+        );
+
+        const finalSelection = [...otherSelected, ...newSelection];
+
+        return {
+          blocks: newBlocks,
+          selectedBlockIds: finalSelection,
+          selectedBlockId: finalSelection[0] || null,
+          isDirty: true,
+        };
+      }),
 
     setGlobalStyles: (styles) =>
       set((state) => ({
@@ -240,6 +428,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         orientation: schema.orientation || "PORTRAIT",
         isDirty: false,
         selectedBlockId: null,
+        selectedBlockIds: [],
       }),
 
     getSchema: () => {
@@ -258,50 +447,184 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
     // Alignment actions
     alignBlock: (id, alignment) =>
       set((state) => {
-        const block = state.blocks.find((b) => b.id === id);
-        if (!block) return state;
+        // Legacy support: redirect to new logic if ID matches selection
+        // Actually, let's just use the ID as the target if provided, or selection if not.
+        // But for "Batch" operations, we usually use selection.
 
-        const paperDimensions = PAPER_DIMENSIONS[state.paperSize];
-        const canvasWidth = state.orientation === "PORTRAIT" ? paperDimensions.width : paperDimensions.height;
-        const canvasHeight = state.orientation === "PORTRAIT" ? paperDimensions.height : paperDimensions.width;
-        // Convert mm to pixels (approximately 3.78 px/mm at 96 DPI)
-        const pxPerMm = 3.78;
-        const canvasWidthPx = canvasWidth * pxPerMm;
-        const canvasHeightPx = canvasHeight * pxPerMm;
+        // Single block alignment (Align to Page)
+        if (state.selectedBlockIds.length <= 1) {
+          const targetId = id || state.selectedBlockIds[0];
+          if (!targetId) return state;
 
-        let newX = block.style.x;
-        let newY = block.style.y;
+          const block = state.blocks.find((b) => b.id === targetId);
+          if (!block) return state;
 
-        switch (alignment) {
-          case "left":
-            newX = 20;
-            break;
-          case "center":
-            newX = (canvasWidthPx - block.style.width) / 2;
-            break;
-          case "right":
-            newX = canvasWidthPx - block.style.width - 20;
-            break;
-          case "top":
-            newY = 20;
-            break;
-          case "middle":
-            newY = (canvasHeightPx - block.style.height) / 2;
-            break;
-          case "bottom":
-            newY = canvasHeightPx - block.style.height - 20;
-            break;
+          const paperDimensions = PAPER_DIMENSIONS[state.paperSize];
+          const canvasWidth = state.orientation === "PORTRAIT" ? paperDimensions.width : paperDimensions.height;
+          const canvasHeight = state.orientation === "PORTRAIT" ? paperDimensions.height : paperDimensions.width;
+          const pxPerMm = 3.78;
+          const canvasWidthPx = canvasWidth * pxPerMm;
+          const canvasHeightPx = canvasHeight * pxPerMm;
+
+          let newX = block.style.x;
+          let newY = block.style.y;
+
+          switch (alignment) {
+            case "left": newX = 20; break;
+            case "center": newX = (canvasWidthPx - block.style.width) / 2; break;
+            case "right": newX = canvasWidthPx - block.style.width - 20; break;
+            case "top": newY = 20; break;
+            case "middle": newY = (canvasHeightPx - block.style.height) / 2; break;
+            case "bottom": newY = canvasHeightPx - block.style.height - 20; break;
+          }
+
+          return {
+            blocks: state.blocks.map((b) =>
+              b.id === targetId ? { ...b, style: { ...b.style, x: newX, y: newY } } : b
+            ),
+            isDirty: true,
+          };
         }
 
+        // Multi-block alignment - align all selected blocks together
+        const selectedBlocks = state.blocks.filter(b => state.selectedBlockIds.includes(b.id));
+        if (selectedBlocks.length === 0) return state;
+
+        // Calculate selection bounds
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        selectedBlocks.forEach(b => {
+          minX = Math.min(minX, b.style.x);
+          minY = Math.min(minY, b.style.y);
+          maxX = Math.max(maxX, b.style.x + b.style.width);
+          maxY = Math.max(maxY, b.style.y + b.style.height);
+        });
+
+        const centerX = minX + (maxX - minX) / 2;
+        const centerY = minY + (maxY - minY) / 2;
+
+        const updates = new Map<string, { x?: number, y?: number }>();
+
+        selectedBlocks.forEach(b => {
+          switch (alignment) {
+            // Horizontal alignments - change X only, keep Y
+            case "left":
+              updates.set(b.id, { x: minX });
+              break;
+            case "center":
+              updates.set(b.id, { x: centerX - b.style.width / 2 });
+              break;
+            case "right":
+              updates.set(b.id, { x: maxX - b.style.width });
+              break;
+            // Vertical alignments - change Y only, keep X
+            case "top":
+              updates.set(b.id, { y: minY });
+              break;
+            case "middle":
+              updates.set(b.id, { y: centerY - b.style.height / 2 });
+              break;
+            case "bottom":
+              updates.set(b.id, { y: maxY - b.style.height });
+              break;
+          }
+        });
+
         return {
-          blocks: state.blocks.map((b) =>
-            b.id === id
-              ? { ...b, style: { ...b.style, x: newX, y: newY } }
-              : b
-          ),
+          blocks: state.blocks.map((b) => {
+            const up = updates.get(b.id);
+            return up ? { ...b, style: { ...b.style, ...up } } : b;
+          }),
           isDirty: true,
         };
       }),
+
+    // Distribute logic - aligns edges and spaces with gap
+    distributeBlocks: (axis: "horizontal" | "vertical", gap: number = 10) => set((state) => {
+      if (state.selectedBlockIds.length < 2) return state; // Need at least 2 to distribute
+
+      const selectedBlocks = state.blocks.filter(b => state.selectedBlockIds.includes(b.id));
+
+      // Sort by position on the distribution axis
+      selectedBlocks.sort((a, b) => axis === "horizontal" ? a.style.x - b.style.x : a.style.y - b.style.y);
+
+      // Find the alignment edge (topmost Y for horizontal, leftmost X for vertical)
+      const alignEdge = axis === "horizontal"
+        ? Math.min(...selectedBlocks.map(b => b.style.y)) // Align top edges
+        : Math.min(...selectedBlocks.map(b => b.style.x)); // Align left edges
+
+      // Calculate positions with gap
+      const updates = new Map<string, { x: number, y: number }>();
+      let currentPos = axis === "horizontal" ? selectedBlocks[0].style.x : selectedBlocks[0].style.y;
+
+      selectedBlocks.forEach((b, i) => {
+        if (axis === "horizontal") {
+          // Distribute horizontally: align top edges, space on X axis
+          updates.set(b.id, { x: currentPos, y: alignEdge });
+          currentPos += b.style.width + gap;
+        } else {
+          // Distribute vertically: align left edges, space on Y axis
+          updates.set(b.id, { x: alignEdge, y: currentPos });
+          currentPos += b.style.height + gap;
+        }
+      });
+
+      return {
+        blocks: state.blocks.map((b) => {
+          const update = updates.get(b.id);
+          if (update) {
+            return {
+              ...b,
+              style: {
+                ...b.style,
+                x: update.x,
+                y: update.y
+              }
+            };
+          }
+          return b;
+        }),
+        isDirty: true,
+      };
+    }),
+
+    // NEW: Center entire selection on page
+    centerSelectionOnPage: () => set((state) => {
+      const selectedBlocks = state.blocks.filter(b => state.selectedBlockIds.includes(b.id));
+      if (selectedBlocks.length === 0) return state;
+
+      // Calculate Bounds
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      selectedBlocks.forEach(b => {
+        minX = Math.min(minX, b.style.x);
+        minY = Math.min(minY, b.style.y);
+        maxX = Math.max(maxX, b.style.x + b.style.width);
+        maxY = Math.max(maxY, b.style.y + b.style.height);
+      });
+
+      const paperDimensions = PAPER_DIMENSIONS[state.paperSize];
+      const canvasWidth = state.orientation === "PORTRAIT" ? paperDimensions.width : paperDimensions.height;
+      const canvasHeight = state.orientation === "PORTRAIT" ? paperDimensions.height : paperDimensions.width;
+      const pxPerMm = 3.78;
+      const canvasWidthPx = canvasWidth * pxPerMm;
+      const canvasHeightPx = canvasHeight * pxPerMm;
+
+      const selectionWidth = maxX - minX;
+      const selectionHeight = maxY - minY;
+      const targetX = (canvasWidthPx - selectionWidth) / 2;
+      const targetY = (canvasHeightPx - selectionHeight) / 2;
+
+      const dx = targetX - minX;
+      const dy = targetY - minY;
+
+      return {
+        blocks: state.blocks.map((b) =>
+          state.selectedBlockIds.includes(b.id)
+            ? { ...b, style: { ...b.style, x: b.style.x + dx, y: b.style.y + dy } }
+            : b
+        ),
+        isDirty: true,
+      };
+    }),
 
     bringToFront: (id) =>
       set((state) => {
@@ -433,11 +756,11 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         const newRows = props.rows.map((row, ri) =>
           ri === rowIndex
             ? {
-                ...row,
-                cells: row.cells.map((cell, ci) =>
-                  ci === colIndex ? { ...cell, ...updates } : cell
-                ),
-              }
+              ...row,
+              cells: row.cells.map((cell, ci) =>
+                ci === colIndex ? { ...cell, ...updates } : cell
+              ),
+            }
             : row
         );
 

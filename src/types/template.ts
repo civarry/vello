@@ -60,6 +60,7 @@ export interface TableBlockProperties {
   rows: TableRow[];
   showBorders?: boolean;
   stripedRows?: boolean;
+  compact?: boolean;
   headerBackground?: string;
 }
 

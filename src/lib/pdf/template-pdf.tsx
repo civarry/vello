@@ -156,7 +156,7 @@ function TableBlock({
     },
     cell: {
       flex: 1,
-      padding: 6 * pxToPt,
+      padding: (properties.compact ? 2 : 6) * pxToPt,
       borderRightWidth: properties.showBorders ? 1 * pxToPt : 0,
       borderRightColor: "#e5e7eb",
       borderRightStyle: "solid",
@@ -225,13 +225,24 @@ function ImageBlock({
     return null;
   }
 
+  // Helper to parse numeric dimensions safely
+  const parseNumericDimension = (value: string | undefined): number | "auto" => {
+    if (!value) return "auto";
+    const num = parseFloat(value);
+    // Check if it's a valid number and doesn't contain % or other units
+    if (!isNaN(num) && /^\d+(\.\d+)?$/.test(value.trim())) {
+      return num * 0.75;
+    }
+    return "auto";
+  };
+
   return (
     <View style={styles.block}>
       <Image
         src={properties.src}
         style={{
-          width: properties.width ? parseFloat(properties.width) * 0.75 : "auto",
-          height: properties.height ? parseFloat(properties.height) * 0.75 : "auto",
+          width: parseNumericDimension(properties.width),
+          height: parseNumericDimension(properties.height),
           objectFit: properties.objectFit ?? "contain",
         }}
       />
