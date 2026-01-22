@@ -76,7 +76,7 @@ export function Sidebar() {
               collapsed ? "opacity-0 w-0" : "opacity-100"
             )}
           >
-            PayrollForge
+            Vello
           </span>
         </Link>
       </div>

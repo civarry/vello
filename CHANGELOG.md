@@ -1,8 +1,8 @@
-# PayrollForge Changelog
+# Vello Changelog
 
 ## Overview
 
-PayrollForge is a multi-tenant SaaS platform for designing custom payslip templates and generating payslips. This document tracks all development progress.
+Vello is a multi-tenant SaaS platform for designing custom payslip templates and generating payslips. This document tracks all development progress.
 
 ---
 

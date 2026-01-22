@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PayrollForge",
+  title: "Vello",
   description: "Design custom payslip templates and generate payslips",
 };
 

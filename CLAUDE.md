@@ -1,8 +1,8 @@
-# PayrollForge - Claude Code Guidelines
+# Vello - Claude Code Guidelines
 
 ## Project Vision
 
-PayrollForge is a multi-tenant SaaS platform that enables companies to design custom payslip templates through a visual builder, then generate payslips by inputting employee data directly or via Excel import/export.
+Vello is a multi-tenant SaaS platform that enables companies to design custom payslip templates through a visual builder, then generate payslips by inputting employee data directly or via Excel import/export.
 
 **Core Philosophy:** Design-first, not data-first. Companies create their payslip layout once, then reuse it every pay period.
 
@@ -37,7 +37,7 @@ PayrollForge is a multi-tenant SaaS platform that enables companies to design cu
 ## Project Structure
 
 ```
-payrollforge/
+vello/
 ├── src/
 │   ├── app/                    # Next.js App Router
 │   │   ├── (auth)/             # Auth routes (login, register, etc.)
