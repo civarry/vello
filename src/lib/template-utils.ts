@@ -13,10 +13,21 @@ export interface VariableInfo {
 }
 
 // Extract all variables used in a template (both standard and custom)
+// Logical order for suffixes
+const SUFFIX_ORDER = ["days", "quantity", "hours", "rate", "amount", "total"];
+
+function getSortIndex(key: string) {
+    const suffix = key.split('.').pop()?.toLowerCase();
+    const index = SUFFIX_ORDER.indexOf(suffix || "");
+    return index === -1 ? 999 : index;
+}
+
+// Extract all variables used in a template (both standard and custom)
 export function extractUsedVariables(blocks: Block[]): VariableInfo[] {
     const usedVariables = new Set<string>();
     const labelMap = new Map<string, string>(); // labelId -> label content
     const variableLabelOverride = new Map<string, string>(); // variable key -> inferred label from adjacent cell
+    const variableAppearanceOrder: string[] = []; // Track order of first appearance
 
     function processBlock(block: Block) {
         if (block.type === "table") {
@@ -25,7 +36,10 @@ export function extractUsedVariables(blocks: Block[]): VariableInfo[] {
                 row.cells.forEach((cell, index) => {
                     // Collect bound variables
                     if (cell.variable) {
-                        usedVariables.add(cell.variable);
+                        if (!usedVariables.has(cell.variable)) {
+                            usedVariables.add(cell.variable);
+                            variableAppearanceOrder.push(cell.variable);
+                        }
 
                         // heuristic: check previous cell for label
                         if (index > 0) {
@@ -58,7 +72,8 @@ export function extractUsedVariables(blocks: Block[]): VariableInfo[] {
 
     blocks.forEach(processBlock);
 
-    return Array.from(usedVariables).map((key) => {
+    // 1. Create VariableInfo objects
+    const allVariables = variableAppearanceOrder.map((key) => {
         // Check for inferred label override FIRST
         const inferredLabel = variableLabelOverride.get(key);
         if (inferredLabel) {
@@ -119,6 +134,41 @@ export function extractUsedVariables(blocks: Block[]): VariableInfo[] {
             category: "custom",
         };
     });
+
+    // 2. Sort Logic: Group by Base & Sort by Suffix
+    const groups = new Map<string, VariableInfo[]>();
+    const groupOrder: string[] = [];
+
+    allVariables.forEach(v => {
+        const keyWithoutBraces = v.key.replace(/[{}]/g, "");
+        const parts = keyWithoutBraces.split('.');
+        // Base is the first part (e.g., 'regular' from 'regular.hours')
+        // Unless it's a standard variable that doesn't follow dot notation strictly or we want to keep them separate?
+        // Actually, custom variables are typically `id.field`. Standard variables might just be `key`.
+        // Let's use the first part as the base for custom ones.
+        const base = parts[0];
+
+        if (!groups.has(base)) {
+            groups.set(base, []);
+            groupOrder.push(base);
+        }
+        groups.get(base)!.push(v);
+    });
+
+    const sortedVariables: VariableInfo[] = [];
+
+    groupOrder.forEach(base => {
+        const groupVars = groups.get(base)!;
+        // Sort within the group based on suffix
+        groupVars.sort((a, b) => {
+            const indexA = getSortIndex(a.key.replace(/[{}]/g, ""));
+            const indexB = getSortIndex(b.key.replace(/[{}]/g, ""));
+            return indexA - indexB;
+        });
+        sortedVariables.push(...groupVars);
+    });
+
+    return sortedVariables;
 }
 
 // Group variables by category
