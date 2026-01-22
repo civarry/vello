@@ -22,9 +22,9 @@ import {
 
 const navigation = [
   { name: "Templates", href: "/templates", icon: LayoutTemplate },
-  { name: "Payslips", href: "/payslips", icon: FileText },
-  { name: "Employees", href: "/employees", icon: Users },
-  { name: "Settings", href: "/settings", icon: Settings },
+  // { name: "Payslips", href: "/payslips", icon: FileText }, // Hidden until implemented
+  // { name: "Employees", href: "/employees", icon: Users }, // Hidden until implemented
+  // { name: "Settings", href: "/settings", icon: Settings }, // Hidden until implemented
 ];
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed";
