@@ -110,31 +110,14 @@ export default function TemplatesPage() {
 
   const handleDuplicate = async (template: Template) => {
     try {
-      // Fetch the full template with schema
-      const response = await fetch(`/api/templates/${template.id}`);
+      const response = await fetch(`/api/templates/${template.id}/duplicate`, {
+        method: "POST",
+      });
+
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || "Failed to fetch template");
-      }
-
-      // Create a duplicate
-      const duplicateResponse = await fetch("/api/templates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: `${template.name} (Copy)`,
-          description: template.description,
-          schema: result.data.schema,
-          paperSize: template.paperSize,
-          orientation: template.orientation,
-        }),
-      });
-
-      const duplicateResult = await duplicateResponse.json();
-
-      if (!duplicateResponse.ok) {
-        throw new Error(duplicateResult.error || "Failed to duplicate template");
+        throw new Error(result.error || "Failed to duplicate template");
       }
 
       toast.success("Template duplicated");

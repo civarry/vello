@@ -5,6 +5,47 @@ import { TemplatePDF } from "@/lib/pdf/template-pdf";
 import { applyDataToBlocks } from "@/lib/template-utils";
 import { Block, GlobalStyles } from "@/types/template";
 
+// Helper function to convert image URL to base64 data URL
+async function convertImageToBase64(url: string): Promise<string> {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            console.warn(`Failed to fetch image: ${url}`);
+            return url;
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const contentType = response.headers.get("content-type") || "image/png";
+        return `data:${contentType};base64,${buffer.toString("base64")}`;
+    } catch (error) {
+        console.warn(`Error converting image to base64: ${url}`, error);
+        return url;
+    }
+}
+
+// Process blocks to convert image URLs to base64
+async function processBlocksForPDF(blocks: Block[]): Promise<Block[]> {
+    const processedBlocks = await Promise.all(
+        blocks.map(async (block) => {
+            if (block.type === "image") {
+                const props = block.properties as { src?: string };
+                if (props?.src && (props.src.startsWith("http://") || props.src.startsWith("https://"))) {
+                    const base64Src = await convertImageToBase64(props.src);
+                    return {
+                        ...block,
+                        properties: {
+                            ...block.properties,
+                            src: base64Src,
+                        },
+                    };
+                }
+            }
+            return block;
+        })
+    );
+    return processedBlocks;
+}
+
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
@@ -31,19 +72,17 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Convert image URLs to base64 once (they're the same for all records)
+        const processedBlocks = await processBlocksForPDF(blocks);
+
         const zip = new JSZip();
         const folder = zip.folder("payslips");
 
         // Process each record
-        // Note: For large batches, this synchronous approach might timeout. 
-        // In a production environment, this should be a background job.
-        // For now, we process sequentially to avoid memory spikes.
-
         for (let i = 0; i < batchData.length; i++) {
             const data = batchData[i];
 
             // identifying filename from data if possible, e.g. employee name or ID
-            // assuming standard variable naming conventions or falling back to index
             let filenamePart = `record-${i + 1}`;
 
             // Try to find a good filename identifier
@@ -55,8 +94,8 @@ export async function POST(request: NextRequest) {
             const safeFilename = filenamePart.replace(/[^a-z0-9\-_]/gi, '_').trim();
             const pdfFilename = `${name}-${safeFilename}.pdf`;
 
-            // Apply data to blocks
-            const filledBlocks = applyDataToBlocks(blocks, data);
+            // Apply data to blocks (use processed blocks with base64 images)
+            const filledBlocks = applyDataToBlocks(processedBlocks, data);
 
             // Render PDF
             const pdfBuffer = await renderToBuffer(
