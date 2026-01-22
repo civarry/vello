@@ -307,7 +307,6 @@ export function TableBlock({ block, isPreview, data }: TableBlockProps) {
 
                   const cellContent = (
                     <CellTag
-                      /* ... existing CellTag props ... */
                       key={colIndex}
                       className={cn(
                         props.compact ? "px-1 py-0.5" : "px-3 py-2",
@@ -321,7 +320,7 @@ export function TableBlock({ block, isPreview, data }: TableBlockProps) {
                       style={{ borderColor: "#e5e7eb" }}
                       colSpan={cell.colSpan}
                       rowSpan={cell.rowSpan}
-                      onDoubleClick={() => startEditing(rowIndex, colIndex, cell)}
+                      onClick={() => startEditing(rowIndex, colIndex, cell)}
                     >
                       {/* ... content ... */}
                       {isEditing ? (
