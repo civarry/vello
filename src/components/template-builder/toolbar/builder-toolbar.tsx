@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ArrowLeft, Save, Eye, Download, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   useTemplateBuilderStore,
   PaperSize,
@@ -242,7 +243,14 @@ export function BuilderToolbar() {
 
       {/* Preview Modal */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0 gap-0">
+        <DialogContent
+          className={cn(
+            "flex flex-col p-0 gap-0",
+            orientation === "LANDSCAPE"
+              ? "max-w-6xl h-[70vh]"
+              : "max-w-4xl h-[85vh]"
+          )}
+        >
           <DialogHeader className="p-4 border-b">
             <DialogTitle>Template Preview (PDF)</DialogTitle>
           </DialogHeader>

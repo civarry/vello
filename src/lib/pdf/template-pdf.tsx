@@ -261,44 +261,42 @@ function ContainerBlock({
   const styles = createBlockStyles(block.style, globalStyles);
   const pxToPt = 0.75;
 
-  const justifyMap = {
-    start: "flex-start",
-    center: "center",
-    end: "flex-end",
-    between: "space-between",
-    around: "space-around",
-  } as const;
+  // If container has children with positions, use absolute positioning (grouped blocks)
+  if (properties.children && properties.children.length > 0) {
+    // For grouped blocks, we need to render children at their absolute page positions
+    // because react-pdf has issues with nested absolute positioning
+    // So we render each child as a separate absolute block on the page
+    return (
+      <>
+        {properties.children.map((childBlock) => {
+          // Convert child's relative position back to absolute page position
+          const absoluteX = block.style.x + childBlock.style.x;
+          const absoluteY = block.style.y + childBlock.style.y;
 
-  const alignMap = {
-    start: "flex-start",
-    center: "center",
-    end: "flex-end",
-    stretch: "stretch",
-  } as const;
+          // Create a block with absolute page coordinates for rendering
+          const childWithAbsolutePos = {
+            ...childBlock,
+            style: {
+              ...childBlock.style,
+              x: absoluteX,
+              y: absoluteY,
+            },
+          };
 
-  const containerStyles = StyleSheet.create({
-    container: {
-      ...styles.block,
-      display: "flex",
-      flexDirection: properties.direction ?? "column",
-      gap: (properties.gap ?? 0) * pxToPt,
-      justifyContent:
-        justifyMap[properties.justifyContent ?? "start"] ?? "flex-start",
-      alignItems: alignMap[properties.alignItems ?? "stretch"] ?? "stretch",
-    },
-  });
+          return (
+            <BlockRenderer
+              key={childBlock.id}
+              block={childWithAbsolutePos}
+              globalStyles={globalStyles}
+            />
+          );
+        })}
+      </>
+    );
+  }
 
-  return (
-    <View style={containerStyles.container}>
-      {properties.children?.map((childBlock) => (
-        <BlockRenderer
-          key={childBlock.id}
-          block={childBlock}
-          globalStyles={globalStyles}
-        />
-      ))}
-    </View>
-  );
+  // Empty container placeholder (won't render in PDF)
+  return <View style={styles.block} />;
 }
 
 function DividerBlock({

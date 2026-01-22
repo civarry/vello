@@ -5,7 +5,6 @@ import {
   Type,
   Table2,
   Image,
-  LayoutGrid,
   Minus,
   Square,
 } from "lucide-react";
@@ -36,12 +35,6 @@ const blockItems: BlockItem[] = [
     label: "Image",
     icon: Image,
     description: "Logo or images",
-  },
-  {
-    type: "container",
-    label: "Container",
-    icon: LayoutGrid,
-    description: "Group elements",
   },
   {
     type: "divider",
