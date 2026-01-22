@@ -90,8 +90,8 @@ export function PropertiesPanel() {
       const Icon = blockIcons[firstBlock.type] || Type;
 
       return (
-        <div className="w-72 border-l bg-muted/30 flex flex-col">
-          <div className="p-4 border-b space-y-3">
+        <div className="w-72 border-l bg-muted/30 flex flex-col h-full overflow-hidden">
+          <div className="p-4 border-b space-y-3 flex-shrink-0">
             <div className="flex items-center gap-2">
               <Icon className="h-4 w-4 text-muted-foreground" />
               <h3 className="text-sm font-semibold capitalize">
@@ -175,8 +175,8 @@ export function PropertiesPanel() {
             </div>
           </div>
 
-          <Tabs defaultValue="content" className="flex-1 flex flex-col">
-            <TabsList className="mx-4 mt-2 grid w-auto grid-cols-2">
+          <Tabs defaultValue="content" className="flex-1 flex flex-col min-h-0">
+            <TabsList className="mx-4 mt-2 grid w-auto grid-cols-2 flex-shrink-0">
               <TabsTrigger value="content">Content</TabsTrigger>
               <TabsTrigger value="style">Style</TabsTrigger>
             </TabsList>
@@ -192,26 +192,6 @@ export function PropertiesPanel() {
               <StyleProperties
                 style={firstBlock.style}
                 onUpdate={(style) => {
-                  // Style updates for multiple blocks need special handling if we want relative updates?
-                  // For now, setting absolute values (e.g. font size 14px) to all is expected behavior.
-                  // For Position (x, y), setting all to same X/Y stacks them. User probably doesn't want that often.
-                  // But Properties Panel inputs are absolute. 
-                  // Let's filter out X/Y/Width/Height from batch style updates? 
-                  // Or let user decide. If they type 100 in width, all become 100. That's good.
-                  // If they type 10 in X, all stack at 10. That's rarely desired, but standard behavior for alignment.
-                  // However, alignment tools are better for alignment.
-                  // Let's pass all updates.
-                  // But we need to use `updateBlocksProperties` which handles properties. 
-                  // Wait, styles are separate in `Block`. `updateBlocksProperties` handles `properties`.
-                  // We need `updateBlocksStyle`. `updateBlockStyle` exists.
-                  // We need `updateBlocksStyle` in store? Or loop?
-                  // Store doesn't have `updateBlocksStyle`. I should add it or loop.
-                  // Since I just added `updateBlocksProperties`, I should probably add `updateBlocksStyle` too.
-                  // But for now, let's just loop in UI for style? No, cleaner to add to store.
-                  // I'll add `updateBlocksStyle` to store in next step or use `updateBlocksStyle` if I added it?
-                  // I only added `updateBlocksProperties`.
-                  // Let's assume I will add `updateBlocksStyle` momentarily.
-                  // Actually, I can implementation-wise loop here efficiently enough.
                   selectedBlockIds.forEach(id => updateBlockStyle(id, style));
                 }}
               />
@@ -223,8 +203,8 @@ export function PropertiesPanel() {
 
     // Heterogeneous selection (Mixed Types)
     return (
-      <div className="w-72 border-l bg-muted/30 flex flex-col">
-        <div className="p-4 border-b">
+      <div className="w-72 border-l bg-muted/30 flex flex-col h-full overflow-hidden">
+        <div className="p-4 border-b flex-shrink-0">
           <div className="flex items-center gap-2">
             <Layers className="h-4 w-4 text-muted-foreground" />
             <h3 className="text-sm font-semibold">
@@ -232,7 +212,7 @@ export function PropertiesPanel() {
             </h3>
           </div>
         </div>
-        <div className="p-4 space-y-6">
+        <div className="p-4 space-y-6 overflow-y-auto flex-1">
           <div className="space-y-2">
             <Label className="text-[10px] uppercase text-muted-foreground font-bold">Organization</Label>
             <Button onClick={groupSelectedBlocks} className="w-full gap-2 h-9">
@@ -320,7 +300,7 @@ export function PropertiesPanel() {
 
   if (!selectedBlock) {
     return (
-      <div className="w-72 border-l bg-muted/30 p-4">
+      <div className="w-72 border-l bg-muted/30 p-4 h-full">
         <h3 className="mb-4 text-sm font-semibold">Properties</h3>
         <p className="text-sm text-muted-foreground">
           Select an element to edit its properties
@@ -332,8 +312,8 @@ export function PropertiesPanel() {
   const Icon = blockIcons[selectedBlock.type] || Type;
 
   return (
-    <div className="w-72 border-l bg-muted/30 flex flex-col">
-      <div className="p-4 border-b space-y-3">
+    <div className="w-72 border-l bg-muted/30 flex flex-col h-full overflow-hidden">
+      <div className="p-4 border-b space-y-3 flex-shrink-0">
         <div className="flex items-center gap-2">
           <Icon className="h-4 w-4 text-muted-foreground" />
           <h3 className="text-sm font-semibold capitalize">
@@ -355,8 +335,8 @@ export function PropertiesPanel() {
         )}
       </div>
 
-      <Tabs defaultValue="content" className="flex-1 flex flex-col">
-        <TabsList className="mx-4 mt-2 grid w-auto grid-cols-2">
+      <Tabs defaultValue="content" className="flex-1 flex flex-col min-h-0">
+        <TabsList className="mx-4 mt-2 grid w-auto grid-cols-2 flex-shrink-0">
           <TabsTrigger value="content">Content</TabsTrigger>
           <TabsTrigger value="style">Style</TabsTrigger>
         </TabsList>

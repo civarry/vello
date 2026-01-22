@@ -7,8 +7,11 @@ import type {
   TemplateSchema,
   TableRow,
   TableCell,
+  Guide,
 } from "@/types/template";
 import { DEFAULT_GLOBAL_STYLES, DEFAULT_BLOCK_STYLE, DEFAULT_BLOCK_SIZES } from "@/types/template";
+
+export type GridSize = 5 | 10 | 20;
 
 export type PaperSize = "A4" | "LETTER" | "LEGAL";
 export type Orientation = "PORTRAIT" | "LANDSCAPE";
@@ -50,6 +53,15 @@ interface TemplateBuilderState {
 
   // Clipboard for copy/paste
   clipboard: Block[] | null;
+
+  // Guides (persistent, saved with template)
+  guides: Guide[];
+
+  // Canvas display options (not saved with template)
+  showRulers: boolean;
+  showGrid: boolean;
+  gridSize: GridSize;
+  snapToGrid: boolean;
 
   // Actions
   setTemplateName: (name: string) => void;
@@ -115,6 +127,18 @@ interface TemplateBuilderState {
   addTableColumn: (blockId: string, afterIndex?: number) => void;
   removeTableColumn: (blockId: string, colIndex: number) => void;
   updateTableCell: (blockId: string, rowIndex: number, colIndex: number, updates: Partial<TableCell>) => void;
+
+  // Guide actions
+  addGuide: (orientation: "horizontal" | "vertical", position: number) => void;
+  updateGuide: (id: string, position: number) => void;
+  removeGuide: (id: string) => void;
+  clearGuides: () => void;
+
+  // Canvas display actions
+  setShowRulers: (show: boolean) => void;
+  setShowGrid: (show: boolean) => void;
+  setGridSize: (size: GridSize) => void;
+  setSnapToGrid: (snap: boolean) => void;
 }
 
 function generateId() {
@@ -161,6 +185,11 @@ const initialState = {
   historyIndex: -1,
   zoom: 1,
   clipboard: null as Block[] | null,
+  guides: [] as Guide[],
+  showRulers: true,
+  showGrid: false,
+  gridSize: 10 as GridSize,
+  snapToGrid: false,
 };
 
 // Helper to create a history snapshot from current state
@@ -586,6 +615,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         globalStyles: schema.globalStyles,
         paperSize: schema.paperSize || "A4",
         orientation: schema.orientation || "PORTRAIT",
+        guides: schema.guides || [],
         isDirty: false,
         selectedBlockId: null,
         selectedBlockIds: [],
@@ -599,6 +629,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
       return {
         blocks: state.blocks,
         variables: [],
+        guides: state.guides,
         globalStyles: state.globalStyles,
       };
     },
@@ -1086,5 +1117,41 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
       set((state) => ({
         ...pushHistory(state),
       })),
+
+    // Guide actions
+    addGuide: (orientation, position) =>
+      set((state) => ({
+        guides: [
+          ...state.guides,
+          { id: generateId(), orientation, position },
+        ],
+        isDirty: true,
+      })),
+
+    updateGuide: (id, position) =>
+      set((state) => ({
+        guides: state.guides.map((guide) =>
+          guide.id === id ? { ...guide, position } : guide
+        ),
+        isDirty: true,
+      })),
+
+    removeGuide: (id) =>
+      set((state) => ({
+        guides: state.guides.filter((guide) => guide.id !== id),
+        isDirty: true,
+      })),
+
+    clearGuides: () =>
+      set({
+        guides: [],
+        isDirty: true,
+      }),
+
+    // Canvas display actions
+    setShowRulers: (show) => set({ showRulers: show }),
+    setShowGrid: (show) => set({ showGrid: show }),
+    setGridSize: (size) => set({ gridSize: size }),
+    setSnapToGrid: (snap) => set({ snapToGrid: snap }),
   })
 );

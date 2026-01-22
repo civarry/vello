@@ -19,12 +19,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Save, Eye, Download, Loader2, RotateCcw, RotateCw, Minus, Plus, Maximize2 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { ArrowLeft, Save, Eye, Download, Loader2, RotateCcw, RotateCw, Minus, Plus, Maximize2, Ruler, Grid3X3, Magnet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   useTemplateBuilderStore,
   PaperSize,
   Orientation,
+  GridSize,
   PAPER_DIMENSIONS,
 } from "@/stores/template-builder-store";
 import { toast } from "sonner";
@@ -56,6 +62,16 @@ export function BuilderToolbar() {
     zoomOut,
     zoomToFit,
     resetZoom,
+    // Grid and rulers
+    showRulers,
+    setShowRulers,
+    showGrid,
+    setShowGrid,
+    gridSize,
+    setGridSize,
+    snapToGrid,
+    setSnapToGrid,
+    guides,
   } = useTemplateBuilderStore();
 
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -205,24 +221,32 @@ export function BuilderToolbar() {
         <div className="flex items-center gap-2">
           {/* Undo/Redo Buttons */}
           <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={undo}
-              disabled={!canUndo()}
-              title="Undo (Ctrl+Z)"
-            >
-              <RotateCcw className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={redo}
-              disabled={!canRedo()}
-              title="Redo (Ctrl+Shift+Z)"
-            >
-              <RotateCw className="h-4 w-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={undo}
+                  disabled={!canUndo()}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Undo (Ctrl+Z)</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={redo}
+                  disabled={!canRedo()}
+                >
+                  <RotateCw className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Redo (Ctrl+Shift+Z)</TooltipContent>
+            </Tooltip>
           </div>
 
           <Separator orientation="vertical" className="h-6" />
@@ -252,33 +276,100 @@ export function BuilderToolbar() {
 
           {/* Zoom Controls */}
           <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={zoomOut}
-              disabled={zoom <= 0.25}
-              title="Zoom Out (Ctrl + Scroll Down)"
-            >
-              <Minus className="h-4 w-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={zoomOut}
+                  disabled={zoom <= 0.25}
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Zoom Out</TooltipContent>
+            </Tooltip>
             <span className="text-xs w-12 text-center">{Math.round(zoom * 100)}%</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={zoomIn}
-              disabled={zoom >= 2}
-              title="Zoom In (Ctrl + Scroll Up)"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={resetZoom}
-              title="Reset Zoom (100%)"
-            >
-              <Maximize2 className="h-4 w-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={zoomIn}
+                  disabled={zoom >= 2}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Zoom In</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={resetZoom}
+                >
+                  <Maximize2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Reset Zoom (100%)</TooltipContent>
+            </Tooltip>
+          </div>
+
+          <Separator orientation="vertical" className="h-6" />
+
+          {/* Canvas Display Controls */}
+          <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={showRulers ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setShowRulers(!showRulers)}
+                >
+                  <Ruler className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Toggle Rulers</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={showGrid ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setShowGrid(!showGrid)}
+                >
+                  <Grid3X3 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Toggle Grid</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={snapToGrid ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSnapToGrid(!snapToGrid)}
+                  disabled={!showGrid}
+                >
+                  <Magnet className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Snap to Grid</TooltipContent>
+            </Tooltip>
+            {showGrid && (
+              <Select value={String(gridSize)} onValueChange={(v) => setGridSize(Number(v) as GridSize)}>
+                <SelectTrigger className="h-8 w-16">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5px</SelectItem>
+                  <SelectItem value="10">10px</SelectItem>
+                  <SelectItem value="20">20px</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           <Separator orientation="vertical" className="h-6" />

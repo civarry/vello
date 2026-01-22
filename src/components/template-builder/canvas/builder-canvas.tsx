@@ -9,12 +9,15 @@ import {
 import { Block, BlockType, DEFAULT_BLOCK_SIZES } from "@/types/template";
 import { BlockRenderer } from "../blocks/block-renderer";
 import { cn } from "@/lib/utils";
-import { Trash2, Copy, Move, AlignLeft, AlignCenter, AlignRight, ArrowUpToLine, ArrowDownToLine, AlignCenterVertical } from "lucide-react";
+import { Trash2, Copy, AlignLeft, AlignCenter, AlignRight, ArrowUpToLine, ArrowDownToLine, AlignCenterVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { Rulers } from "./rulers";
+import { CanvasGuides } from "./canvas-guides";
+import { CanvasGrid } from "./canvas-grid";
 
-// Guide line type
-type Guide = {
+// Snap guide type (temporary guides during drag, different from persistent Guide)
+type SnapGuide = {
   orientation: "vertical" | "horizontal";
   position: number;
 };
@@ -25,11 +28,12 @@ interface DraggableBlockProps {
   otherBlocks: Block[];
   canvasWidth: number;
   canvasHeight: number;
-  setGuides: (guides: Guide[]) => void;
+  setSnapGuides: (guides: SnapGuide[]) => void;
+  persistentGuides: { orientation: "horizontal" | "vertical"; position: number }[];
   showToolbar: boolean;
 }
 
-function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, setGuides, showToolbar }: DraggableBlockProps) {
+function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, setSnapGuides, persistentGuides, showToolbar }: DraggableBlockProps) {
   const {
     selectedBlockIds,
     selectBlock,
@@ -41,6 +45,8 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
     alignBlock,
     blocks,
     pushHistorySnapshot,
+    snapToGrid,
+    gridSize,
   } = useTemplateBuilderStore();
 
   const isSelected = selectedBlockIds.includes(block.id);
@@ -146,7 +152,13 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
       let newX = initialPos.x + dx;
       let newY = initialPos.y + dy;
 
-      const activeGuides: Guide[] = [];
+      // Grid snapping (applied first if enabled)
+      if (snapToGrid) {
+        newX = Math.round(newX / gridSize) * gridSize;
+        newY = Math.round(newY / gridSize) * gridSize;
+      }
+
+      const activeGuides: SnapGuide[] = [];
 
       // SNAPPING LOGIC (Only for the primary dragged block for now)
       const blockWidth = block.style.width;
@@ -155,6 +167,15 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
       const myPointsY = [newY, newY + blockHeight / 2, newY + blockHeight];
       const targetsX = [canvasWidth / 2];
       const targetsY = [canvasHeight / 2];
+
+      // Add persistent guides as snap targets
+      persistentGuides.forEach(guide => {
+        if (guide.orientation === "vertical") {
+          targetsX.push(guide.position);
+        } else {
+          targetsY.push(guide.position);
+        }
+      });
 
       otherBlocks.forEach(other => {
         // Don't snap to other dragging blocks
@@ -223,7 +244,7 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
         else if (targetsY.some(t => Math.abs(snappedBottom - t) < 0.1)) activeGuides.push({ orientation: "horizontal", position: snappedBottom });
       }
 
-      setGuides(activeGuides);
+      setSnapGuides(activeGuides);
 
       // Apply calculated delta (snapedDx, snapedDy) to ALL dragging blocks
       const updates = new Map<string, { x: number; y: number }>();
@@ -240,14 +261,14 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
     const handleMouseUp = () => {
       setIsDragging(false);
       dragStartRef.current = null;
-      setGuides([]);
+      setSnapGuides([]);
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
 
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
-  }, [block.id, block.style, scale, selectedBlockIds, selectBlock, updateBlockPositions, otherBlocks, canvasWidth, canvasHeight, setGuides, pushHistorySnapshot]);
+  }, [block.id, block.style, scale, selectedBlockIds, selectBlock, updateBlockPositions, otherBlocks, canvasWidth, canvasHeight, setSnapGuides, pushHistorySnapshot, snapToGrid, gridSize, persistentGuides]);
 
   const handleResizeMouseDown = useCallback((e: React.MouseEvent, handle: string) => {
     e.stopPropagation();
@@ -480,14 +501,34 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
 }
 
 export function BuilderCanvas() {
-  const { blocks, selectBlock, addBlockAtPosition, paperSize, orientation, selectedBlockIds, zoom, setZoom } =
-    useTemplateBuilderStore();
+  const {
+    blocks,
+    selectBlock,
+    addBlockAtPosition,
+    paperSize,
+    orientation,
+    selectedBlockIds,
+    zoom,
+    setZoom,
+    // Guides
+    guides: persistentGuides,
+    addGuide,
+    updateGuide,
+    removeGuide,
+    // Display options
+    showRulers,
+    showGrid,
+    gridSize,
+  } = useTemplateBuilderStore();
 
   useKeyboardShortcuts();
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const [scale] = useState(1);
-  const [guides, setGuides] = useState<Guide[]>([]);
+  // Temporary snap guides shown during drag operations
+  const [snapGuides, setSnapGuides] = useState<SnapGuide[]>([]);
+
+  const RULER_SIZE = showRulers ? 20 : 0;
 
   const { setNodeRef, isOver } = useDroppable({
     id: "canvas",
@@ -544,70 +585,121 @@ export function BuilderCanvas() {
       onClick={() => selectBlock(null)}
       onWheel={handleWheel}
     >
+      {/* Canvas wrapper with optional rulers */}
       <div
-        ref={(node) => {
-          setNodeRef(node);
-          if (node) canvasRef.current = node;
-        }}
-        className={cn(
-          "mx-auto bg-white shadow-lg rounded-sm transition-all relative",
-          isOver && "ring-2 ring-primary ring-dashed"
-        )}
+        className="relative mx-auto"
         style={{
-          width: canvasWidthPx,
-          height: canvasHeightPx,
-          transform: `scale(${zoom})`,
-          transformOrigin: "top center",
+          width: canvasWidthPx * zoom + RULER_SIZE,
+          height: canvasHeightPx * zoom + RULER_SIZE,
         }}
-        onClick={handleCanvasClick}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        data-canvas="true"
       >
-        {blocks.length === 0 && (
-          <div
-            className="absolute inset-8 flex items-center justify-center border-2 border-dashed rounded-md pointer-events-none"
-            data-canvas="true"
-          >
-            <p className="text-muted-foreground">
-              Drag elements here to start building your template
-            </p>
-          </div>
+        {/* Rulers */}
+        {showRulers && (
+          <Rulers
+            canvasWidth={canvasWidthPx}
+            canvasHeight={canvasHeightPx}
+            zoom={zoom}
+            onAddGuide={addGuide}
+          />
         )}
 
-        {/* Render Guides */}
-        {guides.map((guide, i) => (
-          <div
-            key={i}
-            className={cn(
-              "absolute bg-red-500 z-50 pointer-events-none",
-              guide.orientation === "vertical" ? "w-[1px] top-0 bottom-0" : "h-[1px] left-0 right-0"
-            )}
-            style={
-              guide.orientation === "vertical"
-                ? { left: guide.position }
-                : { top: guide.position }
-            }
-          />
-        ))}
-
-        {blocks.map((block) => {
-          // Show toolbar only on the first selected block
-          const isFirstSelected = selectedBlockIds.length > 0 && selectedBlockIds[0] === block.id;
-          return (
-            <DraggableBlock
-              key={block.id}
-              block={block}
-              scale={scale}
-              // Pass filtered blocks (excluding current) for snapping
-              otherBlocks={blocks.filter(b => b.id !== block.id)}
-              canvasWidth={canvasWidthPx} // Using PX value for calculation
-              canvasHeight={canvasHeightPx} // Using PX value for calculation
-              setGuides={setGuides}
-              showToolbar={isFirstSelected}
+        {/* Canvas */}
+        <div
+          ref={(node) => {
+            setNodeRef(node);
+            if (node) canvasRef.current = node;
+          }}
+          className={cn(
+            "bg-white shadow-lg rounded-sm relative overflow-hidden",
+            isOver && "ring-2 ring-primary ring-dashed"
+          )}
+          style={{
+            position: "absolute",
+            top: RULER_SIZE,
+            left: RULER_SIZE,
+            width: canvasWidthPx * zoom,
+            height: canvasHeightPx * zoom,
+          }}
+          onClick={handleCanvasClick}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          data-canvas="true"
+        >
+          {/* Grid overlay */}
+          {showGrid && (
+            <CanvasGrid
+              canvasWidth={canvasWidthPx}
+              canvasHeight={canvasHeightPx}
+              gridSize={gridSize}
+              zoom={zoom}
             />
-          );
-        })}
+          )}
+
+          {/* Canvas content wrapper with zoom transform */}
+          <div
+            className="absolute inset-0"
+            style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: "top left",
+              width: canvasWidthPx,
+              height: canvasHeightPx,
+            }}
+          >
+            {blocks.length === 0 && (
+              <div
+                className="absolute inset-8 flex items-center justify-center border-2 border-dashed rounded-md pointer-events-none"
+                data-canvas="true"
+              >
+                <p className="text-muted-foreground">
+                  Drag elements here to start building your template
+                </p>
+              </div>
+            )}
+
+            {/* Persistent guide lines */}
+            <CanvasGuides
+              guides={persistentGuides}
+              canvasWidth={canvasWidthPx}
+              canvasHeight={canvasHeightPx}
+              zoom={1}
+              onUpdateGuide={updateGuide}
+              onRemoveGuide={removeGuide}
+            />
+
+            {/* Temporary snap guides during drag */}
+            {snapGuides.map((guide, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "absolute bg-red-500 z-50 pointer-events-none",
+                  guide.orientation === "vertical" ? "w-[1px] top-0 bottom-0" : "h-[1px] left-0 right-0"
+                )}
+                style={
+                  guide.orientation === "vertical"
+                    ? { left: guide.position }
+                    : { top: guide.position }
+                }
+              />
+            ))}
+
+            {blocks.map((block) => {
+              const isFirstSelected = selectedBlockIds.length > 0 && selectedBlockIds[0] === block.id;
+              return (
+                <DraggableBlock
+                  key={block.id}
+                  block={block}
+                  scale={scale}
+                  otherBlocks={blocks.filter(b => b.id !== block.id)}
+                  canvasWidth={canvasWidthPx}
+                  canvasHeight={canvasHeightPx}
+                  setSnapGuides={setSnapGuides}
+                  persistentGuides={persistentGuides}
+                  showToolbar={isFirstSelected}
+                />
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );

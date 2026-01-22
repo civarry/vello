@@ -111,6 +111,13 @@ export interface TemplateVariable {
   category: "employee" | "period" | "company" | "earnings" | "deductions" | "computed";
 }
 
+// Guide line for canvas alignment
+export interface Guide {
+  id: string;
+  orientation: "horizontal" | "vertical";
+  position: number; // Position in pixels from top/left of canvas
+}
+
 export interface GlobalStyles {
   fontFamily: string;
   fontSize: number;
@@ -132,6 +139,7 @@ export interface TemplateSchema {
   blocks: Block[];
   variables: TemplateVariable[];
   globalStyles: GlobalStyles;
+  guides?: Guide[]; // Optional for backward compatibility
 }
 
 export const STANDARD_VARIABLES: TemplateVariable[] = [
