@@ -138,6 +138,7 @@ function TableBlock({
         borderColor: "#e5e7eb",
         borderStyle: "solid",
       }),
+      height: "auto", // Allow table to shrink to fit rows
     },
     row: {
       display: "flex",
