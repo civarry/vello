@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { parseExcelUpload } from "@/lib/excel/parser";
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> } // We might not need ID if parsing is generic, but keeping for consistency
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { user, error } = await getCurrentUser();
+
+        if (!user) {
+            return NextResponse.json({ error }, { status: 401 });
+        }
+
         const formData = await request.formData();
         const file = formData.get("file") as File;
 

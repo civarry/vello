@@ -1,33 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { getCurrentUser } from "@/lib/auth";
 import { createTemplateSchema } from "@/lib/validations/template";
 import { ZodError } from "zod";
 
-// For now, we'll use a hardcoded org ID until auth is implemented
-const TEMP_ORG_ID = "temp-org-id";
-
-async function ensureTempOrg() {
-  const org = await prisma.organization.findUnique({
-    where: { id: TEMP_ORG_ID },
-  });
-
-  if (!org) {
-    await prisma.organization.create({
-      data: {
-        id: TEMP_ORG_ID,
-        name: "Demo Organization",
-        slug: "demo-org",
-      },
-    });
-  }
-}
-
 export async function GET() {
   try {
-    await ensureTempOrg();
+    const { user, error } = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
 
     const templates = await prisma.template.findMany({
-      where: { organizationId: TEMP_ORG_ID },
+      where: { organizationId: user.organizationId },
       orderBy: { updatedAt: "desc" },
       select: {
         id: true,
@@ -53,7 +39,11 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    await ensureTempOrg();
+    const { user, error } = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
 
     const body = await request.json();
     const validated = createTemplateSchema.parse(body);
@@ -66,7 +56,7 @@ export async function POST(request: NextRequest) {
         paperSize: validated.paperSize,
         orientation: validated.orientation,
         isDefault: validated.isDefault ?? false,
-        organizationId: TEMP_ORG_ID,
+        organizationId: user.organizationId,
       },
     });
 

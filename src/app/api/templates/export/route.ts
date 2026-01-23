@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
+import { getCurrentUser } from "@/lib/auth";
 import { TemplatePDF } from "@/lib/pdf/template-pdf";
 import { Block } from "@/types/template";
 
@@ -48,6 +49,12 @@ async function processBlocksForPDF(blocks: Block[]): Promise<Block[]> {
 // POST endpoint for exporting without saving first (from builder)
 export async function POST(request: NextRequest) {
   try {
+    const { user, error } = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
+
     const body = await request.json();
     const { blocks, globalStyles, paperSize, orientation, name } = body;
 

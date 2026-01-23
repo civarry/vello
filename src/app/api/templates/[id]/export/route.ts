@@ -1,22 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { prisma } from "@/lib/db/prisma";
+import { getCurrentUser } from "@/lib/auth";
 import { TemplatePDF } from "@/lib/pdf/template-pdf";
 import type { TemplateSchema } from "@/types/template";
-
-const TEMP_ORG_ID = "temp-org-id";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, error } = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
+
     const { id } = await params;
 
     const template = await prisma.template.findFirst({
       where: {
         id,
-        organizationId: TEMP_ORG_ID,
+        organizationId: user.organizationId,
       },
     });
 

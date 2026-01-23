@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { getCurrentUser } from "@/lib/auth";
 import { generateExcelTemplate } from "@/lib/excel/generator";
 import { extractUsedVariables } from "@/lib/template-utils";
 import { TemplateSchema } from "@/types/template";
@@ -9,9 +10,19 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { user, error } = await getCurrentUser();
+
+        if (!user) {
+            return NextResponse.json({ error }, { status: 401 });
+        }
+
         const { id } = await params;
-        const template = await prisma.template.findUnique({
-            where: { id },
+
+        const template = await prisma.template.findFirst({
+            where: {
+                id,
+                organizationId: user.organizationId,
+            },
         });
 
         if (!template) {

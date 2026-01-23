@@ -1,7 +1,15 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// Routes that require authentication
+const protectedRoutes = ["/templates", "/payslips", "/employees", "/settings"];
+
+// Routes only for unauthenticated users
+const authRoutes = ["/login", "/signup", "/forgot-password", "/reset-password"];
+
 export async function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -29,33 +37,38 @@ export async function proxy(request: NextRequest) {
     }
   );
 
+  // Refresh session - this is required for Server Components
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // TODO: Re-enable auth protection after login/register pages are built
-  // Protect dashboard routes
-  // const isProtectedRoute =
-  //   request.nextUrl.pathname.startsWith("/templates") ||
-  //   request.nextUrl.pathname.startsWith("/payslips") ||
-  //   request.nextUrl.pathname.startsWith("/employees") ||
-  //   request.nextUrl.pathname.startsWith("/settings");
-  //
-  // if (!user && isProtectedRoute) {
-  //   const url = request.nextUrl.clone();
-  //   url.pathname = "/login";
-  //   return NextResponse.redirect(url);
-  // }
+  // Check if route is protected
+  const isProtectedRoute = protectedRoutes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
 
-  // Redirect logged-in users away from auth pages
-  if (
-    user &&
-    (request.nextUrl.pathname === "/login" ||
-      request.nextUrl.pathname === "/register")
-  ) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/templates";
-    return NextResponse.redirect(url);
+  // Check if route is auth-only (login, signup, etc.)
+  const isAuthRoute = authRoutes.some((route) => pathname === route);
+
+  // If accessing protected route without auth, redirect to login
+  if (isProtectedRoute && !user) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("redirect", pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // If authenticated user tries to access auth routes, redirect to dashboard
+  if (isAuthRoute && user) {
+    return NextResponse.redirect(new URL("/templates", request.url));
+  }
+
+  // For root path, redirect appropriately
+  if (pathname === "/") {
+    if (user) {
+      return NextResponse.redirect(new URL("/templates", request.url));
+    } else {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
   }
 
   return supabaseResponse;
@@ -63,6 +76,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$|api).*)",
   ],
 };

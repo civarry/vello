@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 import {
   LayoutTemplate,
   FileText,
@@ -12,6 +13,9 @@ import {
   Building2,
   ChevronsLeft,
   ChevronsRight,
+  LogOut,
+  User,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +23,15 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 const navigation = [
   { name: "Templates", href: "/templates", icon: LayoutTemplate },
@@ -29,10 +42,25 @@ const navigation = [
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed";
 
-export function Sidebar() {
+interface SidebarProps {
+  user: {
+    id: string;
+    email: string;
+    name: string | null;
+    role: string;
+  };
+  organization: {
+    id: string;
+    name: string;
+  };
+}
+
+export function Sidebar({ user, organization }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Load collapsed state from localStorage on mount
   useEffect(() => {
@@ -50,8 +78,26 @@ export function Sidebar() {
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(newValue));
   };
 
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    toast.success("Logged out successfully");
+    router.push("/login");
+    router.refresh();
+  };
+
   // Prevent hydration mismatch by rendering expanded state initially
   const collapsed = isHydrated ? isCollapsed : false;
+
+  // Get display name
+  const displayName = user.name || user.email.split("@")[0];
+  const initials = displayName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
   return (
     <div
@@ -80,6 +126,14 @@ export function Sidebar() {
           </span>
         </Link>
       </div>
+
+      {/* Organization Name */}
+      {!collapsed && (
+        <div className="px-3 py-2 border-b">
+          <p className="text-xs text-muted-foreground">Organization</p>
+          <p className="text-sm font-medium truncate">{organization.name}</p>
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 p-2">
@@ -122,6 +176,66 @@ export function Sidebar() {
           return <div key={item.name}>{linkContent}</div>;
         })}
       </nav>
+
+      {/* User Menu */}
+      <div className="border-t p-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className={cn(
+                "w-full justify-start gap-2",
+                collapsed ? "justify-center px-2" : ""
+              )}
+            >
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-medium flex-shrink-0">
+                {initials}
+              </div>
+              {!collapsed && (
+                <>
+                  <div className="flex-1 text-left overflow-hidden">
+                    <p className="text-sm font-medium truncate">{displayName}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {user.role}
+                    </p>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                </>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align={collapsed ? "center" : "end"}
+            side="top"
+            className="w-56"
+          >
+            <DropdownMenuLabel>
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium">{displayName}</p>
+                <p className="text-xs text-muted-foreground">{user.email}</p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem disabled>
+              <User className="mr-2 h-4 w-4" />
+              Profile (coming soon)
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled>
+              <Settings className="mr-2 h-4 w-4" />
+              Settings (coming soon)
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="text-destructive focus:text-destructive"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              {isLoggingOut ? "Logging out..." : "Log out"}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
       {/* Collapse Toggle Button */}
       <div className="border-t p-2">

@@ -1,21 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { getCurrentUser } from "@/lib/auth";
 import { updateTemplateSchema } from "@/lib/validations/template";
 import { ZodError } from "zod";
-
-const TEMP_ORG_ID = "temp-org-id";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, error } = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
+
     const { id } = await params;
 
     const template = await prisma.template.findFirst({
       where: {
         id,
-        organizationId: TEMP_ORG_ID,
+        organizationId: user.organizationId,
       },
     });
 
@@ -41,15 +46,21 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, error } = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
+
     const { id } = await params;
     const body = await request.json();
     const validated = updateTemplateSchema.parse(body);
 
-    // Check if template exists
+    // Check if template exists and belongs to user's org
     const existing = await prisma.template.findFirst({
       where: {
         id,
-        organizationId: TEMP_ORG_ID,
+        organizationId: user.organizationId,
       },
     });
 
@@ -94,13 +105,19 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, error } = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
+
     const { id } = await params;
 
-    // Check if template exists
+    // Check if template exists and belongs to user's org
     const existing = await prisma.template.findFirst({
       where: {
         id,
-        organizationId: TEMP_ORG_ID,
+        organizationId: user.organizationId,
       },
     });
 

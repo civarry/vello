@@ -1,20 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-
-const TEMP_ORG_ID = "temp-org-id";
+import { getCurrentUser } from "@/lib/auth";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, error } = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
+
     const { id } = await params;
 
-    // Fetch the existing template
+    // Fetch the existing template (must belong to user's org)
     const existing = await prisma.template.findFirst({
       where: {
         id,
-        organizationId: TEMP_ORG_ID,
+        organizationId: user.organizationId,
       },
     });
 
@@ -34,7 +39,7 @@ export async function POST(
         paperSize: existing.paperSize,
         orientation: existing.orientation,
         isDefault: false, // Duplicates should not be default
-        organizationId: TEMP_ORG_ID,
+        organizationId: user.organizationId,
       },
     });
 
