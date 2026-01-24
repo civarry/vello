@@ -70,11 +70,18 @@ export default function EditTemplatePage() {
     reset();
     fetchTemplate();
 
+    // Redirect to templates list if org changes (template belongs to old org)
+    const handleOrgSwitch = () => {
+      router.push("/templates");
+    };
+    window.addEventListener("org-switched", handleOrgSwitch);
+
     // Cleanup on unmount
     return () => {
       reset();
+      window.removeEventListener("org-switched", handleOrgSwitch);
     };
-  }, [templateId, loadTemplate, reset]);
+  }, [templateId, loadTemplate, reset, router]);
 
   if (error) {
     return (

@@ -28,6 +28,7 @@ interface InviteData {
     email: string;
   };
   expiresAt: string;
+  hasAccount: boolean;
 }
 
 export default function InviteAcceptPage() {
@@ -256,14 +257,32 @@ export default function InviteAcceptPage() {
                 </>
               )}
             </Button>
+          ) : invite?.hasAccount ? (
+            <>
+              <p className="text-sm text-center text-muted-foreground mb-2">
+                You already have an account. Sign in to accept this invite.
+              </p>
+              <Button className="w-full" onClick={handleSignIn}>
+                Sign In to Accept
+              </Button>
+            </>
           ) : (
             <>
+              <p className="text-sm text-center text-muted-foreground mb-2">
+                Create an account to join {invite?.organization.name}.
+              </p>
               <Button className="w-full" onClick={handleSignUp}>
-                Create Account & Accept
+                Create Account
               </Button>
-              <Button variant="outline" className="w-full" onClick={handleSignIn}>
-                Sign In & Accept
-              </Button>
+              <p className="text-xs text-center text-muted-foreground">
+                Already have an account?{" "}
+                <button
+                  onClick={handleSignIn}
+                  className="text-primary hover:underline"
+                >
+                  Sign in
+                </button>
+              </p>
             </>
           )}
         </CardFooter>

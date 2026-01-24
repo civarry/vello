@@ -79,6 +79,13 @@ export default function TemplatesPage() {
 
   useEffect(() => {
     fetchTemplates();
+
+    // Re-fetch when organization changes
+    const handleOrgSwitch = () => {
+      fetchTemplates();
+    };
+    window.addEventListener("org-switched", handleOrgSwitch);
+    return () => window.removeEventListener("org-switched", handleOrgSwitch);
   }, []);
 
   const handleDelete = async () => {

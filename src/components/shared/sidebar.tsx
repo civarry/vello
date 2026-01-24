@@ -18,7 +18,9 @@ import {
   ChevronDown,
   Check,
   Plus,
+  UserPlus,
 } from "lucide-react";
+import { InviteDialog } from "./invite-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -77,6 +79,7 @@ export function Sidebar({
   const [isHydrated, setIsHydrated] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
 
   // Load collapsed state from localStorage on mount
   useEffect(() => {
@@ -122,7 +125,17 @@ export function Sidebar({
       }
 
       toast.success(`Switched to ${data.organization.name}`);
-      router.refresh();
+      // Dispatch event so client components can refetch data
+      window.dispatchEvent(new CustomEvent("org-switched"));
+
+      // If on a template detail page, redirect to templates list
+      // (the template belongs to the old org, not the new one)
+      if (pathname.match(/^\/templates\/[^/]+/)) {
+        router.push("/templates");
+        router.refresh(); // Also refresh to update sidebar state
+      } else {
+        router.refresh();
+      }
     } catch (error) {
       toast.error("Failed to switch organization");
     } finally {
@@ -252,6 +265,15 @@ export function Sidebar({
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
+            {(currentRole === "OWNER" || currentRole === "ADMIN") && (
+              <DropdownMenuItem
+                onClick={() => setShowInviteDialog(true)}
+                className="cursor-pointer"
+              >
+                <UserPlus className="h-4 w-4 mr-2" />
+                Invite Member
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               onClick={handleCreateOrganization}
               className="cursor-pointer"
@@ -261,6 +283,12 @@ export function Sidebar({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <InviteDialog
+          open={showInviteDialog}
+          onOpenChange={setShowInviteDialog}
+          organizationName={currentOrganization.name}
+        />
       </div>
 
       {/* Navigation */}

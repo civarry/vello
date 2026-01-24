@@ -122,13 +122,11 @@ export async function POST(
                 data: { acceptedAt: new Date() },
             });
 
-            // If user doesn't have a current org, set this one
-            if (!dbUser.currentOrganizationId) {
-                await tx.user.update({
-                    where: { id: dbUser.id },
-                    data: { currentOrganizationId: invite.organizationId },
-                });
-            }
+            // Always switch to the organization they just joined
+            await tx.user.update({
+                where: { id: dbUser.id },
+                data: { currentOrganizationId: invite.organizationId },
+            });
 
             return { user: dbUser, membership, alreadyMember: false };
         });
@@ -201,6 +199,12 @@ export async function GET(
             );
         }
 
+        // Check if a user with this email already exists
+        const existingUser = await prisma.user.findUnique({
+            where: { email: invite.email },
+            select: { id: true },
+        });
+
         return NextResponse.json({
             data: {
                 email: invite.email,
@@ -208,6 +212,7 @@ export async function GET(
                 organization: invite.organization,
                 invitedBy: invite.invitedBy,
                 expiresAt: invite.expiresAt,
+                hasAccount: !!existingUser,
             },
         });
     } catch (error) {
