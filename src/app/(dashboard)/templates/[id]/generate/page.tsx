@@ -105,16 +105,6 @@ export default function GeneratePayslipPage({
     }
 
     fetchTemplate();
-
-    // Redirect to templates list if org changes (template belongs to old org)
-    const handleOrgSwitch = () => {
-      router.push("/templates");
-    };
-    window.addEventListener("org-switched", handleOrgSwitch);
-
-    return () => {
-      window.removeEventListener("org-switched", handleOrgSwitch);
-    };
   }, [resolvedParams.id, router]);
 
   // --- Grid Actions ---

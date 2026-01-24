@@ -79,6 +79,7 @@ function LoginForm() {
                         <Link
                             href="/forgot-password"
                             className="text-sm text-primary hover:underline"
+                            tabIndex={-1}
                         >
                             Forgot password?
                         </Link>
@@ -103,7 +104,7 @@ function LoginForm() {
 
             <p className="text-center text-sm text-muted-foreground mt-6">
                 Don&apos;t have an account?{" "}
-                <Link href="/signup" className="text-primary hover:underline">
+                <Link href="/signup" className="text-primary hover:underline" tabIndex={-1}>
                     Sign up
                 </Link>
             </p>

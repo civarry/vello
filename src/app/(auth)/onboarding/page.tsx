@@ -106,7 +106,7 @@ function OnboardingForm() {
             {isCreatingAdditional && (
                 <div className="mb-4">
                     <Link href="/templates">
-                        <Button variant="ghost" size="sm" className="gap-2">
+                        <Button variant="ghost" size="sm" className="gap-2" tabIndex={-1}>
                             <ArrowLeft className="h-4 w-4" />
                             Back to dashboard
                         </Button>

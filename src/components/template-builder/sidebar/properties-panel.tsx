@@ -91,7 +91,7 @@ export function PropertiesPanel() {
 
       return (
         <div className="w-72 min-w-72 border-l bg-muted/30 flex flex-col h-full overflow-hidden">
-          <div className="p-4 border-b space-y-3 flex-shrink-0">
+          <div className="p-4 border-b space-y-3 shrink-0">
             <div className="flex items-center gap-2">
               <Icon className="h-4 w-4 text-muted-foreground" />
               <h3 className="text-sm font-semibold capitalize">
@@ -176,7 +176,7 @@ export function PropertiesPanel() {
           </div>
 
           <Tabs defaultValue="content" className="flex-1 flex flex-col min-h-0">
-            <TabsList className="mx-4 mt-2 grid w-auto grid-cols-2 flex-shrink-0">
+            <TabsList className="mx-4 mt-2 grid w-auto grid-cols-2 shrink-0">
               <TabsTrigger value="content">Content</TabsTrigger>
               <TabsTrigger value="style">Style</TabsTrigger>
             </TabsList>
@@ -204,7 +204,7 @@ export function PropertiesPanel() {
     // Heterogeneous selection (Mixed Types)
     return (
       <div className="w-72 min-w-72 border-l bg-muted/30 flex flex-col h-full overflow-hidden">
-        <div className="p-4 border-b flex-shrink-0">
+        <div className="p-4 border-b shrink-0">
           <div className="flex items-center gap-2">
             <Layers className="h-4 w-4 text-muted-foreground" />
             <h3 className="text-sm font-semibold">
@@ -313,7 +313,7 @@ export function PropertiesPanel() {
 
   return (
     <div className="w-72 min-w-72 border-l bg-muted/30 flex flex-col h-full overflow-hidden">
-      <div className="p-4 border-b space-y-3 flex-shrink-0">
+      <div className="p-4 border-b space-y-3 shrink-0">
         <div className="flex items-center gap-2">
           <Icon className="h-4 w-4 text-muted-foreground" />
           <h3 className="text-sm font-semibold capitalize">
@@ -336,7 +336,7 @@ export function PropertiesPanel() {
       </div>
 
       <Tabs defaultValue="content" className="flex-1 flex flex-col min-h-0">
-        <TabsList className="mx-4 mt-2 grid w-auto grid-cols-2 flex-shrink-0">
+        <TabsList className="mx-4 mt-2 grid w-auto grid-cols-2 shrink-0">
           <TabsTrigger value="content">Content</TabsTrigger>
           <TabsTrigger value="style">Style</TabsTrigger>
         </TabsList>

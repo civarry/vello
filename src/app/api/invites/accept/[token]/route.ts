@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/db/prisma";
+import { createErrorResponse, createValidationErrorResponse, createUnauthorizedResponse, createForbiddenResponse, createNotFoundResponse } from "@/lib/errors";
+import { logInfo, logError, logWarn } from "@/lib/logging";
 
 /**
  * POST /api/invites/accept/[token]
@@ -21,10 +23,25 @@ export async function POST(
         } = await supabase.auth.getUser();
 
         if (authError || !authUser) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            logWarn("Failed to accept invite: unauthorized", {
+                action: "accept_invite",
+            });
+            return createUnauthorizedResponse("Unauthorized");
         }
 
         const { token } = await params;
+
+        if (!token || typeof token !== "string") {
+            logWarn("Failed to accept invite: invalid token", {
+                action: "accept_invite",
+            });
+            return createValidationErrorResponse("Invalid invite token");
+        }
+
+        logInfo("Accepting invite", {
+            email: authUser.email,
+            action: "accept_invite",
+        });
 
         // Find the invite
         const invite = await prisma.invite.findUnique({
@@ -41,34 +58,42 @@ export async function POST(
         });
 
         if (!invite) {
-            return NextResponse.json(
-                { error: "Invite not found" },
-                { status: 404 }
-            );
+            logWarn("Failed to accept invite: not found", {
+                email: authUser.email,
+                action: "accept_invite",
+            });
+            return createNotFoundResponse("Invite not found");
         }
 
         // Check if invite has expired
         if (invite.expiresAt < new Date()) {
-            return NextResponse.json(
-                { error: "This invite has expired" },
-                { status: 400 }
-            );
+            logWarn("Failed to accept invite: expired", {
+                email: authUser.email,
+                inviteId: invite.id,
+                action: "accept_invite",
+            });
+            return createValidationErrorResponse("This invite has expired");
         }
 
         // Check if invite has already been accepted
         if (invite.acceptedAt) {
-            return NextResponse.json(
-                { error: "This invite has already been used" },
-                { status: 400 }
-            );
+            logWarn("Failed to accept invite: already used", {
+                email: authUser.email,
+                inviteId: invite.id,
+                action: "accept_invite",
+            });
+            return createValidationErrorResponse("This invite has already been used");
         }
 
         // Check if the invite email matches the authenticated user
         if (invite.email.toLowerCase() !== authUser.email?.toLowerCase()) {
-            return NextResponse.json(
-                { error: "This invite was sent to a different email address" },
-                { status: 403 }
-            );
+            logWarn("Failed to accept invite: email mismatch", {
+                email: authUser.email,
+                inviteEmail: invite.email,
+                inviteId: invite.id,
+                action: "accept_invite",
+            });
+            return createForbiddenResponse("This invite was sent to a different email address");
         }
 
         // Accept the invite in a transaction
@@ -131,17 +156,23 @@ export async function POST(
             return { user: dbUser, membership, alreadyMember: false };
         });
 
+        logInfo("Successfully accepted invite", {
+            userId: result.user.id,
+            organizationId: invite.organizationId,
+            alreadyMember: result.alreadyMember,
+            action: "accept_invite",
+        });
+
         return NextResponse.json({
             success: true,
             organization: invite.organization,
             alreadyMember: result.alreadyMember,
         });
     } catch (error) {
-        console.error("Failed to accept invite:", error);
-        return NextResponse.json(
-            { error: "Failed to accept invite" },
-            { status: 500 }
-        );
+        logError("Failed to accept invite", error instanceof Error ? error : new Error(String(error)), {
+            action: "accept_invite",
+        });
+        return createErrorResponse(error, "Failed to accept invite", 500, "ACCEPT_INVITE_ERROR");
     }
 }
 
@@ -177,10 +208,7 @@ export async function GET(
         });
 
         if (!invite) {
-            return NextResponse.json(
-                { error: "Invite not found" },
-                { status: 404 }
-            );
+            return createNotFoundResponse("Invite not found");
         }
 
         // Check if invite has expired
@@ -216,10 +244,6 @@ export async function GET(
             },
         });
     } catch (error) {
-        console.error("Failed to get invite:", error);
-        return NextResponse.json(
-            { error: "Failed to get invite" },
-            { status: 500 }
-        );
+        return createErrorResponse(error, "Failed to get invite", 500, "GET_INVITE_ERROR");
     }
 }

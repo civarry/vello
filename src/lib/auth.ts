@@ -163,3 +163,33 @@ export async function switchOrganization(
     return { success: false, error: "Failed to switch organization" };
   }
 }
+
+/**
+ * Validates that a user has membership in a specific organization.
+ * Returns the membership if valid, null otherwise.
+ */
+export async function validateOrganizationMembership(
+  userId: string,
+  organizationId: string
+): Promise<{ id: string; role: UserRole; organizationId: string } | null> {
+  try {
+    const membership = await prisma.organizationMember.findUnique({
+      where: {
+        userId_organizationId: {
+          userId,
+          organizationId,
+        },
+      },
+      select: {
+        id: true,
+        role: true,
+        organizationId: true,
+      },
+    });
+
+    return membership;
+  } catch (error) {
+    console.error("Error validating organization membership:", error);
+    return null;
+  }
+}

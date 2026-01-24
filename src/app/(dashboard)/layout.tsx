@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/db/prisma";
 import { Sidebar } from "@/components/shared/sidebar";
+import { DashboardErrorBoundary } from "@/components/dashboard-error-boundary";
 
 // Force dynamic rendering to ensure fresh organization data on every request
 export const dynamic = "force-dynamic";
@@ -72,21 +73,23 @@ export default async function DashboardLayout({
   }));
 
   return (
-    <div className="flex h-screen">
-      <Sidebar
-        user={{
-          id: user.id,
-          email: user.email,
-          name: user.name,
-        }}
-        currentOrganization={{
-          id: currentMembership.organization.id,
-          name: currentMembership.organization.name,
-        }}
-        currentRole={currentMembership.role}
-        allOrganizations={allOrganizations}
-      />
-      <main className="flex-1 overflow-auto">{children}</main>
-    </div>
+    <DashboardErrorBoundary>
+      <div className="flex h-screen">
+        <Sidebar
+          user={{
+            id: user.id,
+            email: user.email,
+            name: user.name,
+          }}
+          currentOrganization={{
+            id: currentMembership.organization.id,
+            name: currentMembership.organization.name,
+          }}
+          currentRole={currentMembership.role}
+          allOrganizations={allOrganizations}
+        />
+        <main className="flex-1 overflow-auto">{children}</main>
+      </div>
+    </DashboardErrorBoundary>
   );
 }

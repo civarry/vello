@@ -4,10 +4,14 @@ import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { sendInviteEmail } from "@/lib/email";
 import { z } from "zod";
+import { inviteRoleSchema, emailSchema } from "@/lib/validation";
+import { createErrorResponse, createValidationErrorResponse, createUnauthorizedResponse, createForbiddenResponse } from "@/lib/errors";
+import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
+import { logInfo, logError, logWarn } from "@/lib/logging";
 
 const createInviteSchema = z.object({
-    email: z.string().email("Invalid email address"),
-    role: z.enum(["ADMIN", "MEMBER"]).default("MEMBER"),
+    email: emailSchema,
+    role: inviteRoleSchema.default("MEMBER"),
 });
 
 /**
@@ -20,15 +24,27 @@ export async function GET() {
         const { context, error } = await getCurrentUser();
 
         if (!context) {
-            return NextResponse.json({ error }, { status: 401 });
+            logWarn("Failed to fetch invites: unauthorized", {
+                action: "fetch_invites",
+            });
+            return createUnauthorizedResponse(error || "Unauthorized");
         }
 
         if (!hasPermission(context.currentMembership.role, "members:read")) {
-            return NextResponse.json(
-                { error: "You don't have permission to view invites" },
-                { status: 403 }
-            );
+            logWarn("Failed to fetch invites: insufficient permissions", {
+                userId: context.user.id,
+                organizationId: context.currentMembership.organization.id,
+                role: context.currentMembership.role,
+                action: "fetch_invites",
+            });
+            return createForbiddenResponse("You don't have permission to view invites");
         }
+
+        logInfo("Fetching invites", {
+            userId: context.user.id,
+            organizationId: context.currentMembership.organization.id,
+            action: "fetch_invites",
+        });
 
         const invites = await prisma.invite.findMany({
             where: {
@@ -49,6 +65,13 @@ export async function GET() {
             },
         });
 
+        logInfo("Successfully fetched invites", {
+            userId: context.user.id,
+            organizationId: context.currentMembership.organization.id,
+            count: invites.length,
+            action: "fetch_invites",
+        });
+
         return NextResponse.json({
             data: invites.map((invite) => ({
                 id: invite.id,
@@ -61,11 +84,10 @@ export async function GET() {
             })),
         });
     } catch (error) {
-        console.error("Failed to fetch invites:", error);
-        return NextResponse.json(
-            { error: "Failed to fetch invites" },
-            { status: 500 }
-        );
+        logError("Failed to fetch invites", error instanceof Error ? error : new Error(String(error)), {
+            action: "fetch_invites",
+        });
+        return createErrorResponse(error, "Failed to fetch invites", 500, "FETCH_INVITES_ERROR");
     }
 }
 
@@ -79,13 +101,42 @@ export async function POST(request: NextRequest) {
         const { context, error } = await getCurrentUser();
 
         if (!context) {
-            return NextResponse.json({ error }, { status: 401 });
+            return createUnauthorizedResponse(error || "Unauthorized");
         }
 
         if (!hasPermission(context.currentMembership.role, "members:invite")) {
+            logWarn("Failed to create invite: insufficient permissions", {
+                userId: context.user.id,
+                organizationId: context.currentMembership.organization.id,
+                role: context.currentMembership.role,
+                action: "create_invite",
+            });
+            return createForbiddenResponse("You don't have permission to invite members");
+        }
+
+        // Rate limiting: 10 invites per hour per user
+        const rateLimitResult = checkRateLimit(
+            context.user.id,
+            10,
+            60 * 60 * 1000 // 1 hour
+        );
+
+        if (rateLimitResult.limited) {
+            logWarn("Rate limit exceeded for invite creation", {
+                userId: context.user.id,
+                organizationId: context.currentMembership.organization.id,
+                action: "create_invite",
+            });
+            const headers = getRateLimitHeaders(
+                rateLimitResult.remaining,
+                rateLimitResult.resetAt
+            );
             return NextResponse.json(
-                { error: "You don't have permission to invite members" },
-                { status: 403 }
+                {
+                    error: "Too many invite requests. Please try again later.",
+                    code: "RATE_LIMIT_EXCEEDED",
+                },
+                { status: 429, headers }
             );
         }
 
@@ -93,14 +144,22 @@ export async function POST(request: NextRequest) {
         const validationResult = createInviteSchema.safeParse(body);
 
         if (!validationResult.success) {
-            return NextResponse.json(
-                { error: validationResult.error.issues[0]?.message || "Validation failed" },
-                { status: 400 }
+            return createValidationErrorResponse(
+                validationResult.error.issues[0]?.message || "Validation failed",
+                validationResult.error.issues
             );
         }
 
         const { email, role } = validationResult.data;
         const orgId = context.currentMembership.organization.id;
+
+        logInfo("Creating invite", {
+            userId: context.user.id,
+            organizationId: orgId,
+            email,
+            role,
+            action: "create_invite",
+        });
 
         // Check if user is already a member
         const existingUser = await prisma.user.findUnique({
@@ -113,9 +172,14 @@ export async function POST(request: NextRequest) {
         });
 
         if (existingUser && existingUser.memberships.length > 0) {
-            return NextResponse.json(
-                { error: "This user is already a member of this organization" },
-                { status: 400 }
+            logWarn("Invite creation failed: user already a member", {
+                userId: context.user.id,
+                organizationId: orgId,
+                email,
+                action: "create_invite",
+            });
+            return createValidationErrorResponse(
+                "This user is already a member of this organization"
             );
         }
 
@@ -130,9 +194,14 @@ export async function POST(request: NextRequest) {
         });
 
         if (existingInvite) {
-            return NextResponse.json(
-                { error: "An invite for this email is already pending" },
-                { status: 400 }
+            logWarn("Invite creation failed: pending invite exists", {
+                userId: context.user.id,
+                organizationId: orgId,
+                email,
+                action: "create_invite",
+            });
+            return createValidationErrorResponse(
+                "An invite for this email is already pending"
             );
         }
 
@@ -168,21 +237,37 @@ export async function POST(request: NextRequest) {
             console.error("Failed to send invite email:", emailError);
         }
 
-        return NextResponse.json({
-            data: {
-                id: invite.id,
-                email: invite.email,
-                role: invite.role,
-                token: invite.token,
-                expiresAt: invite.expiresAt,
-                emailSent,
-            },
-        }, { status: 201 });
-    } catch (error) {
-        console.error("Failed to create invite:", error);
-        return NextResponse.json(
-            { error: "Failed to create invite" },
-            { status: 500 }
+        logInfo("Invite created successfully", {
+            userId: context.user.id,
+            organizationId: orgId,
+            inviteId: invite.id,
+            email,
+            emailSent,
+            action: "create_invite",
+        });
+
+        const headers = getRateLimitHeaders(
+            rateLimitResult.remaining,
+            rateLimitResult.resetAt
         );
+
+        return NextResponse.json(
+            {
+                data: {
+                    id: invite.id,
+                    email: invite.email,
+                    role: invite.role,
+                    token: invite.token,
+                    expiresAt: invite.expiresAt,
+                    emailSent,
+                },
+            },
+            { status: 201, headers }
+        );
+    } catch (error) {
+        logError("Failed to create invite", error instanceof Error ? error : new Error(String(error)), {
+            action: "create_invite",
+        });
+        return createErrorResponse(error, "Failed to create invite", 500, "CREATE_INVITE_ERROR");
     }
 }

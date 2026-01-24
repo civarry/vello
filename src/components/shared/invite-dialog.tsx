@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -39,6 +39,22 @@ export function InviteDialog({
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [emailSent, setEmailSent] = useState(false);
   const [copied, setCopied] = useState(false);
+  const prevOrgNameRef = useRef<string>(organizationName);
+
+  // Reset state when organization changes
+  useEffect(() => {
+    if (prevOrgNameRef.current !== organizationName) {
+      // Organization changed - reset all state and close dialog
+      setEmail("");
+      setRole("MEMBER");
+      setInviteLink(null);
+      setEmailSent(false);
+      setCopied(false);
+      setIsLoading(false);
+      onOpenChange(false);
+      prevOrgNameRef.current = organizationName;
+    }
+  }, [organizationName, onOpenChange]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

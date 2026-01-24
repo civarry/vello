@@ -89,6 +89,7 @@ export default function ForgotPasswordPage() {
                 <Link
                     href="/login"
                     className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center"
+                    tabIndex={-1}
                 >
                     <ArrowLeft className="mr-1 h-3 w-3" />
                     Back to sign in

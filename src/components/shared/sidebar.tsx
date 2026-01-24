@@ -145,6 +145,11 @@ export function Sidebar({
 
   const performOrgSwitch = async (orgId: string) => {
     setIsSwitching(true);
+    // Close invite dialog if open before switching
+    if (showInviteDialog) {
+      setShowInviteDialog(false);
+    }
+
     try {
       const response = await fetch("/api/organizations/switch", {
         method: "POST",
@@ -156,28 +161,26 @@ export function Sidebar({
 
       if (!response.ok) {
         toast.error(data.error || "Failed to switch organization");
+        setIsSwitching(false);
         return;
       }
 
       toast.success(`Switched to ${data.organization.name}`);
-      // Dispatch event so client components can refetch data
-      window.dispatchEvent(new CustomEvent("org-switched"));
 
       // If on a template detail page, redirect to templates list
       // (the template belongs to the old org, not the new one)
       if (pathname.match(/^\/templates\/[^/]+/)) {
         // Reset template store to clear any stale data
         resetTemplateStore();
-        // Use replace to navigate and refresh will happen automatically
-        // due to force-dynamic on the layout
-        router.replace("/templates");
+        // Use hard navigation to ensure fresh data
+        window.location.href = "/templates";
       } else {
-        // Refresh to update sidebar with new organization
-        router.refresh();
+        // Use hard navigation to ensure the sidebar gets fresh organization data
+        // This ensures the checkmark and organization name update correctly
+        window.location.href = pathname;
       }
     } catch (error) {
       toast.error("Failed to switch organization");
-    } finally {
       setIsSwitching(false);
     }
   };
@@ -238,7 +241,7 @@ export function Sidebar({
             collapsed ? "justify-center w-full" : ""
           )}
         >
-          <Building2 className="h-6 w-6 flex-shrink-0" />
+          <Building2 className="h-6 w-6 shrink-0" />
           <span
             className={cn(
               "font-semibold whitespace-nowrap transition-all duration-300",
@@ -264,7 +267,7 @@ export function Sidebar({
             >
               <div
                 className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary text-sm font-medium flex-shrink-0",
+                  "flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary text-sm font-medium shrink-0",
                   collapsed ? "" : ""
                 )}
               >
@@ -278,7 +281,7 @@ export function Sidebar({
                     </p>
                     <p className="text-xs text-muted-foreground">{currentRole}</p>
                   </div>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
                 </>
               )}
             </Button>
@@ -297,13 +300,13 @@ export function Sidebar({
                 className="flex items-center justify-between cursor-pointer"
               >
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <div className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 text-primary text-xs font-medium flex-shrink-0">
+                  <div className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 text-primary text-xs font-medium shrink-0">
                     {org.name.charAt(0).toUpperCase()}
                   </div>
                   <span className="truncate">{org.name}</span>
                   <span
                     className={cn(
-                      "text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0",
+                      "text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0",
                       getRoleBadgeClass(org.role)
                     )}
                   >
@@ -311,7 +314,7 @@ export function Sidebar({
                   </span>
                 </div>
                 {org.id === currentOrganization.id && (
-                  <Check className="h-4 w-4 text-primary flex-shrink-0 ml-2" />
+                  <Check className="h-4 w-4 text-primary shrink-0 ml-2" />
                 )}
               </DropdownMenuItem>
             ))}
@@ -385,7 +388,7 @@ export function Sidebar({
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
-              <item.icon className="h-4 w-4 flex-shrink-0" />
+              <item.icon className="h-4 w-4 shrink-0" />
               <span
                 className={cn(
                   "whitespace-nowrap transition-all duration-300",
@@ -423,7 +426,7 @@ export function Sidebar({
                 collapsed ? "justify-center px-2" : ""
               )}
             >
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-medium flex-shrink-0">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-medium shrink-0">
                 {initials}
               </div>
               {!collapsed && (
