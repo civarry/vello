@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { usePDF } from "@react-pdf/renderer";
 import { TemplatePDF } from "@/lib/pdf/template-pdf";
 import { Template } from "@/types/template";
@@ -29,14 +29,14 @@ export function LivePdfPreview({ template, data, debouncedDelay = 500 }: LivePdf
     const substitutedBlocks = applyDataToBlocks(template.schema.blocks, debouncedData);
 
     // Generate the document component
-    const MyDocument = (
+    const MyDocument = useMemo(() => (
         <TemplatePDF
             blocks={substitutedBlocks}
             globalStyles={template.schema.globalStyles}
             paperSize={template.paperSize}
             orientation={template.orientation}
         />
-    );
+    ), [substitutedBlocks, template.schema.globalStyles, template.paperSize, template.orientation]);
 
     const [instance, updateInstance] = usePDF({ document: MyDocument });
 

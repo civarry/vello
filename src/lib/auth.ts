@@ -33,11 +33,14 @@ export interface AuthResult {
   error: string | null;
 }
 
+import { cache } from "react";
+
 /**
  * Gets the current authenticated user with their organization memberships.
  * Use this in API routes to get the user context for multi-tenant queries.
+ * Wrapped in React cache() to deduplicate requests in the same render cycle.
  */
-export async function getCurrentUser(): Promise<AuthResult> {
+export const getCurrentUser = cache(async function getCurrentUser(): Promise<AuthResult> {
   try {
     const supabase = await createClient();
 
@@ -126,7 +129,7 @@ export async function getCurrentUser(): Promise<AuthResult> {
     console.error("Auth error:", error);
     return { context: null, error: "Authentication failed" };
   }
-}
+});
 
 /**
  * Switches the current organization for a user.
