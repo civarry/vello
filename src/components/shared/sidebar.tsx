@@ -50,6 +50,7 @@ import { toast } from "sonner";
 
 const navigation = [
   { name: "Templates", href: "/templates", icon: LayoutTemplate },
+  { name: "Members", href: "/settings/members", icon: Users },
   // { name: "Payslips", href: "/payslips", icon: FileText }, // Hidden until implemented
   // { name: "Employees", href: "/employees", icon: Users }, // Hidden until implemented
   // { name: "Settings", href: "/settings", icon: Settings }, // Hidden until implemented
