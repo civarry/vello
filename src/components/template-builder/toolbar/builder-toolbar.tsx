@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +18,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -78,6 +87,24 @@ export function BuilderToolbar() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+
+  const handleBack = () => {
+    if (isDirty) {
+      setShowLeaveDialog(true);
+    } else {
+      // Use hard navigation to ensure sidebar refreshes with correct org
+      window.location.href = "/templates";
+    }
+  };
+
+  const handleConfirmLeave = () => {
+    // Clear draft since user is discarding changes
+    if (templateId) {
+      clearDraft(templateId);
+    }
+    window.location.href = "/templates";
+  };
 
   const handleSave = async () => {
     if (!templateName.trim()) {
@@ -207,11 +234,9 @@ export function BuilderToolbar() {
     <>
       <div className="flex h-14 items-center justify-between border-b bg-background px-4">
         <div className="flex items-center gap-4">
-          <Link href="/templates">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
+          <Button variant="ghost" size="icon" onClick={handleBack}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <Separator orientation="vertical" className="h-6" />
           <Input
             value={templateName}
@@ -434,6 +459,27 @@ export function BuilderToolbar() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Leave Confirmation Dialog */}
+      <AlertDialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Are you sure you want to leave? Your changes will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmLeave}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Discard Changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
