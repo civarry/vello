@@ -95,7 +95,8 @@ export default function InviteAcceptPage() {
       }
 
       toast.success(`Welcome to ${data.organization.name}!`);
-      router.push("/templates");
+      // Use hard navigation to ensure the sidebar fetches fresh membership data
+      window.location.href = "/templates";
     } catch {
       toast.error("Failed to accept invite");
     } finally {
