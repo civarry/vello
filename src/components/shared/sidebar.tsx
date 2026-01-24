@@ -23,6 +23,17 @@ import {
 import { InviteDialog } from "./invite-dialog";
 import { Button } from "@/components/ui/button";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useTemplateBuilderStore } from "@/stores/template-builder-store";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -80,6 +91,14 @@ export function Sidebar({
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
   const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [pendingOrgSwitch, setPendingOrgSwitch] = useState<{
+    orgId: string;
+    orgName: string;
+  } | null>(null);
+
+  // Get isDirty from template builder store to check for unsaved changes
+  const isDirty = useTemplateBuilderStore((state) => state.isDirty);
+  const resetTemplateStore = useTemplateBuilderStore((state) => state.reset);
 
   // Load collapsed state from localStorage on mount
   useEffect(() => {
@@ -109,6 +128,22 @@ export function Sidebar({
   const handleSwitchOrganization = async (orgId: string) => {
     if (orgId === currentOrganization.id) return;
 
+    // Check if on a template page with unsaved changes
+    const isOnTemplatePage = pathname.match(/^\/templates\/[^/]+/);
+    if (isOnTemplatePage && isDirty) {
+      // Find the org name for the confirmation dialog
+      const targetOrg = allOrganizations.find((org) => org.id === orgId);
+      setPendingOrgSwitch({
+        orgId,
+        orgName: targetOrg?.name || "the selected organization",
+      });
+      return;
+    }
+
+    await performOrgSwitch(orgId);
+  };
+
+  const performOrgSwitch = async (orgId: string) => {
     setIsSwitching(true);
     try {
       const response = await fetch("/api/organizations/switch", {
@@ -131,6 +166,8 @@ export function Sidebar({
       // If on a template detail page, redirect to templates list
       // (the template belongs to the old org, not the new one)
       if (pathname.match(/^\/templates\/[^/]+/)) {
+        // Reset template store to clear any stale data
+        resetTemplateStore();
         router.push("/templates");
         router.refresh(); // Also refresh to update sidebar state
       } else {
@@ -141,6 +178,18 @@ export function Sidebar({
     } finally {
       setIsSwitching(false);
     }
+  };
+
+  const handleConfirmOrgSwitch = async () => {
+    if (!pendingOrgSwitch) return;
+    // Reset template store to discard changes
+    resetTemplateStore();
+    await performOrgSwitch(pendingOrgSwitch.orgId);
+    setPendingOrgSwitch(null);
+  };
+
+  const handleCancelOrgSwitch = () => {
+    setPendingOrgSwitch(null);
   };
 
   const handleCreateOrganization = () => {
@@ -289,6 +338,34 @@ export function Sidebar({
           onOpenChange={setShowInviteDialog}
           organizationName={currentOrganization.name}
         />
+
+        {/* Unsaved Changes Confirmation Dialog */}
+        <AlertDialog
+          open={pendingOrgSwitch !== null}
+          onOpenChange={(open) => !open && handleCancelOrgSwitch()}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+              <AlertDialogDescription>
+                You have unsaved changes to this template. Switching to{" "}
+                <span className="font-medium">{pendingOrgSwitch?.orgName}</span>{" "}
+                will discard your changes.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={handleCancelOrgSwitch}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmOrgSwitch}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Discard Changes
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {/* Navigation */}

@@ -37,6 +37,7 @@ export function InviteDialog({
   const [role, setRole] = useState<"MEMBER" | "ADMIN">("MEMBER");
   const [isLoading, setIsLoading] = useState(false);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [emailSent, setEmailSent] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,7 +66,13 @@ export function InviteDialog({
 
       const link = `${window.location.origin}/invite/${data.data.token}`;
       setInviteLink(link);
-      toast.success("Invite created successfully");
+      setEmailSent(data.data.emailSent || false);
+
+      if (data.data.emailSent) {
+        toast.success(`Invitation sent to ${email}`);
+      } else {
+        toast.success("Invite created - share the link below");
+      }
     } catch {
       toast.error("Failed to create invite");
     } finally {
@@ -90,6 +97,7 @@ export function InviteDialog({
     setEmail("");
     setRole("MEMBER");
     setInviteLink(null);
+    setEmailSent(false);
     setCopied(false);
     onOpenChange(false);
   };
@@ -151,27 +159,58 @@ export function InviteDialog({
           </form>
         ) : (
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Invite link</Label>
-              <div className="flex gap-2">
-                <Input value={inviteLink} readOnly className="text-sm" />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={handleCopy}
-                >
-                  {copied ? (
-                    <Check className="h-4 w-4" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </Button>
+            {emailSent ? (
+              <div className="space-y-4">
+                <div className="rounded-lg bg-green-50 dark:bg-green-950 p-4 text-center">
+                  <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                    Invitation email sent to {email}
+                  </p>
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                    They will receive an email with instructions to join.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Or share this link directly</Label>
+                  <div className="flex gap-2">
+                    <Input value={inviteLink} readOnly className="text-sm" />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={handleCopy}
+                    >
+                      {copied ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Share this link with {email}. It expires in 7 days.
-              </p>
-            </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Invite link</Label>
+                <div className="flex gap-2">
+                  <Input value={inviteLink} readOnly className="text-sm" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={handleCopy}
+                  >
+                    {copied ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Share this link with {email}. It expires in 7 days.
+                </p>
+              </div>
+            )}
 
             <DialogFooter>
               <Button onClick={handleClose}>Done</Button>

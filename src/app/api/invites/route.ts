@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
+import { sendInviteEmail } from "@/lib/email";
 import { z } from "zod";
 
 const createInviteSchema = z.object({
@@ -149,6 +150,24 @@ export async function POST(request: NextRequest) {
             },
         });
 
+        // Send invite email
+        let emailSent = false;
+        try {
+            if (process.env.RESEND_API_KEY) {
+                await sendInviteEmail({
+                    to: email,
+                    inviterName: context.user.name || context.user.email,
+                    organizationName: context.currentMembership.organization.name,
+                    role,
+                    inviteToken: invite.token,
+                });
+                emailSent = true;
+            }
+        } catch (emailError) {
+            // Log but don't fail the invite creation if email fails
+            console.error("Failed to send invite email:", emailError);
+        }
+
         return NextResponse.json({
             data: {
                 id: invite.id,
@@ -156,6 +175,7 @@ export async function POST(request: NextRequest) {
                 role: invite.role,
                 token: invite.token,
                 expiresAt: invite.expiresAt,
+                emailSent,
             },
         }, { status: 201 });
     } catch (error) {
