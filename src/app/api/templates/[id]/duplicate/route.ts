@@ -7,19 +7,20 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { user, error } = await getCurrentUser();
+    const { context, error } = await getCurrentUser();
 
-    if (!user) {
+    if (!context) {
       return NextResponse.json({ error }, { status: 401 });
     }
 
     const { id } = await params;
+    const orgId = context.currentMembership.organization.id;
 
     // Fetch the existing template (must belong to user's org)
     const existing = await prisma.template.findFirst({
       where: {
         id,
-        organizationId: user.organizationId,
+        organizationId: orgId,
       },
     });
 
@@ -39,7 +40,7 @@ export async function POST(
         paperSize: existing.paperSize,
         orientation: existing.orientation,
         isDefault: false, // Duplicates should not be default
-        organizationId: user.organizationId,
+        organizationId: orgId,
       },
     });
 

@@ -10,7 +10,8 @@ const onboardingSchema = z.object({
 
 /**
  * POST /api/auth/onboarding
- * Creates a new organization and links the current user to it.
+ * Creates a new organization and links the current user to it via OrganizationMember.
+ * If the user doesn't exist, creates them first.
  */
 export async function POST(request: Request) {
     try {
@@ -24,18 +25,6 @@ export async function POST(request: Request) {
 
         if (authError || !user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
-        // Check if user already has an organization
-        const existingUser = await prisma.user.findUnique({
-            where: { authId: user.id },
-        });
-
-        if (existingUser) {
-            return NextResponse.json(
-                { error: "You already belong to an organization" },
-                { status: 400 }
-            );
         }
 
         // Parse and validate input
@@ -67,8 +56,25 @@ export async function POST(request: Request) {
             slugCounter++;
         }
 
-        // Create organization and user in a transaction
+        // Create organization, user (if needed), and membership in a transaction
         const result = await prisma.$transaction(async (tx) => {
+            // Check if user already exists
+            let dbUser = await tx.user.findUnique({
+                where: { authId: user.id },
+            });
+
+            // Create user if they don't exist
+            if (!dbUser) {
+                dbUser = await tx.user.create({
+                    data: {
+                        authId: user.id,
+                        email: user.email!,
+                        name: user.user_metadata?.full_name || null,
+                    },
+                });
+            }
+
+            // Create the organization
             const organization = await tx.organization.create({
                 data: {
                     name: orgName,
@@ -77,17 +83,22 @@ export async function POST(request: Request) {
                 },
             });
 
-            const newUser = await tx.user.create({
+            // Create the membership with OWNER role
+            await tx.organizationMember.create({
                 data: {
-                    authId: user.id,
-                    email: user.email!,
-                    name: user.user_metadata?.full_name || null,
-                    role: "OWNER",
+                    userId: dbUser.id,
                     organizationId: organization.id,
+                    role: "OWNER",
                 },
             });
 
-            return { organization, user: newUser };
+            // Set the current organization for the user
+            await tx.user.update({
+                where: { id: dbUser.id },
+                data: { currentOrganizationId: organization.id },
+            });
+
+            return { organization, user: dbUser };
         });
 
         return NextResponse.json({

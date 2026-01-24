@@ -49,9 +49,9 @@ async function processBlocksForPDF(blocks: Block[]): Promise<Block[]> {
 
 export async function POST(request: NextRequest) {
     try {
-        const { user, error } = await getCurrentUser();
+        const { context, error } = await getCurrentUser();
 
-        if (!user) {
+        if (!context) {
             return NextResponse.json({ error }, { status: 401 });
         }
 

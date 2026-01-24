@@ -16,6 +16,8 @@ import {
   LogOut,
   User,
   ChevronDown,
+  Check,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,25 +44,39 @@ const navigation = [
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed";
 
+interface OrganizationInfo {
+  id: string;
+  name: string;
+  slug: string;
+  role: string;
+}
+
 interface SidebarProps {
   user: {
     id: string;
     email: string;
     name: string | null;
-    role: string;
   };
-  organization: {
+  currentOrganization: {
     id: string;
     name: string;
   };
+  currentRole: string;
+  allOrganizations: OrganizationInfo[];
 }
 
-export function Sidebar({ user, organization }: SidebarProps) {
+export function Sidebar({
+  user,
+  currentOrganization,
+  currentRole,
+  allOrganizations,
+}: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false);
 
   // Load collapsed state from localStorage on mount
   useEffect(() => {
@@ -87,6 +103,37 @@ export function Sidebar({ user, organization }: SidebarProps) {
     router.refresh();
   };
 
+  const handleSwitchOrganization = async (orgId: string) => {
+    if (orgId === currentOrganization.id) return;
+
+    setIsSwitching(true);
+    try {
+      const response = await fetch("/api/organizations/switch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ organizationId: orgId }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.error || "Failed to switch organization");
+        return;
+      }
+
+      toast.success(`Switched to ${data.organization.name}`);
+      router.refresh();
+    } catch (error) {
+      toast.error("Failed to switch organization");
+    } finally {
+      setIsSwitching(false);
+    }
+  };
+
+  const handleCreateOrganization = () => {
+    router.push("/onboarding?create=true");
+  };
+
   // Prevent hydration mismatch by rendering expanded state initially
   const collapsed = isHydrated ? isCollapsed : false;
 
@@ -98,6 +145,18 @@ export function Sidebar({ user, organization }: SidebarProps) {
     .join("")
     .toUpperCase()
     .slice(0, 2);
+
+  // Get role badge color
+  const getRoleBadgeClass = (role: string) => {
+    switch (role) {
+      case "OWNER":
+        return "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200";
+      case "ADMIN":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
+    }
+  };
 
   return (
     <div
@@ -127,13 +186,82 @@ export function Sidebar({ user, organization }: SidebarProps) {
         </Link>
       </div>
 
-      {/* Organization Name */}
-      {!collapsed && (
-        <div className="px-3 py-2 border-b">
-          <p className="text-xs text-muted-foreground">Organization</p>
-          <p className="text-sm font-medium truncate">{organization.name}</p>
-        </div>
-      )}
+      {/* Organization Switcher */}
+      <div className={cn("border-b", collapsed ? "p-2" : "p-3")}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              disabled={isSwitching}
+              className={cn(
+                "w-full justify-start gap-2 h-auto py-2",
+                collapsed ? "justify-center px-2" : "px-2"
+              )}
+            >
+              <div
+                className={cn(
+                  "flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary text-sm font-medium flex-shrink-0",
+                  collapsed ? "" : ""
+                )}
+              >
+                {currentOrganization.name.charAt(0).toUpperCase()}
+              </div>
+              {!collapsed && (
+                <>
+                  <div className="flex-1 text-left overflow-hidden">
+                    <p className="text-sm font-medium truncate">
+                      {currentOrganization.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{currentRole}</p>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                </>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align={collapsed ? "center" : "start"}
+            side="bottom"
+            className="w-64"
+          >
+            <DropdownMenuLabel>Organizations</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {allOrganizations.map((org) => (
+              <DropdownMenuItem
+                key={org.id}
+                onClick={() => handleSwitchOrganization(org.id)}
+                className="flex items-center justify-between cursor-pointer"
+              >
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 text-primary text-xs font-medium flex-shrink-0">
+                    {org.name.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="truncate">{org.name}</span>
+                  <span
+                    className={cn(
+                      "text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0",
+                      getRoleBadgeClass(org.role)
+                    )}
+                  >
+                    {org.role}
+                  </span>
+                </div>
+                {org.id === currentOrganization.id && (
+                  <Check className="h-4 w-4 text-primary flex-shrink-0 ml-2" />
+                )}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={handleCreateOrganization}
+              className="cursor-pointer"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create Organization
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 p-2">
@@ -196,7 +324,7 @@ export function Sidebar({ user, organization }: SidebarProps) {
                   <div className="flex-1 text-left overflow-hidden">
                     <p className="text-sm font-medium truncate">{displayName}</p>
                     <p className="text-xs text-muted-foreground truncate">
-                      {user.role}
+                      {currentRole}
                     </p>
                   </div>
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />

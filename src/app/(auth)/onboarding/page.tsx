@@ -1,24 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Loader2, Building2, ArrowRight } from "lucide-react";
+import { Loader2, Building2, ArrowRight, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
-export default function OnboardingPage() {
+function OnboardingForm() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const isCreatingAdditional = searchParams.get("create") === "true";
 
     const [orgName, setOrgName] = useState("");
     const [address, setAddress] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [isCheckingUser, setIsCheckingUser] = useState(true);
 
-    // Check if user is authenticated and doesn't already have an org
+    // Check if user is authenticated
     useEffect(() => {
         const checkUser = async () => {
             const supabase = createClient();
@@ -32,21 +35,23 @@ export default function OnboardingPage() {
                 return;
             }
 
-            // Check if user already has an organization
-            const response = await fetch("/api/auth/check-org");
-            const data = await response.json();
+            // If not creating additional org, check if user already has one
+            if (!isCreatingAdditional) {
+                const response = await fetch("/api/auth/check-org");
+                const data = await response.json();
 
-            if (data.hasOrg) {
-                // User already has org, redirect to dashboard
-                router.push("/templates");
-                return;
+                if (data.hasOrg) {
+                    // User already has org, redirect to dashboard
+                    router.push("/templates");
+                    return;
+                }
             }
 
             setIsCheckingUser(false);
         };
 
         checkUser();
-    }, [router]);
+    }, [router, isCreatingAdditional]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -98,15 +103,32 @@ export default function OnboardingPage() {
 
     return (
         <>
+            {isCreatingAdditional && (
+                <div className="mb-4">
+                    <Link href="/templates">
+                        <Button variant="ghost" size="sm" className="gap-2">
+                            <ArrowLeft className="h-4 w-4" />
+                            Back to dashboard
+                        </Button>
+                    </Link>
+                </div>
+            )}
+
             <div className="text-center mb-6">
                 <div className="flex justify-center mb-4">
                     <div className="p-3 rounded-full bg-primary/10">
                         <Building2 className="h-8 w-8 text-primary" />
                     </div>
                 </div>
-                <h1 className="text-2xl font-bold">Set up your organization</h1>
+                <h1 className="text-2xl font-bold">
+                    {isCreatingAdditional
+                        ? "Create a new organization"
+                        : "Set up your organization"}
+                </h1>
                 <p className="text-muted-foreground mt-1">
-                    Tell us about your company to get started
+                    {isCreatingAdditional
+                        ? "Add another organization to your account"
+                        : "Tell us about your company to get started"}
                 </p>
             </div>
 
@@ -151,9 +173,24 @@ export default function OnboardingPage() {
                     ) : (
                         <ArrowRight className="mr-2 h-4 w-4" />
                     )}
-                    Continue to dashboard
+                    {isCreatingAdditional ? "Create organization" : "Continue to dashboard"}
                 </Button>
             </form>
         </>
+    );
+}
+
+export default function OnboardingPage() {
+    return (
+        <Suspense
+            fallback={
+                <div className="text-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+                    <p className="text-muted-foreground mt-2">Loading...</p>
+                </div>
+            }
+        >
+            <OnboardingForm />
+        </Suspense>
     );
 }

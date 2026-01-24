@@ -9,9 +9,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { user, error } = await getCurrentUser();
+    const { context, error } = await getCurrentUser();
 
-    if (!user) {
+    if (!context) {
       return NextResponse.json({ error }, { status: 401 });
     }
 
@@ -20,7 +20,7 @@ export async function GET(
     const template = await prisma.template.findFirst({
       where: {
         id,
-        organizationId: user.organizationId,
+        organizationId: context.currentMembership.organization.id,
       },
     });
 
@@ -46,9 +46,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { user, error } = await getCurrentUser();
+    const { context, error } = await getCurrentUser();
 
-    if (!user) {
+    if (!context) {
       return NextResponse.json({ error }, { status: 401 });
     }
 
@@ -60,7 +60,7 @@ export async function PUT(
     const existing = await prisma.template.findFirst({
       where: {
         id,
-        organizationId: user.organizationId,
+        organizationId: context.currentMembership.organization.id,
       },
     });
 
@@ -105,9 +105,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { user, error } = await getCurrentUser();
+    const { context, error } = await getCurrentUser();
 
-    if (!user) {
+    if (!context) {
       return NextResponse.json({ error }, { status: 401 });
     }
 
@@ -117,7 +117,7 @@ export async function DELETE(
     const existing = await prisma.template.findFirst({
       where: {
         id,
-        organizationId: user.organizationId,
+        organizationId: context.currentMembership.organization.id,
       },
     });
 

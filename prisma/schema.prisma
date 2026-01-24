@@ -16,23 +16,61 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users     User[]
+  members   OrganizationMember[]
+  invites   Invite[]
   templates Template[]
   employees Employee[]
   payslips  Payslip[]
 }
 
 model User {
-  id             String       @id @default(cuid())
-  authId         String       @unique // Supabase Auth user.id (UUID)
-  email          String       @unique
-  name           String?
-  role           UserRole     @default(MEMBER)
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdAt      DateTime     @default(now())
+  id                    String   @id @default(cuid())
+  authId                String   @unique // Supabase Auth user.id (UUID)
+  email                 String   @unique
+  name                  String?
+  currentOrganizationId String?  // Track active org (nullable for users with no memberships yet)
+  createdAt             DateTime @default(now())
+
+  memberships OrganizationMember[]
+  invitesSent Invite[]
 
   @@index([authId])
+}
+
+model OrganizationMember {
+  id             String   @id @default(cuid())
+  role           UserRole @default(MEMBER)
+  joinedAt       DateTime @default(now())
+
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+model Invite {
+  id             String    @id @default(cuid())
+  email          String
+  role           UserRole  @default(MEMBER)
+  token          String    @unique @default(cuid())
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+
+  invitedById    String
+  invitedBy      User      @relation(fields: [invitedById], references: [id])
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime  @default(now())
+
+  @@index([email])
+  @@index([token])
   @@index([organizationId])
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
-export default function LoginPage() {
+function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const redirect = searchParams.get("redirect") ?? "/templates";
@@ -36,8 +36,16 @@ export default function LoginPage() {
             return;
         }
 
+        // Check for invite redirect
+        const inviteRedirect = sessionStorage.getItem("inviteRedirect");
+        if (inviteRedirect) {
+            sessionStorage.removeItem("inviteRedirect");
+            router.push(inviteRedirect);
+        } else {
+            router.push(redirect);
+        }
+
         toast.success("Welcome back!");
-        router.push(redirect);
         router.refresh();
     };
 
@@ -100,5 +108,20 @@ export default function LoginPage() {
                 </Link>
             </p>
         </>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense
+            fallback={
+                <div className="text-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+                    <p className="text-muted-foreground mt-2">Loading...</p>
+                </div>
+            }
+        >
+            <LoginForm />
+        </Suspense>
     );
 }

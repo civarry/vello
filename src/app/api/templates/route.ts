@@ -6,14 +6,14 @@ import { ZodError } from "zod";
 
 export async function GET() {
   try {
-    const { user, error } = await getCurrentUser();
+    const { context, error } = await getCurrentUser();
 
-    if (!user) {
+    if (!context) {
       return NextResponse.json({ error }, { status: 401 });
     }
 
     const templates = await prisma.template.findMany({
-      where: { organizationId: user.organizationId },
+      where: { organizationId: context.currentMembership.organization.id },
       orderBy: { updatedAt: "desc" },
       select: {
         id: true,
@@ -39,9 +39,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { user, error } = await getCurrentUser();
+    const { context, error } = await getCurrentUser();
 
-    if (!user) {
+    if (!context) {
       return NextResponse.json({ error }, { status: 401 });
     }
 
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
         paperSize: validated.paperSize,
         orientation: validated.orientation,
         isDefault: validated.isDefault ?? false,
-        organizationId: user.organizationId,
+        organizationId: context.currentMembership.organization.id,
       },
     });
 

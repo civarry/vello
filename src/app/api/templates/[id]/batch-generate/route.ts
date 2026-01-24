@@ -7,9 +7,9 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { user, error } = await getCurrentUser();
+        const { context, error } = await getCurrentUser();
 
-        if (!user) {
+        if (!context) {
             return NextResponse.json({ error }, { status: 401 });
         }
 
