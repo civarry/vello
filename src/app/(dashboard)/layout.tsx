@@ -3,6 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/db/prisma";
 import { Sidebar } from "@/components/shared/sidebar";
 
+// Force dynamic rendering to ensure fresh organization data on every request
+export const dynamic = "force-dynamic";
+
 export default async function DashboardLayout({
   children,
 }: {

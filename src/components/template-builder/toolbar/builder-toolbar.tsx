@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/tooltip";
 import { ArrowLeft, Save, Eye, Download, Loader2, RotateCcw, RotateCw, Minus, Plus, Maximize2, Ruler, Grid3X3, Magnet } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { clearDraft } from "@/lib/draft";
 import {
   useTemplateBuilderStore,
   PaperSize,
@@ -115,6 +116,11 @@ export function BuilderToolbar() {
       }
 
       resetDirty();
+
+      // Clear the draft since changes are now saved
+      if (templateId) {
+        clearDraft(templateId);
+      }
 
       if (!templateId && result.data?.id) {
         // Redirect to edit URL for new templates
@@ -213,9 +219,13 @@ export function BuilderToolbar() {
             className="h-8 w-48 border-none bg-transparent px-2 text-sm font-medium focus-visible:ring-1"
             placeholder="Template name"
           />
-          {isDirty && (
-            <span className="text-xs text-muted-foreground">Unsaved changes</span>
-          )}
+          {isDirty ? (
+            <span className="text-xs text-muted-foreground" title="Your changes are auto-saved as a draft">
+              Unsaved changes <span className="text-muted-foreground/60">(draft auto-saved)</span>
+            </span>
+          ) : templateId ? (
+            <span className="text-xs text-green-600 dark:text-green-500">Saved</span>
+          ) : null}
         </div>
 
         <div className="flex items-center gap-2">

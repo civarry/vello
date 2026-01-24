@@ -1173,3 +1173,41 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
     toggleRightPanel: () => set((state) => ({ showRightPanel: !state.showRightPanel })),
   })
 );
+
+// Auto-save to localStorage when changes are made (debounced)
+if (typeof window !== "undefined") {
+  let saveTimeout: NodeJS.Timeout | null = null;
+  const AUTO_SAVE_DELAY = 1000; // Save 1 second after last change
+
+  useTemplateBuilderStore.subscribe((state, prevState) => {
+    // Only save if there's a template loaded and changes were made
+    if (!state.templateId || !state.isDirty) return;
+
+    // Skip if only transient state changed (selection, zoom, panels, etc.)
+    const contentChanged =
+      state.blocks !== prevState.blocks ||
+      state.globalStyles !== prevState.globalStyles ||
+      state.templateName !== prevState.templateName ||
+      state.paperSize !== prevState.paperSize ||
+      state.orientation !== prevState.orientation ||
+      state.guides !== prevState.guides;
+
+    if (!contentChanged) return;
+
+    // Debounce the save
+    if (saveTimeout) clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+      import("@/lib/draft").then(({ saveDraft }) => {
+        saveDraft({
+          templateId: state.templateId!,
+          templateName: state.templateName,
+          blocks: state.blocks,
+          globalStyles: state.globalStyles,
+          paperSize: state.paperSize,
+          orientation: state.orientation,
+          guides: state.guides,
+        });
+      });
+    }, AUTO_SAVE_DELAY);
+  });
+}

@@ -168,9 +168,11 @@ export function Sidebar({
       if (pathname.match(/^\/templates\/[^/]+/)) {
         // Reset template store to clear any stale data
         resetTemplateStore();
-        router.push("/templates");
-        router.refresh(); // Also refresh to update sidebar state
+        // Use replace to navigate and refresh will happen automatically
+        // due to force-dynamic on the layout
+        router.replace("/templates");
       } else {
+        // Refresh to update sidebar with new organization
         router.refresh();
       }
     } catch (error) {
