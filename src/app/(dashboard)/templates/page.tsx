@@ -196,7 +196,7 @@ export default function TemplatesPage() {
                         }
                       >
                         <FileOutput className="mr-2 h-4 w-4" />
-                        Generate Payslip
+                        Generate Document
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
@@ -233,7 +233,7 @@ export default function TemplatesPage() {
                   <Link href={`/templates/${template.id}/generate`} className="flex-1">
                     <Button variant="default" size="sm" className="w-full">
                       <FileOutput className="mr-2 h-4 w-4" />
-                      Generate Payslip
+                      Generate Document
                     </Button>
                   </Link>
                   <Link href={`/templates/${template.id}/edit`}>

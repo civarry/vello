@@ -8,7 +8,9 @@ import type {
   TableRow,
   TableCell,
   Guide,
+  TemplateType,
 } from "@/types/template";
+
 import { DEFAULT_GLOBAL_STYLES, DEFAULT_BLOCK_STYLE, DEFAULT_BLOCK_SIZES } from "@/types/template";
 
 export type GridSize = 5 | 10 | 20;
@@ -29,6 +31,9 @@ interface HistorySnapshot {
   paperSize: PaperSize;
   orientation: Orientation;
   templateName: string;
+  templateType: TemplateType;
+  recipientEmailField: string | null;
+  recipientNameField: string | null;
 }
 
 const MAX_HISTORY_SIZE = 50;
@@ -36,6 +41,9 @@ const MAX_HISTORY_SIZE = 50;
 interface TemplateBuilderState {
   templateId: string | null;
   templateName: string;
+  templateType: TemplateType;
+  recipientEmailField: string | null;
+  recipientNameField: string | null;
   blocks: Block[];
   selectedBlockId: string | null; // Deprecated: getter for backward compatibility
   selectedBlockIds: string[];
@@ -69,6 +77,9 @@ interface TemplateBuilderState {
 
   // Actions
   setTemplateName: (name: string) => void;
+  setTemplateType: (type: TemplateType) => void;
+  setRecipientEmailField: (field: string | null) => void;
+  setRecipientNameField: (field: string | null) => void;
   setPaperSize: (size: PaperSize) => void;
   setOrientation: (orientation: Orientation) => void;
   setBlocks: (blocks: Block[]) => void;
@@ -90,7 +101,15 @@ interface TemplateBuilderState {
   groupSelectedBlocks: () => void;
   ungroupSelectedBlocks: () => void;
   setGlobalStyles: (styles: Partial<GlobalStyles>) => void;
-  loadTemplate: (schema: TemplateSchema & { id?: string; name?: string; paperSize?: PaperSize; orientation?: Orientation }) => void;
+  loadTemplate: (schema: TemplateSchema & {
+    id?: string;
+    name?: string;
+    paperSize?: PaperSize;
+    orientation?: Orientation;
+    templateType?: TemplateType;
+    recipientEmailField?: string | null;
+    recipientNameField?: string | null;
+  }) => void;
   getSchema: () => TemplateSchema;
   resetDirty: () => void;
   reset: () => void;
@@ -184,6 +203,9 @@ function getDefaultProperties(type: BlockType): Block["properties"] {
 const initialState = {
   templateId: null as string | null,
   templateName: "Untitled Template",
+  templateType: "PAYROLL" as TemplateType,
+  recipientEmailField: null as string | null,
+  recipientNameField: null as string | null,
   blocks: [] as Block[],
   selectedBlockId: null as string | null,
   selectedBlockIds: [] as string[],
@@ -205,13 +227,16 @@ const initialState = {
 };
 
 // Helper to create a history snapshot from current state
-function createSnapshot(state: Pick<TemplateBuilderState, 'blocks' | 'globalStyles' | 'paperSize' | 'orientation' | 'templateName'>): HistorySnapshot {
+function createSnapshot(state: Pick<TemplateBuilderState, 'blocks' | 'globalStyles' | 'paperSize' | 'orientation' | 'templateName' | 'templateType' | 'recipientEmailField' | 'recipientNameField'>): HistorySnapshot {
   return {
     blocks: JSON.parse(JSON.stringify(state.blocks)),
     globalStyles: JSON.parse(JSON.stringify(state.globalStyles)),
     paperSize: state.paperSize,
     orientation: state.orientation,
     templateName: state.templateName,
+    templateType: state.templateType,
+    recipientEmailField: state.recipientEmailField,
+    recipientNameField: state.recipientNameField,
   };
 }
 
@@ -252,6 +277,24 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
     setTemplateName: (name) => set((state) => ({
       ...pushHistory(state),
       templateName: name,
+      isDirty: true,
+    })),
+
+    setTemplateType: (type) => set((state) => ({
+      ...pushHistory(state),
+      templateType: type,
+      isDirty: true,
+    })),
+
+    setRecipientEmailField: (field) => set((state) => ({
+      ...pushHistory(state),
+      recipientEmailField: field,
+      isDirty: true,
+    })),
+
+    setRecipientNameField: (field) => set((state) => ({
+      ...pushHistory(state),
+      recipientNameField: field,
       isDirty: true,
     })),
 
@@ -627,6 +670,9 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         globalStyles: schema.globalStyles,
         paperSize: schema.paperSize || "A4",
         orientation: schema.orientation || "PORTRAIT",
+        templateType: schema.templateType || "PAYROLL",
+        recipientEmailField: schema.recipientEmailField || null,
+        recipientNameField: schema.recipientNameField || null,
         guides: schema.guides || [],
         isDirty: false,
         selectedBlockId: null,

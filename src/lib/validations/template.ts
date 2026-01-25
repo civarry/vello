@@ -56,6 +56,9 @@ export const createTemplateSchema = z.object({
   paperSize: z.enum(["A4", "LETTER", "LEGAL"]).default("A4"),
   orientation: z.enum(["PORTRAIT", "LANDSCAPE"]).default("PORTRAIT"),
   isDefault: z.boolean().optional(),
+  templateType: z.enum(["PAYROLL", "GENERAL"]).optional(),
+  recipientEmailField: z.string().nullable().optional(),
+  recipientNameField: z.string().nullable().optional(),
 });
 
 export const updateTemplateSchema = createTemplateSchema.partial();

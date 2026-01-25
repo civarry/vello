@@ -21,6 +21,45 @@ model Organization {
   templates Template[]
   employees Employee[]
   payslips  Payslip[]
+  smtpConfig SMTPConfiguration?
+}
+
+model EmailProvider {
+  id          String   @id @default(cuid())
+  name        String   @unique // "Gmail", "Outlook", "Custom"
+  smtpServer  String
+  smtpPort    Int
+  useTLS      Boolean  @default(true)
+  description String?
+  
+  configurations SMTPConfiguration[]
+  
+  @@map("email_providers")
+}
+
+model SMTPConfiguration {
+  id              String   @id @default(cuid())
+  organizationId  String   @unique
+  providerId      String
+  
+  senderEmail     String
+  senderName      String?
+  smtpUsername    String
+  smtpPassword    String   // Encrypted
+  
+  // Email template customization
+  emailSubject    String?
+  emailBody       String?
+  
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  provider        EmailProvider @relation(fields: [providerId], references: [id])
+  
+  @@index([organizationId])
+  @@map("smtp_configurations")
 }
 
 model User {
@@ -81,21 +120,32 @@ enum UserRole {
 }
 
 model Template {
-  id             String      @id @default(cuid())
+  id             String       @id @default(cuid())
   name           String
   description    String?
-  schema         Json        // Block layout definition
-  paperSize      PaperSize   @default(A4)
-  orientation    Orientation @default(PORTRAIT)
-  isDefault      Boolean     @default(false)
+  schema         Json         // Block layout definition
+  paperSize      PaperSize    @default(A4)
+  orientation    Orientation  @default(PORTRAIT)
+  isDefault      Boolean      @default(false)
+
+  // Template type and email settings
+  templateType        TemplateType @default(PAYROLL)
+  recipientEmailField String?      // Variable path for recipient email (e.g., "employee.email")
+  recipientNameField  String?      // Variable path for recipient name (e.g., "employee.firstName")
+
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   payslips Payslip[]
 
   @@index([organizationId])
+}
+
+enum TemplateType {
+  PAYROLL  // Per-recipient documents (payslips, salary statements)
+  GENERAL  // Static documents (memos, announcements)
 }
 
 enum PaperSize {

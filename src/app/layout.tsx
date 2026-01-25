@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Vello",
-  description: "Design custom payslip templates and generate payslips",
+  description: "Design custom payslip templates and generate documents",
 };
 
 export default function RootLayout({

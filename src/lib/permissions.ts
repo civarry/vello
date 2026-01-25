@@ -21,7 +21,9 @@ export type Permission =
   // Organization permissions
   | "org:read"
   | "org:update"
-  | "org:delete";
+  | "org:delete"
+  // Settings permissions
+  | "settings:manage";
 
 const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   OWNER: [
@@ -35,6 +37,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "org:read",
     "org:update",
     "org:delete",
+    "settings:manage",
   ],
   ADMIN: [
     "templates:read",
@@ -44,6 +47,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "members:invite",
     "org:read",
     "org:update",
+    "settings:manage",
   ],
   MEMBER: [
     "templates:read",

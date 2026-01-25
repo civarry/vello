@@ -80,6 +80,9 @@ export async function PUT(
         ...(validated.paperSize && { paperSize: validated.paperSize }),
         ...(validated.orientation && { orientation: validated.orientation }),
         ...(validated.isDefault !== undefined && { isDefault: validated.isDefault }),
+        ...(validated.templateType && { templateType: validated.templateType }),
+        ...(validated.recipientEmailField !== undefined && { recipientEmailField: validated.recipientEmailField }),
+        ...(validated.recipientNameField !== undefined && { recipientNameField: validated.recipientNameField }),
       },
     });
 

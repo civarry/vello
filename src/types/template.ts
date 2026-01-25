@@ -125,12 +125,17 @@ export interface GlobalStyles {
   secondaryColor: string;
 }
 
+export type TemplateType = "PAYROLL" | "GENERAL";
+
 export interface Template {
   id: string;
   name: string;
   schema: TemplateSchema;
   paperSize: "A4" | "LETTER" | "LEGAL";
   orientation: "PORTRAIT" | "LANDSCAPE";
+  templateType?: TemplateType;
+  recipientEmailField?: string | null;
+  recipientNameField?: string | null;
   createdAt?: Date; // Optional based on DB
   updatedAt?: Date; // Optional based on DB
 }
@@ -140,6 +145,10 @@ export interface TemplateSchema {
   variables: TemplateVariable[];
   globalStyles: GlobalStyles;
   guides?: Guide[]; // Optional for backward compatibility
+  // Template settings
+  templateType?: TemplateType;
+  recipientEmailField?: string | null;
+  recipientNameField?: string | null;
 }
 
 export const STANDARD_VARIABLES: TemplateVariable[] = [

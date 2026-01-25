@@ -22,7 +22,8 @@ import {
   Trash2,
   Maximize2,
   X,
-  RefreshCcw
+  RefreshCcw,
+  Mail
 } from "lucide-react";
 import { toast } from "sonner";
 import type {
@@ -30,7 +31,6 @@ import type {
   TemplateSchema,
   TemplateVariable,
 } from "@/types/template";
-import { BlockRenderer } from "@/components/template-builder/blocks/block-renderer"; // Keeping for reference if needed, but unused now? No, better remove if unused.
 import { LivePdfPreview } from "@/components/previews/live-pdf-preview";
 import { PAPER_DIMENSIONS } from "@/stores/template-builder-store";
 import {
@@ -38,9 +38,11 @@ import {
   applyDataToBlocks,
   type VariableInfo
 } from "@/lib/template-utils";
+import { BatchSendDialog } from "@/components/generate/batch-send-dialog";
+import { GeneralSendDialog } from "@/components/generate/general-send-dialog";
 
 
-export default function GeneratePayslipPage({
+export default function GenerateDocumentsPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -51,6 +53,14 @@ export default function GeneratePayslipPage({
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [showSendDialog, setShowSendDialog] = useState(false);
+  const [hasSmtpConfig, setHasSmtpConfig] = useState(false);
+  const [smtpConfig, setSmtpConfig] = useState<{
+    emailSubject?: string;
+    emailBody?: string;
+    senderName?: string;
+  } | null>(null);
+  const [organizationName, setOrganizationName] = useState<string>("");
 
   // Data Grid State
   const [records, setRecords] = useState<Record<string, string>[]>([]);
@@ -104,7 +114,31 @@ export default function GeneratePayslipPage({
       }
     }
 
+    async function checkSmtpConfig() {
+      try {
+        const response = await fetch("/api/smtp/config");
+        const data = await response.json();
+        setHasSmtpConfig(!!data.data);
+
+        // Set organization name from API response
+        if (data.organizationName) {
+          setOrganizationName(data.organizationName);
+        }
+
+        if (data.data) {
+          setSmtpConfig({
+            emailSubject: data.data.emailSubject,
+            emailBody: data.data.emailBody,
+            senderName: data.data.senderName,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to check SMTP config:", error);
+      }
+    }
+
     fetchTemplate();
+    checkSmtpConfig();
   }, [resolvedParams.id, router]);
 
   // --- Grid Actions ---
@@ -328,7 +362,7 @@ export default function GeneratePayslipPage({
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-muted-foreground" />
             <span className="font-medium">{template.name}</span>
-            <span className="text-muted-foreground">/ Generate</span>
+            <span className="text-muted-foreground">/ Generate Documents</span>
           </div>
         </div>
 
@@ -337,6 +371,12 @@ export default function GeneratePayslipPage({
             <FileSpreadsheet className="mr-2 h-4 w-4" />
             Excel Template
           </Button>
+          {hasSmtpConfig && (
+            <Button variant="outline" size="sm" onClick={() => setShowSendDialog(true)}>
+              <Mail className="mr-2 h-4 w-4" />
+              Send via Email
+            </Button>
+          )}
           <Button onClick={handleGenerate} disabled={isExporting}>
             {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
             {records.length > 1 ? "Generate Batch (ZIP)" : "Generate PDF"}
@@ -465,6 +505,37 @@ export default function GeneratePayslipPage({
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
+
+      {/* Send Dialog - Conditional based on template type */}
+      {template.templateType === "GENERAL" ? (
+        <GeneralSendDialog
+          open={showSendDialog}
+          onOpenChange={setShowSendDialog}
+          templateId={resolvedParams.id}
+          templateName={template.name}
+          defaultSubject={smtpConfig?.emailSubject}
+          defaultBody={smtpConfig?.emailBody}
+          organizationName={organizationName}
+        />
+      ) : (
+        <BatchSendDialog
+          open={showSendDialog}
+          onOpenChange={setShowSendDialog}
+          templateId={resolvedParams.id}
+          records={records}
+          emailField={template.recipientEmailField || usedVariables.find(v =>
+            v.key.toLowerCase().includes("email") ||
+            v.label.toLowerCase().includes("email")
+          )?.key}
+          nameField={template.recipientNameField || usedVariables.find(v =>
+            (v.key.toLowerCase().includes("name") && !v.key.toLowerCase().includes("email")) ||
+            (v.label.toLowerCase().includes("name") && !v.label.toLowerCase().includes("email"))
+          )?.key}
+          defaultSubject={smtpConfig?.emailSubject}
+          defaultBody={smtpConfig?.emailBody}
+          organizationName={organizationName}
+        />
+      )}
     </div>
   );
 }

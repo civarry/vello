@@ -46,6 +46,8 @@ import {
 import { toast } from "sonner";
 import { LivePdfPreview } from "@/components/previews/live-pdf-preview";
 import { Template } from "@/types/template";
+import { TemplateSettingsDialog } from "../template-settings-dialog";
+import { Settings } from "lucide-react";
 
 export function BuilderToolbar() {
   const router = useRouter();
@@ -82,9 +84,14 @@ export function BuilderToolbar() {
     snapToGrid,
     setSnapToGrid,
     guides,
+    // Email settings
+    templateType,
+    recipientEmailField,
+    recipientNameField,
   } = useTemplateBuilderStore();
 
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
@@ -125,6 +132,9 @@ export function BuilderToolbar() {
         schema,
         paperSize,
         orientation,
+        templateType,
+        recipientEmailField,
+        recipientNameField,
       };
 
       const url = templateId ? `/api/templates/${templateId}` : "/api/templates";
@@ -254,6 +264,21 @@ export function BuilderToolbar() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={isSettingsOpen ? "secondary" : "ghost"}
+                size="icon"
+                onClick={() => setIsSettingsOpen(true)}
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Template Settings</TooltipContent>
+          </Tooltip>
+
+          <Separator orientation="vertical" className="h-6" />
+
           {/* Undo/Redo Buttons */}
           <div className="flex items-center gap-1">
             <Tooltip>
@@ -433,6 +458,12 @@ export function BuilderToolbar() {
           </Button>
         </div>
       </div>
+
+      {/* Settings Dialog */}
+      <TemplateSettingsDialog
+        open={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
+      />
 
       {/* Preview Modal */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
