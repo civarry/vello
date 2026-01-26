@@ -51,11 +51,7 @@ import { toast } from "sonner";
 
 const navigation = [
   { name: "Templates", href: "/templates", icon: LayoutTemplate },
-  { name: "Members", href: "/settings/members", icon: Users },
-  { name: "Email Settings", href: "/settings/email", icon: Mail },
-  // { name: "Payslips", href: "/payslips", icon: FileText }, // Hidden until implemented
-  // { name: "Employees", href: "/employees", icon: Users }, // Hidden until implemented
-  // { name: "Settings", href: "/settings", icon: Settings }, // Hidden until implemented
+  { name: "Settings", href: "/settings", icon: Settings },
 ];
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed";
@@ -240,8 +236,8 @@ export function Sidebar({
         <Link
           href="/templates"
           className={cn(
-            "flex items-center gap-2 overflow-hidden",
-            collapsed ? "justify-center w-full" : ""
+            "flex items-center overflow-hidden",
+            collapsed ? "justify-center w-full" : "gap-2"
           )}
         >
           <Building2 className="h-6 w-6 shrink-0" />
@@ -384,8 +380,8 @@ export function Sidebar({
             <Link
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                collapsed ? "justify-center px-2" : "",
+                "flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                collapsed ? "justify-center px-2" : "gap-3",
                 isActive
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"

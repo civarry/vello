@@ -244,7 +244,7 @@ export default function EmailSettingsPage() {
 
             {/* Content */}
             <div className="flex-1 overflow-auto bg-muted/10">
-                <div className="mx-auto max-w-5xl p-6 space-y-6">
+                <div className="p-6 space-y-6">
                     <div className="space-y-1">
                         <h1 className="text-2xl font-bold tracking-tight">Email Configurations</h1>
                         <p className="text-muted-foreground">
