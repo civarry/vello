@@ -11,6 +11,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft,
   Download,
@@ -23,8 +24,18 @@ import {
   Maximize2,
   X,
   RefreshCcw,
-  Mail
+  Mail,
+  Table,
+  Eye,
+  MoreVertical,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 import { toast } from "sonner";
 import type {
   Template,
@@ -66,6 +77,11 @@ export default function GenerateDocumentsPage({
   const [records, setRecords] = useState<Record<string, string>[]>([]);
   const [selectedRecordIndex, setSelectedRecordIndex] = useState<number>(0);
   const [usedVariables, setUsedVariables] = useState<VariableInfo[]>([]);
+
+  // Mobile tab state
+  const [mobileTab, setMobileTab] = useState<"data" | "preview">("data");
+
+
 
   // File input ref
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -383,8 +399,8 @@ export default function GenerateDocumentsPage({
   if (!hasVariables) {
     return (
       <div className="flex h-[calc(100vh-4rem)] flex-col">
-        {/* Header */}
-        <div className="flex h-14 items-center justify-between border-b bg-background px-4 shrink-0">
+        {/* Desktop Header */}
+        <div className="hidden md:flex h-14 items-center justify-between border-b bg-background px-4 shrink-0">
           <div className="flex items-center gap-4">
             <Link href="/templates">
               <Button variant="ghost" size="icon">
@@ -413,6 +429,21 @@ export default function GenerateDocumentsPage({
           </div>
         </div>
 
+        {/* Mobile Header */}
+        <div className="md:hidden flex h-12 items-center justify-between border-b bg-background px-3 shrink-0">
+          <div className="flex items-center gap-2">
+            <Link href="/templates">
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="font-medium text-sm truncate max-w-[180px]">{template.name}</span>
+            </div>
+          </div>
+        </div>
+
         {/* Full-width Preview */}
         <div className="flex-1 overflow-hidden bg-muted/30">
           <div className="h-full flex flex-col">
@@ -420,7 +451,7 @@ export default function GenerateDocumentsPage({
               <span className="text-sm font-medium flex items-center gap-2">
                 <Maximize2 className="h-3 w-3" /> Document Preview
               </span>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground hidden sm:block">
                 This template has no variable fields - ready to export as-is
               </span>
             </div>
@@ -428,6 +459,20 @@ export default function GenerateDocumentsPage({
               <LivePdfPreview template={template} data={{}} />
             </div>
           </div>
+        </div>
+
+        {/* Mobile Bottom Action Bar */}
+        <div className="md:hidden border-t bg-background p-3 flex gap-2">
+          {hasSmtpConfig && (
+            <Button variant="outline" className="flex-1" onClick={() => setShowSendDialog(true)}>
+              <Mail className="mr-2 h-4 w-4" />
+              Send
+            </Button>
+          )}
+          <Button className="flex-1" onClick={handleSimpleExport} disabled={isExporting}>
+            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            Download PDF
+          </Button>
         </div>
 
         {/* Send Dialog for templates without variables */}
@@ -444,10 +489,128 @@ export default function GenerateDocumentsPage({
     );
   }
 
+  // Render data grid content (shared between mobile and desktop)
+  const renderDataGrid = () => (
+    <div className="flex flex-col h-full bg-background">
+      {/* Toolbar */}
+      <div className="p-2 border-b flex items-center gap-2 bg-muted/20">
+        <input
+          type="file"
+          accept=".xlsx, .xls"
+          ref={fileInputRef}
+          className="hidden"
+          onChange={handleFileUpload}
+        />
+        <Button variant="secondary" size="sm" onClick={handleImportClick} disabled={isImporting}>
+          {isImporting ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Upload className="mr-2 h-3 w-3" />}
+          <span className="hidden sm:inline">Import Excel</span>
+          <span className="sm:hidden">Import</span>
+        </Button>
+        <Button variant="secondary" size="sm" onClick={handleAddRow}>
+          <Plus className="mr-2 h-3 w-3" />
+          <span className="hidden sm:inline">Add Row</span>
+          <span className="sm:hidden">Add</span>
+        </Button>
+        <div className="flex-1" />
+        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={handleClearAll}>
+          <Trash2 className="h-3 w-3 sm:mr-2" />
+          <span className="hidden sm:inline">Clear All</span>
+        </Button>
+      </div>
+
+      {/* Grid Table */}
+      <div className="flex-1 overflow-auto">
+        <table className="w-full text-sm border-collapse">
+          <thead className="bg-muted sticky top-0 z-10 shadow-sm">
+            <tr>
+              <th className="p-2 w-10 border-b text-center text-muted-foreground font-medium">#</th>
+              {usedVariables.map(v => (
+                <th key={v.key} className="p-2 border-b text-left font-medium min-w-[120px] md:min-w-[150px] whitespace-nowrap">
+                  <div className="flex flex-col">
+                    <span className="text-xs md:text-sm">{v.label}</span>
+                    <span className="text-[10px] text-muted-foreground font-normal opacity-70 hidden md:block">{v.key}</span>
+                  </div>
+                </th>
+              ))}
+              <th className="p-2 w-10 border-b"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {records.map((row, rowIndex) => {
+              const isSelected = rowIndex === selectedRecordIndex;
+              return (
+                <tr
+                  key={rowIndex}
+                  className={`group transition-colors ${isSelected ? 'bg-primary/5' : 'hover:bg-muted/30'}`}
+                  onClick={() => setSelectedRecordIndex(rowIndex)}
+                >
+                  <td className="p-2 text-center text-xs text-muted-foreground select-none">
+                    {rowIndex + 1}
+                  </td>
+                  {usedVariables.map(v => (
+                    <td key={v.key} className="p-1 border-r relative min-w-[120px] md:min-w-[150px]">
+                      <input
+                        className="w-full h-full p-1.5 bg-transparent outline-none focus:bg-background focus:ring-1 ring-primary/20 rounded-sm transition-all text-sm"
+                        value={row[v.key] || ""}
+                        onChange={(e) => handleCellChange(rowIndex, v.key, e.target.value)}
+                        placeholder="..."
+                      />
+                    </td>
+                  ))}
+                  <td className="p-1 text-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground md:opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+                      onClick={(e) => { e.stopPropagation(); handleDeleteRow(rowIndex); }}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        {/* Empty State / Add Row Hint */}
+        <div className="p-4 md:p-8 flex justify-center">
+          <Button variant="outline" size="sm" onClick={handleAddRow} className="border-dashed text-muted-foreground">
+            <Plus className="mr-2 h-3 w-3" /> Add another record
+          </Button>
+        </div>
+      </div>
+
+      {/* Footer Bar */}
+      <div className="p-2 border-t bg-muted/20 text-xs text-muted-foreground flex justify-between">
+        <span>{records.length} Record{records.length !== 1 ? 's' : ''}</span>
+        <span>{usedVariables.length} Columns</span>
+      </div>
+    </div>
+  );
+
+  // Render preview content (shared between mobile and desktop)
+  const renderPreview = () => (
+    <div className="h-full flex flex-col bg-muted/30">
+      <div className="p-3 border-b bg-background/50 backdrop-blur flex justify-between items-center">
+        <span className="text-sm font-medium flex items-center gap-2">
+          <Maximize2 className="h-3 w-3" /> Preview: Record #{selectedRecordIndex + 1}
+        </span>
+        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleRefreshPreview}>
+          <RefreshCcw className="mr-2 h-3 w-3" /> Refresh
+        </Button>
+      </div>
+
+      <div className="flex-1 overflow-hidden bg-gray-50/50 relative">
+        <LivePdfPreview template={template} data={activePreviewData} />
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
-      {/* Header */}
-      <div className="flex h-14 items-center justify-between border-b bg-background px-4 shrink-0">
+      {/* Desktop Header */}
+      <div className="hidden md:flex h-14 items-center justify-between border-b bg-background px-4 shrink-0">
         <div className="flex items-center gap-4">
           <Link href="/templates">
             <Button variant="ghost" size="icon">
@@ -480,102 +643,78 @@ export default function GenerateDocumentsPage({
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      {/* Mobile Header */}
+      <div className="md:hidden flex h-12 items-center justify-between border-b bg-background px-3 shrink-0">
+        <div className="flex items-center gap-2">
+          <Link href="/templates">
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+            <span className="font-medium text-sm truncate max-w-[150px]">{template.name}</span>
+          </div>
+        </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleDownloadTemplate}>
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Download Excel Template
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* Mobile Tabs */}
+      <div className="md:hidden flex-1 flex flex-col overflow-hidden">
+        <Tabs value={mobileTab} onValueChange={(v) => setMobileTab(v as "data" | "preview")} className="flex-1 flex flex-col">
+          <TabsList className="grid w-full grid-cols-2 rounded-none border-b h-10">
+            <TabsTrigger value="data" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
+              <Table className="mr-2 h-4 w-4" />
+              Data
+            </TabsTrigger>
+            <TabsTrigger value="preview" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
+              <Eye className="mr-2 h-4 w-4" />
+              Preview
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="data" className="flex-1 m-0 overflow-hidden">
+            {renderDataGrid()}
+          </TabsContent>
+          <TabsContent value="preview" className="flex-1 m-0 overflow-hidden">
+            {renderPreview()}
+          </TabsContent>
+        </Tabs>
+
+        {/* Mobile Bottom Action Bar */}
+        <div className="border-t bg-background p-3 flex gap-2">
+          {hasSmtpConfig && (
+            <Button variant="outline" className="flex-1" onClick={() => setShowSendDialog(true)}>
+              <Mail className="mr-2 h-4 w-4" />
+              Send
+            </Button>
+          )}
+          <Button className="flex-1" onClick={handleGenerate} disabled={isExporting}>
+            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            {records.length > 1 ? "Download ZIP" : "Download PDF"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Desktop Layout with Resizable Panels */}
+      <div className="hidden md:flex flex-1 overflow-hidden">
         <ResizablePanelGroup orientation="horizontal">
           {/* Left: Data Grid */}
           <ResizablePanel defaultSize={60} minSize={30}>
-            <div className="flex flex-col h-full bg-background border-r">
-              {/* Toolbar */}
-              <div className="p-2 border-b flex items-center gap-2 bg-muted/20">
-                <input
-                  type="file"
-                  accept=".xlsx, .xls"
-                  ref={fileInputRef}
-                  className="hidden"
-                  onChange={handleFileUpload}
-                />
-                <Button variant="secondary" size="sm" onClick={handleImportClick} disabled={isImporting}>
-                  {isImporting ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Upload className="mr-2 h-3 w-3" />}
-                  Import Excel
-                </Button>
-                <Separator orientation="vertical" className="h-4" />
-                <Button variant="secondary" size="sm" onClick={handleAddRow}>
-                  <Plus className="mr-2 h-3 w-3" /> Add Row
-                </Button>
-                <div className="flex-1" />
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={handleClearAll}>
-                  <Trash2 className="mr-2 h-3 w-3" /> Clear All
-                </Button>
-              </div>
-
-              {/* Grid Table */}
-              <div className="flex-1 overflow-auto">
-                <table className="w-full text-sm border-collapse">
-                  <thead className="bg-muted sticky top-0 z-10 shadow-sm">
-                    <tr>
-                      <th className="p-2 w-10 border-b text-center text-muted-foreground font-medium">#</th>
-                      {usedVariables.map(v => (
-                        <th key={v.key} className="p-2 border-b text-left font-medium min-w-[150px] whitespace-nowrap">
-                          <div className="flex flex-col">
-                            <span>{v.label}</span>
-                            <span className="text-[10px] text-muted-foreground font-normal opacity-70">{v.key}</span>
-                          </div>
-                        </th>
-                      ))}
-                      <th className="p-2 w-10 border-b"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {records.map((row, rowIndex) => {
-                      const isSelected = rowIndex === selectedRecordIndex;
-                      return (
-                        <tr
-                          key={rowIndex}
-                          className={`group transition-colors ${isSelected ? 'bg-primary/5' : 'hover:bg-muted/30'}`}
-                          onClick={() => setSelectedRecordIndex(rowIndex)}
-                        >
-                          <td className="p-2 text-center text-xs text-muted-foreground select-none">
-                            {rowIndex + 1}
-                          </td>
-                          {usedVariables.map(v => (
-                            <td key={v.key} className="p-1 border-r relative min-w-[150px]">
-                              <input
-                                className="w-full h-full p-1.5 bg-transparent outline-none focus:bg-background focus:ring-1 ring-primary/20 rounded-sm transition-all"
-                                value={row[v.key] || ""}
-                                onChange={(e) => handleCellChange(rowIndex, v.key, e.target.value)}
-                                placeholder="..."
-                              />
-                            </td>
-                          ))}
-                          <td className="p-1 text-center">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
-                              onClick={(e) => { e.stopPropagation(); handleDeleteRow(rowIndex); }}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-
-                {/* Empty State / Add Row Hint */}
-                <div className="p-8 flex justify-center">
-                  <Button variant="outline" size="sm" onClick={handleAddRow} className="border-dashed text-muted-foreground">
-                    <Plus className="mr-2 h-3 w-3" /> Add another record
-                  </Button>
-                </div>
-              </div>
-
-              {/* Footer Bar */}
-              <div className="p-2 border-t bg-muted/20 text-xs text-muted-foreground flex justify-between">
-                <span>{records.length} Record{records.length !== 1 ? 's' : ''}</span>
-                <span>{usedVariables.length} Columns</span>
-              </div>
+            <div className="h-full border-r">
+              {renderDataGrid()}
             </div>
           </ResizablePanel>
 
@@ -583,21 +722,7 @@ export default function GenerateDocumentsPage({
 
           {/* Right: Live Preview */}
           <ResizablePanel defaultSize={40} minSize={20}>
-            <div className="h-full flex flex-col bg-muted/30">
-              <div className="p-3 border-b bg-background/50 backdrop-blur flex justify-between items-center">
-                <span className="text-sm font-medium flex items-center gap-2">
-                  <Maximize2 className="h-3 w-3" /> Preview: Record #{selectedRecordIndex + 1}
-                </span>
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleRefreshPreview}>
-                  <RefreshCcw className="mr-2 h-3 w-3" /> Refresh
-                </Button>
-              </div>
-
-              <div className="flex-1 overflow-hidden bg-gray-50/50 relative">
-                {/* Live PDF Preview */}
-                <LivePdfPreview template={template} data={activePreviewData} />
-              </div>
-            </div>
+            {renderPreview()}
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
