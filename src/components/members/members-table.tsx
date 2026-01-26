@@ -129,9 +129,124 @@ export function MembersTable({
     );
   }
 
+  const renderMemberActions = (member: MemberListItem) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8">
+          <MoreVertical className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {/* Self actions */}
+        {member.isCurrentUser && canTransfer() && (
+          <DropdownMenuItem
+            onClick={() => setShowTransferDialog(true)}
+          >
+            <Crown className="mr-2 h-4 w-4" />
+            Transfer Ownership
+          </DropdownMenuItem>
+        )}
+
+        {member.isCurrentUser && canLeave() && (
+          <DropdownMenuItem
+            onClick={() => setShowLeaveDialog(true)}
+            className="text-destructive focus:text-destructive"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Leave Organization
+          </DropdownMenuItem>
+        )}
+
+        {/* Actions on other members */}
+        {!member.isCurrentUser && canChangeRole(member) && (
+          <DropdownMenuItem
+            onClick={() => setChangeRoleMember(member)}
+          >
+            <Shield className="mr-2 h-4 w-4" />
+            Change Role
+          </DropdownMenuItem>
+        )}
+
+        {!member.isCurrentUser && canChangeRole(member) && canRemove(member) && (
+          <DropdownMenuSeparator />
+        )}
+
+        {!member.isCurrentUser && canRemove(member) && (
+          <DropdownMenuItem
+            onClick={() => setRemoveMember(member)}
+            className="text-destructive focus:text-destructive"
+          >
+            <UserMinus className="mr-2 h-4 w-4" />
+            Remove Member
+          </DropdownMenuItem>
+        )}
+
+        {/* No actions available */}
+        {!member.isCurrentUser &&
+          !canChangeRole(member) &&
+          !canRemove(member) && (
+            <DropdownMenuItem disabled>
+              No actions available
+            </DropdownMenuItem>
+          )}
+
+        {member.isCurrentUser &&
+          !canTransfer() &&
+          !canLeave() && (
+            <DropdownMenuItem disabled>
+              No actions available
+            </DropdownMenuItem>
+          )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   return (
     <div className="space-y-4">
-      <div className="rounded-md border">
+      {/* Mobile card layout */}
+      <div className="md:hidden space-y-3">
+        {members.map((member) => (
+          <div
+            key={member.id}
+            className="rounded-lg border bg-card p-4"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-medium shrink-0">
+                  {(member.name || member.email)
+                    .charAt(0)
+                    .toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-medium truncate">
+                      {member.name || member.email.split("@")[0]}
+                    </p>
+                    {member.isCurrentUser && (
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        (you)
+                      </span>
+                    )}
+                    <Badge
+                      variant="outline"
+                      className={`${getRoleBadgeClass(member.role)} shrink-0`}
+                    >
+                      {member.role}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground truncate">
+                    {member.email}
+                  </p>
+                </div>
+              </div>
+              {renderMemberActions(member)}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table layout */}
+      <div className="hidden md:block rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -178,75 +293,7 @@ export function MembersTable({
                   {formatDate(member.joinedAt)}
                 </TableCell>
                 <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {/* Self actions */}
-                      {member.isCurrentUser && canTransfer() && (
-                        <DropdownMenuItem
-                          onClick={() => setShowTransferDialog(true)}
-                        >
-                          <Crown className="mr-2 h-4 w-4" />
-                          Transfer Ownership
-                        </DropdownMenuItem>
-                      )}
-
-                      {member.isCurrentUser && canLeave() && (
-                        <DropdownMenuItem
-                          onClick={() => setShowLeaveDialog(true)}
-                          className="text-destructive focus:text-destructive"
-                        >
-                          <LogOut className="mr-2 h-4 w-4" />
-                          Leave Organization
-                        </DropdownMenuItem>
-                      )}
-
-                      {/* Actions on other members */}
-                      {!member.isCurrentUser && canChangeRole(member) && (
-                        <DropdownMenuItem
-                          onClick={() => setChangeRoleMember(member)}
-                        >
-                          <Shield className="mr-2 h-4 w-4" />
-                          Change Role
-                        </DropdownMenuItem>
-                      )}
-
-                      {!member.isCurrentUser && canChangeRole(member) && canRemove(member) && (
-                        <DropdownMenuSeparator />
-                      )}
-
-                      {!member.isCurrentUser && canRemove(member) && (
-                        <DropdownMenuItem
-                          onClick={() => setRemoveMember(member)}
-                          className="text-destructive focus:text-destructive"
-                        >
-                          <UserMinus className="mr-2 h-4 w-4" />
-                          Remove Member
-                        </DropdownMenuItem>
-                      )}
-
-                      {/* No actions available */}
-                      {!member.isCurrentUser &&
-                        !canChangeRole(member) &&
-                        !canRemove(member) && (
-                          <DropdownMenuItem disabled>
-                            No actions available
-                          </DropdownMenuItem>
-                        )}
-
-                      {member.isCurrentUser &&
-                        !canTransfer() &&
-                        !canLeave() && (
-                          <DropdownMenuItem disabled>
-                            No actions available
-                          </DropdownMenuItem>
-                        )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {renderMemberActions(member)}
                 </TableCell>
               </TableRow>
             ))}

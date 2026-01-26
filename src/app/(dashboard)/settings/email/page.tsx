@@ -155,7 +155,7 @@ export default function EmailSettingsPage() {
 
     if (isLoading) {
         return (
-            <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+            <div className="flex h-full items-center justify-center">
                 <div className="flex flex-col items-center space-y-4">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     <p className="text-sm text-muted-foreground">Loading email settings...</p>
@@ -167,8 +167,9 @@ export default function EmailSettingsPage() {
     // Show form if creating or editing
     if (isCreating || editingConfig) {
         return (
-            <div className="flex h-[calc(100vh-4rem)] flex-col">
-                <div className="flex h-14 items-center justify-between border-b bg-background px-4 shrink-0">
+            <div className="flex h-full flex-col">
+                {/* Form header - only on desktop, mobile uses MobileSettingsNav */}
+                <div className="hidden md:flex h-14 items-center justify-between border-b bg-background px-4 shrink-0">
                     <div className="flex items-center gap-4">
                         <Button
                             variant="ghost"
@@ -190,8 +191,23 @@ export default function EmailSettingsPage() {
                     </div>
                 </div>
 
+                {/* Mobile back button */}
+                <div className="md:hidden flex items-center gap-2 px-4 py-2 border-b">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                            setIsCreating(false);
+                            setEditingConfig(null);
+                        }}
+                    >
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back
+                    </Button>
+                </div>
+
                 <div className="flex-1 overflow-auto">
-                    <div className="mx-auto max-w-3xl p-6">
+                    <div className="mx-auto max-w-3xl p-4 md:p-6">
                         <Card>
                             <CardHeader>
                                 <CardTitle>{isCreating ? "Add Email Configuration" : "Edit Configuration"}</CardTitle>
@@ -221,9 +237,9 @@ export default function EmailSettingsPage() {
     }
 
     return (
-        <div className="flex h-[calc(100vh-4rem)] flex-col">
-            {/* Header */}
-            <div className="flex h-14 items-center justify-between border-b bg-background px-4 shrink-0">
+        <div className="flex h-full flex-col">
+            {/* Header - hidden on mobile since we have MobileSettingsNav */}
+            <div className="hidden md:flex h-14 items-center justify-between border-b bg-background px-4 shrink-0">
                 <div className="flex items-center gap-4">
                     <Link href="/settings">
                         <Button variant="ghost" size="icon">
@@ -237,6 +253,14 @@ export default function EmailSettingsPage() {
                     </div>
                 </div>
                 <Button onClick={() => setIsCreating(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    New Configuration
+                </Button>
+            </div>
+
+            {/* Mobile action button */}
+            <div className="md:hidden flex justify-end px-4 py-2 border-b">
+                <Button size="sm" onClick={() => setIsCreating(true)}>
                     <Plus className="mr-2 h-4 w-4" />
                     New Configuration
                 </Button>
@@ -275,8 +299,92 @@ export default function EmailSettingsPage() {
                                     "transition-all",
                                     config.isDefault && "border-primary/50 bg-primary/5"
                                 )}>
-                                    <CardContent className="p-6">
-                                        <div className="flex items-start justify-between gap-4">
+                                    <CardContent className="p-4 md:p-6">
+                                        {/* Mobile layout */}
+                                        <div className="flex flex-col gap-3 md:hidden">
+                                            {/* Header row with icon, name, and menu */}
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={cn(
+                                                        "rounded-lg p-2.5 shrink-0",
+                                                        config.isDefault ? "bg-background" : "bg-muted"
+                                                    )}>
+                                                        {config.provider.name === "Gmail" ? (
+                                                            <svg viewBox="0 0 24 24" className="h-5 w-5">
+                                                                <path fill="#EA4335" d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z" />
+                                                            </svg>
+                                                        ) : config.provider.name === "Outlook" ? (
+                                                            <svg viewBox="0 0 24 24" className="h-5 w-5">
+                                                                <path fill="#0078D4" d="M24 7.387v10.478c0 .23-.08.424-.238.576-.158.154-.352.23-.58.23h-8.547v-6.959l1.203.91c.094.074.204.112.33.112s.235-.038.329-.113l7.238-5.473a.593.593 0 0 1 .265.24zM23.182 5.8a.718.718 0 0 0-.36-.1h-8.187v4.5l1.203.91 7.344-5.31zM9.555 8.523v8.642H.818c-.228 0-.42-.076-.574-.23C.082 16.782 0 16.589 0 16.358V5.8c0-.228.082-.42.244-.575.154-.154.346-.23.574-.23h8.737v3.528z" />
+                                                                <ellipse cx="5.187" cy="12.893" rx="3.273" ry="3.273" fill="#0078D4" />
+                                                            </svg>
+                                                        ) : (
+                                                            <Server className="h-5 w-5 text-muted-foreground" />
+                                                        )}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <h3 className="font-semibold truncate">{config.name}</h3>
+                                                            {config.isDefault && (
+                                                                <Badge variant="secondary" className="gap-1 bg-primary/10 text-primary hover:bg-primary/20 shrink-0 text-xs">
+                                                                    <Star className="h-2.5 w-2.5 fill-primary" />
+                                                                    Default
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="shrink-0 -mr-2">
+                                                            <MoreVertical className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                        <DropdownMenuItem onClick={() => {
+                                                            setTestConfig(config);
+                                                            setShowTestDialog(true);
+                                                        }}>
+                                                            <TestTube2 className="mr-2 h-4 w-4" />
+                                                            Test Connection
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => setEditingConfig(config)}>
+                                                            <Pencil className="mr-2 h-4 w-4" />
+                                                            Edit
+                                                        </DropdownMenuItem>
+                                                        {!config.isDefault && (
+                                                            <DropdownMenuItem onClick={() => handleSetDefault(config.id)}>
+                                                                <Star className="mr-2 h-4 w-4" />
+                                                                Make Default
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            className="text-destructive focus:text-destructive"
+                                                            onClick={() => setConfigToDelete(config.id)}
+                                                        >
+                                                            <Trash2 className="mr-2 h-4 w-4" />
+                                                            Delete
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
+                                            {/* Details */}
+                                            <div className="flex flex-col gap-1.5 text-sm text-muted-foreground pl-[52px]">
+                                                <div className="flex items-center gap-1.5">
+                                                    <Mail className="h-3.5 w-3.5 shrink-0" />
+                                                    <span className="truncate">{config.senderEmail}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <Server className="h-3.5 w-3.5 shrink-0" />
+                                                    <span>{config.provider.name}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Desktop layout */}
+                                        <div className="hidden md:flex items-start justify-between gap-4">
                                             <div className="flex items-start gap-4">
                                                 <div className={cn(
                                                     "rounded-lg p-3",
