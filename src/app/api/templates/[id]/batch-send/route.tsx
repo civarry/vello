@@ -8,7 +8,7 @@ import { logInfo, logError, logWarn } from "@/lib/logging";
 import { z } from "zod";
 import { applyDataToBlocks } from "@/lib/template-utils";
 import { pdf } from "@react-pdf/renderer";
-import { TemplatePDF } from "@/lib/pdf/template-pdf";
+import { TemplatePDF, preprocessBlocksForPdf } from "@/lib/pdf/template-pdf";
 import { getDeepValue } from "@/lib/object-utils";
 
 const batchSendSchema = z.object({
@@ -165,9 +165,12 @@ export async function POST(
                     record
                 );
 
+                // Pre-process blocks to convert remote image URLs to data URLs
+                const processedBlocks = await preprocessBlocksForPdf(substitutedBlocks);
+
                 const pdfDocument = (
                     <TemplatePDF
-                        blocks={substitutedBlocks}
+                        blocks={processedBlocks}
                         globalStyles={schema.globalStyles}
                         paperSize={template.paperSize}
                         orientation={template.orientation}

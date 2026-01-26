@@ -225,6 +225,25 @@ function ImageBlock({
     return null;
   }
 
+  // Validate src to prevent "Not valid image extension" error
+  const isValidSrc =
+    properties.src.startsWith("data:") ||
+    properties.src.startsWith("http://") ||
+    properties.src.startsWith("https://") ||
+    properties.src.startsWith("/");
+
+  if (!isValidSrc) {
+    console.warn(`[ImageBlock] Invalid image source detected (skipping): ${properties.src.substring(0, 50)}...`);
+    return null;
+  }
+
+  // Skip remote URLs without valid extensions - react-pdf cannot infer format
+  // These should be pre-processed to data URLs via preprocessBlocksForPdf()
+  if (properties.src.startsWith("http") && !/\.(jpg|jpeg|png|bmp|gif)(\?.*)?$/i.test(properties.src)) {
+    console.warn(`[ImageBlock] Skipping image without valid extension (use preprocessBlocksForPdf): ${properties.src.substring(0, 80)}...`);
+    return null;
+  }
+
   // Helper to parse numeric dimensions safely
   const parseNumericDimension = (value: string | undefined): number | "auto" => {
     if (!value) return "auto";
@@ -393,3 +412,72 @@ export function TemplatePDF({
 }
 
 export { BlockRenderer };
+
+/**
+ * Converts a remote image URL to a data URL by fetching it.
+ * This is needed because react-pdf cannot infer image format for URLs without extensions.
+ */
+async function fetchImageAsDataUrl(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.warn(`[fetchImageAsDataUrl] Failed to fetch image: ${response.status}`);
+      return null;
+    }
+
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.startsWith("image/")) {
+      console.warn(`[fetchImageAsDataUrl] Invalid content type: ${contentType}`);
+      return null;
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString("base64");
+    return `data:${contentType};base64,${base64}`;
+  } catch (error) {
+    console.warn(`[fetchImageAsDataUrl] Error fetching image:`, error);
+    return null;
+  }
+}
+
+/**
+ * Pre-processes blocks to convert remote image URLs (without extensions) to data URLs.
+ * Call this before rendering TemplatePDF to avoid "Not valid image extension" errors.
+ */
+export async function preprocessBlocksForPdf(blocks: Block[]): Promise<Block[]> {
+  const processBlock = async (block: Block): Promise<Block> => {
+    if (block.type === "image") {
+      const props = block.properties as ImageBlockProperties;
+      if (
+        props.src &&
+        props.src.startsWith("http") &&
+        !/\.(jpg|jpeg|png|bmp|gif)(\?.*)?$/i.test(props.src)
+      ) {
+        const dataUrl = await fetchImageAsDataUrl(props.src);
+        if (dataUrl) {
+          return {
+            ...block,
+            properties: { ...props, src: dataUrl },
+          };
+        }
+      }
+    }
+
+    if (block.type === "container") {
+      const props = block.properties as ContainerBlockProperties;
+      if (props.children && props.children.length > 0) {
+        const processedChildren = await Promise.all(
+          props.children.map(processBlock)
+        );
+        return {
+          ...block,
+          properties: { ...props, children: processedChildren },
+        };
+      }
+    }
+
+    return block;
+  };
+
+  return Promise.all(blocks.map(processBlock));
+}

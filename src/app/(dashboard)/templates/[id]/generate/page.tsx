@@ -346,7 +346,103 @@ export default function GenerateDocumentsPage({
   const canvasWidth = template.orientation === "PORTRAIT" ? dimensions.width : dimensions.height;
   const canvasHeight = template.orientation === "PORTRAIT" ? dimensions.height : dimensions.width;
 
+  // Check if template has variables that need data input
+  const hasVariables = usedVariables.length > 0;
 
+  // Simple export for templates with no variables
+  const handleSimpleExport = async () => {
+    if (!template) return;
+    setIsExporting(true);
+    try {
+      const response = await fetch("/api/templates/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          blocks: template.schema.blocks,
+          globalStyles: template.schema.globalStyles,
+          paperSize: template.paperSize,
+          orientation: template.orientation,
+          name: template.name,
+        }),
+      });
+
+      if (!response.ok) throw new Error((await response.json()).error);
+
+      const blob = await response.blob();
+      downloadBlob(blob, `${template.name}.pdf`);
+      toast.success("Document exported successfully");
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to generate");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Render simplified view for templates without variables
+  if (!hasVariables) {
+    return (
+      <div className="flex h-[calc(100vh-4rem)] flex-col">
+        {/* Header */}
+        <div className="flex h-14 items-center justify-between border-b bg-background px-4 shrink-0">
+          <div className="flex items-center gap-4">
+            <Link href="/templates">
+              <Button variant="ghost" size="icon">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Separator orientation="vertical" className="h-6" />
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">{template.name}</span>
+              <span className="text-muted-foreground">/ Generate Documents</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {hasSmtpConfig && (
+              <Button variant="outline" size="sm" onClick={() => setShowSendDialog(true)}>
+                <Mail className="mr-2 h-4 w-4" />
+                Send via Email
+              </Button>
+            )}
+            <Button onClick={handleSimpleExport} disabled={isExporting}>
+              {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+              Download PDF
+            </Button>
+          </div>
+        </div>
+
+        {/* Full-width Preview */}
+        <div className="flex-1 overflow-hidden bg-muted/30">
+          <div className="h-full flex flex-col">
+            <div className="p-3 border-b bg-background/50 backdrop-blur flex justify-between items-center">
+              <span className="text-sm font-medium flex items-center gap-2">
+                <Maximize2 className="h-3 w-3" /> Document Preview
+              </span>
+              <span className="text-xs text-muted-foreground">
+                This template has no variable fields - ready to export as-is
+              </span>
+            </div>
+            <div className="flex-1 overflow-hidden bg-gray-50/50 relative">
+              <LivePdfPreview template={template} data={{}} />
+            </div>
+          </div>
+        </div>
+
+        {/* Send Dialog for templates without variables */}
+        <GeneralSendDialog
+          open={showSendDialog}
+          onOpenChange={setShowSendDialog}
+          templateId={resolvedParams.id}
+          templateName={template.name}
+          defaultSubject={smtpConfig?.emailSubject}
+          defaultBody={smtpConfig?.emailBody}
+          organizationName={organizationName}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">

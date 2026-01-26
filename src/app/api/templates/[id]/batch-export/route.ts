@@ -2,50 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import JSZip from "jszip";
 import { getCurrentUser } from "@/lib/auth";
-import { TemplatePDF } from "@/lib/pdf/template-pdf";
+import { TemplatePDF, preprocessBlocksForPdf } from "@/lib/pdf/template-pdf";
 import { applyDataToBlocks } from "@/lib/template-utils";
 import { Block, GlobalStyles } from "@/types/template";
-
-// Helper function to convert image URL to base64 data URL
-async function convertImageToBase64(url: string): Promise<string> {
-    try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            console.warn(`Failed to fetch image: ${url}`);
-            return url;
-        }
-        const arrayBuffer = await response.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        const contentType = response.headers.get("content-type") || "image/png";
-        return `data:${contentType};base64,${buffer.toString("base64")}`;
-    } catch (error) {
-        console.warn(`Error converting image to base64: ${url}`, error);
-        return url;
-    }
-}
-
-// Process blocks to convert image URLs to base64
-async function processBlocksForPDF(blocks: Block[]): Promise<Block[]> {
-    const processedBlocks = await Promise.all(
-        blocks.map(async (block) => {
-            if (block.type === "image") {
-                const props = block.properties as { src?: string };
-                if (props?.src && (props.src.startsWith("http://") || props.src.startsWith("https://"))) {
-                    const base64Src = await convertImageToBase64(props.src);
-                    return {
-                        ...block,
-                        properties: {
-                            ...block.properties,
-                            src: base64Src,
-                        },
-                    };
-                }
-            }
-            return block;
-        })
-    );
-    return processedBlocks;
-}
 
 export async function POST(request: NextRequest) {
     try {
@@ -79,8 +38,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Convert image URLs to base64 once (they're the same for all records)
-        const processedBlocks = await processBlocksForPDF(blocks);
+        // Pre-process blocks to convert remote image URLs to data URLs
+        const processedBlocks = await preprocessBlocksForPdf(blocks);
 
         const zip = new JSZip();
         const folder = zip.folder("payslips");

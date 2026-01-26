@@ -258,6 +258,28 @@ export function applyDataToBlocks(blocks: Block[], data: Record<string, string>)
             };
         }
 
+        if (block.type === "image") {
+            const props = block.properties as any;
+            let src = props.src || "";
+
+            // Allow replacement of {{variable}} within image src
+            if (src && typeof src === "string") {
+                src = src.replace(/{{([\w.]+)}}/g, (match: string, key: string) => {
+                    if (data[match] !== undefined) return data[match];
+                    if (data[key] !== undefined) return data[key];
+                    return match;
+                });
+            }
+
+            return {
+                ...block,
+                properties: {
+                    ...props,
+                    src
+                }
+            };
+        }
+
         return block;
     });
 }

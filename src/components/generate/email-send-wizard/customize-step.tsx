@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,8 +52,10 @@ export function CustomizeStep({
 }: CustomizeStepProps) {
     const subjectRef = useRef<HTMLInputElement>(null);
     const bodyRef = useRef<HTMLTextAreaElement>(null);
+    const [activeField, setActiveField] = useState<"subject" | "body">("body");
 
-    const insertPlaceholder = (placeholder: string, target: "subject" | "body") => {
+    const insertPlaceholder = (placeholder: string) => {
+        const target = activeField;
         const ref = target === "subject" ? subjectRef : bodyRef;
         const setter = target === "subject" ? onSubjectChange : onBodyChange;
         const currentValue = target === "subject" ? emailSubject : emailBody;
@@ -159,14 +161,17 @@ export function CustomizeStep({
 
                 {/* Subject */}
                 <div className="space-y-1">
-                    <Label htmlFor="emailSubject" className="text-xs">Subject Line</Label>
+                    <Label htmlFor="emailSubject" className="text-xs">
+                        Subject Line <span className="text-muted-foreground font-normal">(Click placeholders to insert)</span>
+                    </Label>
                     <Input
                         ref={subjectRef}
                         id="emailSubject"
                         value={emailSubject}
                         onChange={(e) => onSubjectChange(e.target.value)}
+                        onFocus={() => setActiveField("subject")}
                         placeholder="Email subject..."
-                        className="h-9"
+                        className={`h-9 ${activeField === "subject" ? "ring-2 ring-primary/20 border-primary" : ""}`}
                     />
                 </div>
 
@@ -178,15 +183,18 @@ export function CustomizeStep({
                         id="emailBody"
                         value={emailBody}
                         onChange={(e) => onBodyChange(e.target.value)}
+                        onFocus={() => setActiveField("body")}
                         placeholder="Email body..."
                         rows={6}
-                        className="resize-none font-mono text-sm"
+                        className={`resize-none font-mono text-sm ${activeField === "body" ? "ring-2 ring-primary/20 border-primary" : ""}`}
                     />
                 </div>
 
                 {/* Placeholders - combined */}
                 <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Insert placeholder:</Label>
+                    <Label className="text-xs text-muted-foreground">
+                        Insert into <strong>{activeField === "subject" ? "Subject" : "Body"}</strong>:
+                    </Label>
                     <div className="flex flex-wrap gap-1">
                         {AVAILABLE_PLACEHOLDERS.map(p => (
                             <PlaceholderChip
@@ -194,7 +202,7 @@ export function CustomizeStep({
                                 placeholder={p.key}
                                 label={p.label}
                                 description={p.description}
-                                onClick={() => insertPlaceholder(p.key, "body")}
+                                onClick={() => insertPlaceholder(p.key)}
                             />
                         ))}
                     </div>

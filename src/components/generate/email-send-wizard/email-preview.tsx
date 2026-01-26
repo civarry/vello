@@ -22,9 +22,9 @@ export function EmailPreview({
     // Replace placeholders with actual values
     const replacePlaceholders = (text: string) => {
         return text
-            .replace(/\{\{recipientName\}\}/g, recipientName || "Recipient")
+            .replace(/\{\{recipientName\}\}/g, recipientName || "{{recipientName}}")
             .replace(/\{\{documentType\}\}/g, documentType || "Document")
-            .replace(/\{\{period\}\}/g, period || "current period")
+            .replace(/\{\{period\}\}/g, period || "{{period}}")
             .replace(/\{\{organizationName\}\}/g, organizationName || "Your Organization");
     };
 

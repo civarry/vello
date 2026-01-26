@@ -79,6 +79,10 @@ export function BatchSendDialog({
     const [selectedProviderId, setSelectedProviderId] = useState<string>("");
     const [isLoadingProviders, setIsLoadingProviders] = useState(false);
 
+    // Manual recipients state
+    const [manualRecipientsInput, setManualRecipientsInput] = useState("");
+    const [isManualMode, setIsManualMode] = useState(false);
+
     // Fetch providers on open
     useEffect(() => {
         if (open) {
@@ -141,7 +145,7 @@ export function BatchSendDialog({
         return getDeepValue(data, field);
     };
 
-    // Build recipients list
+    // Build recipients list (Automatic Mode)
     const recipients: RecipientRecord[] = useMemo(() => {
         return records.map((data, index) => {
             const email = emailField
@@ -150,6 +154,7 @@ export function BatchSendDialog({
             const name = nameField
                 ? getValue(data, nameField)
                 : (data.Name || data.name || data["{{employee.fullName}}"] || data["{{employee.firstName}}"]);
+
             const isValidEmail = typeof email === "string" && email.includes("@");
 
             return {
@@ -167,10 +172,40 @@ export function BatchSendDialog({
         [recipients]
     );
 
+    // Auto-switch to manual mode if no valid emails found
+    useEffect(() => {
+        if (open && validRecipients.length === 0 && recipients.length > 0) {
+            setIsManualMode(true);
+        }
+    }, [open, validRecipients.length, recipients.length]);
+
+    // Parse manual recipients
+    // Email validation regex
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    const parsedManualRecipients = useMemo(() => {
+        if (!manualRecipientsInput.trim()) return [];
+        return manualRecipientsInput
+            .split(/[,;\n\s]+/)
+            .map(e => e.trim())
+            .filter(e => e.length > 0)
+            .map(email => ({
+                email,
+                isValid: EMAIL_REGEX.test(email)
+            }));
+    }, [manualRecipientsInput]);
+
+    const validManualRecipients = parsedManualRecipients.filter(r => r.isValid);
+
     // Get first valid recipient for preview
     const previewName = useMemo(
-        () => validRecipients[0]?.name || "Recipient",
-        [validRecipients]
+        () => {
+            if (isManualMode) {
+                return validManualRecipients[0]?.email.split("@")[0] || "Recipient";
+            }
+            return validRecipients[0]?.name || "Recipient";
+        },
+        [validRecipients, isManualMode, validManualRecipients]
     );
 
     // Reset state when dialog opens
@@ -184,14 +219,18 @@ export function BatchSendDialog({
             setDocumentType("Payslip");
             setPeriod("");
             setResult(null);
+            setManualRecipientsInput("");
+            setIsManualMode(false);
         }
     }, [open, initialEmailField, initialNameField, defaultSubject, defaultBody]);
+
+
 
     // Navigation
     const canProceed = useCallback(() => {
         switch (step) {
             case "recipients":
-                return validRecipients.length > 0;
+                return isManualMode ? validManualRecipients.length > 0 : validRecipients.length > 0;
             case "customize":
                 return emailSubject.trim().length > 0 && !!selectedProviderId;
             case "confirm":
@@ -199,7 +238,7 @@ export function BatchSendDialog({
             default:
                 return false;
         }
-    }, [step, validRecipients.length, emailSubject, isSending, selectedProviderId]);
+    }, [step, validRecipients.length, emailSubject, isSending, selectedProviderId, isManualMode, validManualRecipients.length]);
 
     const goNext = () => {
         switch (step) {
@@ -231,15 +270,37 @@ export function BatchSendDialog({
         setStep("sending");
 
         try {
+            let finalBatchData;
+
+            if (isManualMode) {
+                // Cartesian Product: Each Record gets sent to Each Manual Recipient
+                // WARNING: This multiplies the volume. Use with care.
+                finalBatchData = [];
+                for (const record of records) {
+                    for (const recipient of validManualRecipients) {
+                        const newRecord = { ...record };
+                        // Force set the email/name for this send instance
+                        newRecord["Email"] = recipient.email;
+                        // If provided name field exists, we leave it, otherwise default to email prefix
+                        if (!nameField || !newRecord[nameField]) {
+                            newRecord["Name"] = recipient.email.split("@")[0];
+                        }
+                        finalBatchData.push(newRecord);
+                    }
+                }
+            } else {
+                finalBatchData = validRecipients.map(r => r.data);
+            }
+
             const response = await fetch(`/api/templates/${templateId}/batch-send`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    batchData: validRecipients.map(r => r.data),
+                    batchData: finalBatchData,
                     documentType,
                     period,
-                    emailField,
-                    nameField,
+                    emailField: isManualMode ? "Email" : emailField, // Force "Email" key if manual
+                    nameField: isManualMode ? (nameField || "Name") : nameField,
                     emailSubject,
                     emailBody,
                     providerId: selectedProviderId,
@@ -300,6 +361,12 @@ export function BatchSendDialog({
                             onEmailFieldChange={setEmailField}
                             onNameFieldChange={setNameField}
                             availableFields={availableFields}
+
+                            isManualMode={isManualMode}
+                            onManualModeToggle={setIsManualMode}
+                            manualRecipientsInput={manualRecipientsInput}
+                            onManualRecipientsChange={setManualRecipientsInput}
+                            parsedManualRecipients={parsedManualRecipients}
                         />
                     )}
 
@@ -343,8 +410,8 @@ export function BatchSendDialog({
                                 <div
                                     key={s}
                                     className={`h-1.5 flex-1 rounded-full transition-colors ${["recipients", "customize", "confirm"].indexOf(step) >= i
-                                            ? "bg-primary"
-                                            : "bg-muted"
+                                        ? "bg-primary"
+                                        : "bg-muted"
                                         }`}
                                 />
                             ))}
@@ -376,7 +443,7 @@ export function BatchSendDialog({
                                         {step === "confirm" ? (
                                             <>
                                                 <Send className="mr-2 h-4 w-4" />
-                                                Send {validRecipients.length} Email{validRecipients.length !== 1 ? "s" : ""}
+                                                Send {isManualMode ? validManualRecipients.length * records.length : validRecipients.length} Email{(isManualMode ? validManualRecipients.length * records.length : validRecipients.length) !== 1 ? "s" : ""}
                                             </>
                                         ) : (
                                             <>

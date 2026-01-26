@@ -36,6 +36,17 @@ If you have any questions, please don't hesitate to reach out.
 Best regards,
 {{organizationName}}`;
 
+// Defaults for general documents (no variables/personalization)
+export const DEFAULT_GENERAL_EMAIL_SUBJECT = "{{documentType}} - {{period}}";
+export const DEFAULT_GENERAL_EMAIL_BODY = `Hello,
+
+Please find the attached {{documentType}} for {{period}}.
+
+If you have any questions, please don't hesitate to reach out.
+
+Best regards,
+{{organizationName}}`;
+
 export const AVAILABLE_PLACEHOLDERS = [
     { key: "{{recipientName}}", label: "Recipient Name", description: "Name of the recipient" },
     { key: "{{documentType}}", label: "Document Type", description: "Type of document (e.g., Payslip)" },

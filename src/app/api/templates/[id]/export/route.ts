@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { TemplatePDF } from "@/lib/pdf/template-pdf";
+import { TemplatePDF, preprocessBlocksForPdf } from "@/lib/pdf/template-pdf";
 import type { TemplateSchema } from "@/types/template";
 
 export async function GET(
@@ -34,10 +34,13 @@ export async function GET(
 
     const schema = template.schema as unknown as TemplateSchema;
 
+    // Pre-process blocks to convert remote image URLs to data URLs
+    const processedBlocks = await preprocessBlocksForPdf(schema.blocks);
+
     // Generate PDF buffer
     const pdfBuffer = await renderToBuffer(
       TemplatePDF({
-        blocks: schema.blocks,
+        blocks: processedBlocks,
         globalStyles: schema.globalStyles,
         paperSize: template.paperSize as "A4" | "LETTER" | "LEGAL",
         orientation: template.orientation as "PORTRAIT" | "LANDSCAPE",
