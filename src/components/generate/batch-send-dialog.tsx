@@ -74,6 +74,38 @@ export function BatchSendDialog({
     const [isSending, setIsSending] = useState(false);
     const [result, setResult] = useState<SendResult | null>(null);
 
+    // Provider state
+    const [providers, setProviders] = useState<any[]>([]);
+    const [selectedProviderId, setSelectedProviderId] = useState<string>("");
+    const [isLoadingProviders, setIsLoadingProviders] = useState(false);
+
+    // Fetch providers on open
+    useEffect(() => {
+        if (open) {
+            const fetchProviders = async () => {
+                try {
+                    setIsLoadingProviders(true);
+                    const response = await fetch("/api/smtp/config");
+                    const data = await response.json();
+
+                    if (response.ok && data.data) {
+                        setProviders(data.data);
+                        // Select default provider
+                        const defaultProvider = data.data.find((p: any) => p.isDefault) || data.data[0];
+                        if (defaultProvider) {
+                            setSelectedProviderId(defaultProvider.id);
+                        }
+                    }
+                } catch (error) {
+                    console.error("Failed to fetch SMTP configs:", error);
+                } finally {
+                    setIsLoadingProviders(false);
+                }
+            };
+            fetchProviders();
+        }
+    }, [open]);
+
     // Get available fields from records
     const availableFields = useMemo(() => {
         if (records.length === 0) return [];
@@ -161,13 +193,13 @@ export function BatchSendDialog({
             case "recipients":
                 return validRecipients.length > 0;
             case "customize":
-                return emailSubject.trim().length > 0;
+                return emailSubject.trim().length > 0 && !!selectedProviderId;
             case "confirm":
                 return !isSending;
             default:
                 return false;
         }
-    }, [step, validRecipients.length, emailSubject, isSending]);
+    }, [step, validRecipients.length, emailSubject, isSending, selectedProviderId]);
 
     const goNext = () => {
         switch (step) {
@@ -210,6 +242,7 @@ export function BatchSendDialog({
                     nameField,
                     emailSubject,
                     emailBody,
+                    providerId: selectedProviderId,
                 }),
             });
 
@@ -282,6 +315,9 @@ export function BatchSendDialog({
                             onPeriodChange={setPeriod}
                             previewName={previewName}
                             organizationName={organizationName}
+                            providers={providers}
+                            selectedProviderId={selectedProviderId}
+                            onProviderSelect={setSelectedProviderId}
                         />
                     )}
 
@@ -306,11 +342,10 @@ export function BatchSendDialog({
                             {["recipients", "customize", "confirm"].map((s, i) => (
                                 <div
                                     key={s}
-                                    className={`h-1.5 flex-1 rounded-full transition-colors ${
-                                        ["recipients", "customize", "confirm"].indexOf(step) >= i
+                                    className={`h-1.5 flex-1 rounded-full transition-colors ${["recipients", "customize", "confirm"].indexOf(step) >= i
                                             ? "bg-primary"
                                             : "bg-muted"
-                                    }`}
+                                        }`}
                                 />
                             ))}
                         </div>

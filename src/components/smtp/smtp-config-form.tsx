@@ -43,6 +43,7 @@ interface Provider {
 interface SMTPConfigFormProps {
     initialConfig?: {
         id?: string;
+        name?: string;
         providerId?: string;
         senderEmail?: string;
         senderName?: string | null;
@@ -122,6 +123,7 @@ export function SMTPConfigForm({
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     // Form state
+    const [configName, setConfigName] = useState(initialConfig?.name || "");
     const [selectedProviderId, setSelectedProviderId] = useState(
         initialConfig?.providerId || ""
     );
@@ -180,6 +182,10 @@ export function SMTPConfigForm({
     const validateForm = (): boolean => {
         const newErrors: Record<string, string> = {};
 
+        if (!configName.trim()) {
+            newErrors.configName = "Configuration name is required";
+        }
+
         if (!senderEmail) {
             newErrors.senderEmail = "Sender email is required";
         } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
@@ -234,6 +240,7 @@ export function SMTPConfigForm({
 
         try {
             const payload: Record<string, unknown> = {
+                name: configName,
                 providerId: selectedProviderId,
                 senderEmail,
                 senderName: senderName || undefined,
@@ -254,8 +261,14 @@ export function SMTPConfigForm({
                 payload.customSmtpPort = parseInt(customSmtpPort);
             }
 
-            const response = await fetch("/api/smtp/config", {
-                method: "POST",
+            // Use PUT for updates, POST for new configs
+            const url = initialConfig?.id
+                ? `/api/smtp/config/${initialConfig.id}`
+                : "/api/smtp/config";
+            const method = initialConfig?.id ? "PUT" : "POST";
+
+            const response = await fetch(url, {
+                method,
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
             });
@@ -390,6 +403,38 @@ export function SMTPConfigForm({
                     </CardContent>
                 </Card>
             )}
+
+            {/* Configuration Name */}
+            <Card>
+                <CardHeader className="pb-4">
+                    <CardTitle className="text-base">Configuration Name</CardTitle>
+                    <CardDescription>
+                        Give this email configuration a name to identify it
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-2">
+                        <Label htmlFor="configName">Name *</Label>
+                        <Input
+                            id="configName"
+                            type="text"
+                            placeholder={`My ${selectedProvider?.name || 'Email'} Account`}
+                            value={configName}
+                            onChange={(e) => setConfigName(e.target.value)}
+                            className={cn(errors.configName && "border-destructive")}
+                        />
+                        {errors.configName && (
+                            <p className="text-xs text-destructive flex items-center gap-1">
+                                <AlertCircle className="h-3 w-3" />
+                                {errors.configName}
+                            </p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                            e.g., "HR Gmail", "Finance Outlook", "Marketing Email"
+                        </p>
+                    </div>
+                </CardContent>
+            </Card>
 
             {/* Custom SMTP Server Settings */}
             {selectedProvider?.name === "Custom" && (

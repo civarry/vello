@@ -50,14 +50,29 @@ export async function POST(
         }
 
         // Get SMTP configuration
-        const smtpConfig = await prisma.sMTPConfiguration.findUnique({
+        // Get SMTP configuration
+        // Try to find default config first
+        let smtpConfig = await prisma.sMTPConfiguration.findFirst({
             where: {
                 organizationId: context.currentMembership.organization.id,
+                isDefault: true,
             },
             include: {
                 provider: true,
             },
         });
+
+        // If no default, try to find any config
+        if (!smtpConfig) {
+            smtpConfig = await prisma.sMTPConfiguration.findFirst({
+                where: {
+                    organizationId: context.currentMembership.organization.id,
+                },
+                include: {
+                    provider: true,
+                },
+            });
+        }
 
         if (!smtpConfig) {
             return NextResponse.json(

@@ -16,12 +16,12 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members   OrganizationMember[]
-  invites   Invite[]
-  templates Template[]
-  employees Employee[]
-  payslips  Payslip[]
-  smtpConfig SMTPConfiguration?
+  members    OrganizationMember[]
+  invites    Invite[]
+  templates  Template[]
+  employees  Employee[]
+  payslips   Payslip[]
+  smtpConfigs SMTPConfiguration[]
 }
 
 model EmailProvider {
@@ -39,25 +39,27 @@ model EmailProvider {
 
 model SMTPConfiguration {
   id              String   @id @default(cuid())
-  organizationId  String   @unique
+  organizationId  String
   providerId      String
-  
+
+  name            String   // User-friendly name (e.g., "Main Gmail", "HR Outlook")
   senderEmail     String
   senderName      String?
   smtpUsername    String
   smtpPassword    String   // Encrypted
-  
+
   // Email template customization
   emailSubject    String?
   emailBody       String?
-  
+
+  isDefault       Boolean  @default(false)
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  
+
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   provider        EmailProvider @relation(fields: [providerId], references: [id])
-  
+
   @@index([organizationId])
   @@map("smtp_configurations")
 }

@@ -19,6 +19,7 @@ const batchSendSchema = z.object({
     nameField: z.string().optional().nullable(),
     emailSubject: z.string().optional(),
     emailBody: z.string().optional(),
+    providerId: z.string().optional(),
 });
 
 export async function POST(
@@ -53,14 +54,43 @@ export async function POST(
         }
 
         // Get SMTP configuration
-        const smtpConfig = await prisma.sMTPConfiguration.findUnique({
-            where: {
-                organizationId: context.currentMembership.organization.id,
-            },
-            include: {
-                provider: true,
-            },
-        });
+        let smtpConfig;
+
+        if (validated.providerId) {
+            // Fetch specific provider
+            smtpConfig = await prisma.sMTPConfiguration.findFirst({
+                where: {
+                    id: validated.providerId,
+                    organizationId: context.currentMembership.organization.id,
+                },
+                include: {
+                    provider: true,
+                },
+            });
+        } else {
+            // Fetch default provider
+            smtpConfig = await prisma.sMTPConfiguration.findFirst({
+                where: {
+                    organizationId: context.currentMembership.organization.id,
+                    isDefault: true,
+                },
+                include: {
+                    provider: true,
+                },
+            });
+
+            // If no default, get any provider
+            if (!smtpConfig) {
+                smtpConfig = await prisma.sMTPConfiguration.findFirst({
+                    where: {
+                        organizationId: context.currentMembership.organization.id,
+                    },
+                    include: {
+                        provider: true,
+                    },
+                });
+            }
+        }
 
         if (!smtpConfig) {
             return NextResponse.json(
