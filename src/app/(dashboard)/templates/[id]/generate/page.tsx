@@ -1,17 +1,16 @@
 "use client";
 
 import { useEffect, useState, use, useRef } from "react";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   ArrowLeft,
   Download,
@@ -21,13 +20,13 @@ import {
   FileSpreadsheet,
   Plus,
   Trash2,
-  Maximize2,
-  X,
-  RefreshCcw,
   Mail,
-  Table,
   Eye,
   MoreVertical,
+  Maximize2,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -35,15 +34,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 import { toast } from "sonner";
-import type {
-  Template,
-  TemplateSchema,
-  TemplateVariable,
-} from "@/types/template";
+import type { Template } from "@/types/template";
 import { LivePdfPreview } from "@/components/previews/live-pdf-preview";
-import { PAPER_DIMENSIONS } from "@/stores/template-builder-store";
 import {
   extractUsedVariables,
   applyDataToBlocks,
@@ -78,27 +73,12 @@ export default function GenerateDocumentsPage({
   const [selectedRecordIndex, setSelectedRecordIndex] = useState<number>(0);
   const [usedVariables, setUsedVariables] = useState<VariableInfo[]>([]);
 
-  // Mobile tab state
-  const [mobileTab, setMobileTab] = useState<"data" | "preview">("data");
-
-
+  // Preview modal state
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewZoom, setPreviewZoom] = useState(100);
 
   // File input ref
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Preview Logic (Manual Refresh)
-  const [activePreviewData, setActivePreviewData] = useState<Record<string, any>>({});
-
-  // Sync preview when switching records (immediate update)
-  useEffect(() => {
-    setActivePreviewData(records[selectedRecordIndex] || {});
-  }, [selectedRecordIndex, records]);
-
-  // Manual refresh handler (for content changes)
-  const handleRefreshPreview = () => {
-    setActivePreviewData({ ...records[selectedRecordIndex] });
-    toast.success("Preview refreshed");
-  };
 
   useEffect(() => {
     async function fetchTemplate() {
@@ -358,10 +338,6 @@ export default function GenerateDocumentsPage({
 
   if (!template) return null;
 
-  const dimensions = PAPER_DIMENSIONS[template.paperSize];
-  const canvasWidth = template.orientation === "PORTRAIT" ? dimensions.width : dimensions.height;
-  const canvasHeight = template.orientation === "PORTRAIT" ? dimensions.height : dimensions.width;
-
   // Check if template has variables that need data input
   const hasVariables = usedVariables.length > 0;
 
@@ -489,124 +465,6 @@ export default function GenerateDocumentsPage({
     );
   }
 
-  // Render data grid content (shared between mobile and desktop)
-  const renderDataGrid = () => (
-    <div className="flex flex-col h-full bg-background">
-      {/* Toolbar */}
-      <div className="p-2 border-b flex items-center gap-2 bg-muted/20">
-        <input
-          type="file"
-          accept=".xlsx, .xls"
-          ref={fileInputRef}
-          className="hidden"
-          onChange={handleFileUpload}
-        />
-        <Button variant="secondary" size="sm" onClick={handleImportClick} disabled={isImporting}>
-          {isImporting ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Upload className="mr-2 h-3 w-3" />}
-          <span className="hidden sm:inline">Import Excel</span>
-          <span className="sm:hidden">Import</span>
-        </Button>
-        <Button variant="secondary" size="sm" onClick={handleAddRow}>
-          <Plus className="mr-2 h-3 w-3" />
-          <span className="hidden sm:inline">Add Row</span>
-          <span className="sm:hidden">Add</span>
-        </Button>
-        <div className="flex-1" />
-        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={handleClearAll}>
-          <Trash2 className="h-3 w-3 sm:mr-2" />
-          <span className="hidden sm:inline">Clear All</span>
-        </Button>
-      </div>
-
-      {/* Grid Table */}
-      <div className="flex-1 overflow-auto">
-        <table className="w-full text-sm border-collapse">
-          <thead className="bg-muted sticky top-0 z-10 shadow-sm">
-            <tr>
-              <th className="p-2 w-10 border-b text-center text-muted-foreground font-medium">#</th>
-              {usedVariables.map(v => (
-                <th key={v.key} className="p-2 border-b text-left font-medium min-w-[120px] md:min-w-[150px] whitespace-nowrap">
-                  <div className="flex flex-col">
-                    <span className="text-xs md:text-sm">{v.label}</span>
-                    <span className="text-[10px] text-muted-foreground font-normal opacity-70 hidden md:block">{v.key}</span>
-                  </div>
-                </th>
-              ))}
-              <th className="p-2 w-10 border-b"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {records.map((row, rowIndex) => {
-              const isSelected = rowIndex === selectedRecordIndex;
-              return (
-                <tr
-                  key={rowIndex}
-                  className={`group transition-colors ${isSelected ? 'bg-primary/5' : 'hover:bg-muted/30'}`}
-                  onClick={() => setSelectedRecordIndex(rowIndex)}
-                >
-                  <td className="p-2 text-center text-xs text-muted-foreground select-none">
-                    {rowIndex + 1}
-                  </td>
-                  {usedVariables.map(v => (
-                    <td key={v.key} className="p-1 border-r relative min-w-[120px] md:min-w-[150px]">
-                      <input
-                        className="w-full h-full p-1.5 bg-transparent outline-none focus:bg-background focus:ring-1 ring-primary/20 rounded-sm transition-all text-sm"
-                        value={row[v.key] || ""}
-                        onChange={(e) => handleCellChange(rowIndex, v.key, e.target.value)}
-                        placeholder="..."
-                      />
-                    </td>
-                  ))}
-                  <td className="p-1 text-center">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-muted-foreground md:opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
-                      onClick={(e) => { e.stopPropagation(); handleDeleteRow(rowIndex); }}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
-        {/* Empty State / Add Row Hint */}
-        <div className="p-4 md:p-8 flex justify-center">
-          <Button variant="outline" size="sm" onClick={handleAddRow} className="border-dashed text-muted-foreground">
-            <Plus className="mr-2 h-3 w-3" /> Add another record
-          </Button>
-        </div>
-      </div>
-
-      {/* Footer Bar */}
-      <div className="p-2 border-t bg-muted/20 text-xs text-muted-foreground flex justify-between">
-        <span>{records.length} Record{records.length !== 1 ? 's' : ''}</span>
-        <span>{usedVariables.length} Columns</span>
-      </div>
-    </div>
-  );
-
-  // Render preview content (shared between mobile and desktop)
-  const renderPreview = () => (
-    <div className="h-full flex flex-col bg-muted/30">
-      <div className="p-3 border-b bg-background/50 backdrop-blur flex justify-between items-center">
-        <span className="text-sm font-medium flex items-center gap-2">
-          <Maximize2 className="h-3 w-3" /> Preview: Record #{selectedRecordIndex + 1}
-        </span>
-        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleRefreshPreview}>
-          <RefreshCcw className="mr-2 h-3 w-3" /> Refresh
-        </Button>
-      </div>
-
-      <div className="flex-1 overflow-hidden bg-gray-50/50 relative">
-        <LivePdfPreview template={template} data={activePreviewData} />
-      </div>
-    </div>
-  );
-
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
       {/* Desktop Header */}
@@ -629,6 +487,10 @@ export default function GenerateDocumentsPage({
           <Button variant="outline" size="sm" onClick={handleDownloadTemplate}>
             <FileSpreadsheet className="mr-2 h-4 w-4" />
             Excel Template
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setIsPreviewOpen(true)}>
+            <Eye className="mr-2 h-4 w-4" />
+            Preview
           </Button>
           {hasSmtpConfig && (
             <Button variant="outline" size="sm" onClick={() => setShowSendDialog(true)}>
@@ -672,60 +534,196 @@ export default function GenerateDocumentsPage({
         </DropdownMenu>
       </div>
 
-      {/* Mobile Tabs */}
-      <div className="md:hidden flex-1 flex flex-col overflow-hidden">
-        <Tabs value={mobileTab} onValueChange={(v) => setMobileTab(v as "data" | "preview")} className="flex-1 flex flex-col">
-          <TabsList className="grid w-full grid-cols-2 rounded-none border-b h-10">
-            <TabsTrigger value="data" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
-              <Table className="mr-2 h-4 w-4" />
-              Data
-            </TabsTrigger>
-            <TabsTrigger value="preview" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
-              <Eye className="mr-2 h-4 w-4" />
-              Preview
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="data" className="flex-1 m-0 overflow-hidden">
-            {renderDataGrid()}
-          </TabsContent>
-          <TabsContent value="preview" className="flex-1 m-0 overflow-hidden">
-            {renderPreview()}
-          </TabsContent>
-        </Tabs>
-
-        {/* Mobile Bottom Action Bar */}
-        <div className="border-t bg-background p-3 flex gap-2">
-          {hasSmtpConfig && (
-            <Button variant="outline" className="flex-1" onClick={() => setShowSendDialog(true)}>
-              <Mail className="mr-2 h-4 w-4" />
-              Send
-            </Button>
-          )}
-          <Button className="flex-1" onClick={handleGenerate} disabled={isExporting}>
-            {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-            {records.length > 1 ? "Download ZIP" : "Download PDF"}
+      {/* Data Grid - Full Width */}
+      <div className="flex-1 flex flex-col overflow-hidden bg-background">
+        {/* Toolbar */}
+        <div className="p-2 border-b flex items-center gap-2 bg-muted/20">
+          <input
+            type="file"
+            accept=".xlsx, .xls"
+            ref={fileInputRef}
+            className="hidden"
+            onChange={handleFileUpload}
+          />
+          <Button variant="secondary" size="sm" onClick={handleImportClick} disabled={isImporting}>
+            {isImporting ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Upload className="mr-2 h-3 w-3" />}
+            <span className="hidden sm:inline">Import Excel</span>
+            <span className="sm:hidden">Import</span>
           </Button>
+          <Button variant="secondary" size="sm" onClick={handleAddRow}>
+            <Plus className="mr-2 h-3 w-3" />
+            <span className="hidden sm:inline">Add Row</span>
+            <span className="sm:hidden">Add</span>
+          </Button>
+          <div className="flex-1" />
+          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={handleClearAll}>
+            <Trash2 className="h-3 w-3 sm:mr-2" />
+            <span className="hidden sm:inline">Clear All</span>
+          </Button>
+        </div>
+
+        {/* Grid Table */}
+        <div className="flex-1 overflow-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead className="bg-muted sticky top-0 z-10 shadow-sm">
+              <tr>
+                <th className="p-2 w-10 border-b text-center text-muted-foreground font-medium">#</th>
+                {usedVariables.map(v => (
+                  <th key={v.key} className="p-2 border-b text-left font-medium min-w-[150px] whitespace-nowrap">
+                    <div className="flex flex-col">
+                      <span>{v.label}</span>
+                      <span className="text-[10px] text-muted-foreground font-normal opacity-70">{v.key}</span>
+                    </div>
+                  </th>
+                ))}
+                <th className="p-2 w-10 border-b"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {records.map((row, rowIndex) => {
+                const isSelected = rowIndex === selectedRecordIndex;
+                return (
+                  <tr
+                    key={rowIndex}
+                    className={`group transition-colors ${isSelected ? 'bg-primary/5' : 'hover:bg-muted/30'}`}
+                    onClick={() => setSelectedRecordIndex(rowIndex)}
+                  >
+                    <td className="p-2 text-center text-xs text-muted-foreground select-none">
+                      {rowIndex + 1}
+                    </td>
+                    {usedVariables.map(v => (
+                      <td key={v.key} className="p-1 border-r relative min-w-[150px]">
+                        <input
+                          className="w-full h-full p-1.5 bg-transparent outline-none focus:bg-background focus:ring-1 ring-primary/20 rounded-sm transition-all text-sm"
+                          value={row[v.key] || ""}
+                          onChange={(e) => handleCellChange(rowIndex, v.key, e.target.value)}
+                          placeholder="..."
+                        />
+                      </td>
+                    ))}
+                    <td className="p-1 text-center">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+                        onClick={(e) => { e.stopPropagation(); handleDeleteRow(rowIndex); }}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          {/* Empty State / Add Row Hint */}
+          <div className="p-8 flex justify-center">
+            <Button variant="outline" size="sm" onClick={handleAddRow} className="border-dashed text-muted-foreground">
+              <Plus className="mr-2 h-3 w-3" /> Add another record
+            </Button>
+          </div>
+        </div>
+
+        {/* Footer Bar */}
+        <div className="p-2 border-t bg-muted/20 text-xs text-muted-foreground flex justify-between">
+          <span>{records.length} Record{records.length !== 1 ? 's' : ''}</span>
+          <span>{usedVariables.length} Columns</span>
         </div>
       </div>
 
-      {/* Desktop Layout with Resizable Panels */}
-      <div className="hidden md:flex flex-1 overflow-hidden">
-        <ResizablePanelGroup orientation="horizontal">
-          {/* Left: Data Grid */}
-          <ResizablePanel defaultSize={60} minSize={30}>
-            <div className="h-full border-r">
-              {renderDataGrid()}
-            </div>
-          </ResizablePanel>
-
-          <ResizableHandle />
-
-          {/* Right: Live Preview */}
-          <ResizablePanel defaultSize={40} minSize={20}>
-            {renderPreview()}
-          </ResizablePanel>
-        </ResizablePanelGroup>
+      {/* Mobile Bottom Action Bar */}
+      <div className="md:hidden border-t bg-background p-3 flex gap-2">
+        <Button variant="outline" className="flex-1" onClick={() => setIsPreviewOpen(true)}>
+          <Eye className="mr-2 h-4 w-4" />
+          Preview
+        </Button>
+        {hasSmtpConfig && (
+          <Button variant="outline" className="flex-1" onClick={() => setShowSendDialog(true)}>
+            <Mail className="mr-2 h-4 w-4" />
+            Send
+          </Button>
+        )}
+        <Button className="flex-1" onClick={handleGenerate} disabled={isExporting}>
+          {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+          {records.length > 1 ? "ZIP" : "PDF"}
+        </Button>
       </div>
+
+      {/* Preview Modal */}
+      <Dialog open={isPreviewOpen} onOpenChange={(open) => {
+        setIsPreviewOpen(open);
+        if (!open) setPreviewZoom(100); // Reset zoom when closing
+      }}>
+        <DialogContent
+          className={cn(
+            "flex flex-col p-0 gap-0",
+            template.orientation === "LANDSCAPE"
+              ? "w-[95vw] h-[85vh] max-w-none"
+              : "w-[85vw] max-w-[800px] h-[95vh] max-h-[95vh]"
+          )}
+          aria-describedby={undefined}
+        >
+          <DialogHeader className="p-3 border-b flex flex-row items-center justify-between shrink-0">
+            <DialogTitle className="text-base">
+              Preview: Record #{selectedRecordIndex + 1}
+            </DialogTitle>
+            <div className="flex items-center gap-1 mr-6">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setPreviewZoom(z => Math.max(50, z - 25))}
+                disabled={previewZoom <= 50}
+              >
+                <ZoomIn className="h-3.5 w-3.5" />
+              </Button>
+              <span className="text-xs text-muted-foreground w-10 text-center">{previewZoom}%</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setPreviewZoom(z => Math.min(200, z + 25))}
+                disabled={previewZoom >= 200}
+              >
+                <ZoomOut className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setPreviewZoom(100)}
+                disabled={previewZoom === 100}
+                title="Reset zoom"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </DialogHeader>
+          <div className="flex-1 bg-muted/30 p-4 min-h-0 overflow-auto flex items-center justify-center">
+            <div
+              className="bg-white shadow-lg rounded-sm overflow-hidden"
+              style={{
+                width: template.orientation === "LANDSCAPE" ? '100%' : 'auto',
+                height: template.orientation === "LANDSCAPE" ? 'auto' : '100%',
+                maxWidth: '100%',
+                maxHeight: '100%',
+                aspectRatio: template.orientation === "LANDSCAPE" ? '1.414 / 1' : '1 / 1.414',
+                zoom: previewZoom / 100,
+              }}
+            >
+              {isPreviewOpen && (
+                <LivePdfPreview
+                  key={`${template.orientation}-${template.paperSize}-${selectedRecordIndex}`}
+                  template={template}
+                  data={records[selectedRecordIndex] || {}}
+                  debouncedDelay={300}
+                />
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Send Dialog - Conditional based on template type */}
       {template.templateType === "GENERAL" ? (
