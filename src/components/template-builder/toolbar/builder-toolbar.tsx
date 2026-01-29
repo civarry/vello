@@ -474,18 +474,21 @@ export function BuilderToolbar() {
               ? "max-w-6xl h-[70vh]"
               : "max-w-4xl h-[85vh]"
           )}
+          aria-describedby={undefined}
         >
           <DialogHeader className="p-4 border-b">
             <DialogTitle>Template Preview (PDF)</DialogTitle>
           </DialogHeader>
           <div className="flex-1 bg-muted/50 p-4 overflow-hidden">
             <div className="h-full w-full bg-white shadow-sm rounded-md overflow-hidden">
-              {/* Use the PDF Preview Component */}
-              <LivePdfPreview
-                template={previewTemplate}
-                data={{}}
-                debouncedDelay={500}
-              />
+              {isPreviewOpen && (
+                <LivePdfPreview
+                  key={`${orientation}-${paperSize}`}
+                  template={previewTemplate}
+                  data={{}}
+                  debouncedDelay={500}
+                />
+              )}
             </div>
           </div>
         </DialogContent>

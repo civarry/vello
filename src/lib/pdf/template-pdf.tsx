@@ -20,7 +20,10 @@ import type {
   SpacerBlockProperties,
 } from "@/types/template";
 
-// Register fonts
+// NOTE: Custom font registration disabled to avoid network fetch issues
+// that can cause the PDF preview to hang. Using built-in Helvetica instead.
+// To re-enable custom fonts, uncomment the Font.register block below.
+/*
 Font.register({
   family: "Inter",
   fonts: [
@@ -42,6 +45,7 @@ Font.register({
     },
   ],
 });
+*/
 
 const PAPER_SIZES = {
   A4: { width: 595.28, height: 841.89 },
@@ -222,27 +226,11 @@ function ImageBlock({
   const styles = createBlockStyles(block.style, globalStyles);
 
   if (!properties.src) {
+    logPdf('[ImageBlock] No src, skipping');
     return null;
   }
 
-  // Validate src to prevent "Not valid image extension" error
-  const isValidSrc =
-    properties.src.startsWith("data:") ||
-    properties.src.startsWith("http://") ||
-    properties.src.startsWith("https://") ||
-    properties.src.startsWith("/");
-
-  if (!isValidSrc) {
-    console.warn(`[ImageBlock] Invalid image source detected (skipping): ${properties.src.substring(0, 50)}...`);
-    return null;
-  }
-
-  // Skip remote URLs without valid extensions - react-pdf cannot infer format
-  // These should be pre-processed to data URLs via preprocessBlocksForPdf()
-  if (properties.src.startsWith("http") && !/\.(jpg|jpeg|png|bmp|gif)(\?.*)?$/i.test(properties.src)) {
-    console.warn(`[ImageBlock] Skipping image without valid extension (use preprocessBlocksForPdf): ${properties.src.substring(0, 80)}...`);
-    return null;
-  }
+  logPdf('[ImageBlock] Processing image:', properties.src.substring(0, 100));
 
   // Helper to parse numeric dimensions safely
   const parseNumericDimension = (value: string | undefined): number | "auto" => {
@@ -255,6 +243,31 @@ function ImageBlock({
     return "auto";
   };
 
+  // Handle data URLs and properly formatted remote URLs
+  const isValidSrc =
+    properties.src.startsWith("data:") ||
+    (properties.src.startsWith("http") && /\.(jpg|jpeg|png|gif|bmp|webp)(\?.*)?$/i.test(properties.src));
+
+  if (!isValidSrc) {
+    logPdf('[ImageBlock] Invalid or unsupported image format:', properties.src.substring(0, 80));
+    // Return a placeholder for unsupported formats
+    return (
+      <View style={styles.block}>
+        <View style={{
+          width: '100%',
+          height: '100%',
+          backgroundColor: '#f0f0f0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <Text style={{ fontSize: 8, color: '#999' }}>Image</Text>
+        </View>
+      </View>
+    );
+  }
+
+  logPdf('[ImageBlock] Rendering image');
   return (
     <View style={styles.block}>
       <Image
@@ -375,17 +388,80 @@ function BlockRenderer({
   }
 }
 
+// Debug flag - set to true to enable logging
+const DEBUG_PDF = false;
+const logPdf = (...args: any[]) => DEBUG_PDF && console.log('[TemplatePDF]', ...args);
+
+/**
+ * Clamp blocks to fit within page bounds to prevent react-pdf layout issues.
+ * Blocks that are completely outside the page are filtered out.
+ */
+function clampBlocksToPage(
+  blocks: Block[],
+  pageWidth: number,
+  pageHeight: number
+): Block[] {
+  const pxToPt = 0.75;
+  // Convert page dimensions back to pixels for comparison with block positions
+  const pageWidthPx = pageWidth / pxToPt;
+  const pageHeightPx = pageHeight / pxToPt;
+
+  return blocks
+    .filter((block) => {
+      // Filter out blocks that are completely outside the page
+      const isCompletelyOutside =
+        block.style.x >= pageWidthPx || block.style.y >= pageHeightPx;
+      if (isCompletelyOutside) {
+        logPdf(`Filtering out block ${block.id} (${block.type}) - completely outside page bounds`);
+      }
+      return !isCompletelyOutside;
+    })
+    .map((block) => {
+      // Clamp block dimensions to fit within page
+      const maxX = pageWidthPx - block.style.x;
+      const maxY = pageHeightPx - block.style.y;
+
+      const clampedWidth = Math.min(block.style.width, Math.max(10, maxX));
+      const clampedHeight = Math.min(block.style.height, Math.max(10, maxY));
+
+      if (clampedWidth !== block.style.width || clampedHeight !== block.style.height) {
+        logPdf(`Clamping block ${block.id} (${block.type}):`, {
+          originalSize: { w: block.style.width, h: block.style.height },
+          clampedSize: { w: clampedWidth, h: clampedHeight },
+        });
+        return {
+          ...block,
+          style: {
+            ...block.style,
+            width: clampedWidth,
+            height: clampedHeight,
+          },
+        };
+      }
+      return block;
+    });
+}
+
 export function TemplatePDF({
   blocks,
   globalStyles,
   paperSize = "A4",
   orientation = "PORTRAIT",
 }: TemplatePDFProps) {
+  logPdf('TemplatePDF RENDER - orientation:', orientation, 'paperSize:', paperSize);
+  logPdf('TemplatePDF - blocks count:', blocks.length);
+
   const dimensions = PAPER_SIZES[paperSize];
   const width =
     orientation === "PORTRAIT" ? dimensions.width : dimensions.height;
   const height =
     orientation === "PORTRAIT" ? dimensions.height : dimensions.width;
+
+  logPdf('TemplatePDF - calculated dimensions (points):', { width, height });
+
+  // Clamp blocks to page bounds to prevent react-pdf layout issues
+  const safeBlocks = clampBlocksToPage(blocks, width, height);
+  logPdf('TemplatePDF - safe blocks count after clamping:', safeBlocks.length);
 
   const pageStyles = StyleSheet.create({
     page: {
@@ -396,10 +472,11 @@ export function TemplatePDF({
     },
   });
 
+  logPdf('TemplatePDF - creating Document/Page structure');
   return (
     <Document>
       <Page size={{ width, height }} style={pageStyles.page}>
-        {blocks.map((block) => (
+        {safeBlocks.map((block) => (
           <BlockRenderer
             key={block.id}
             block={block}
@@ -428,6 +505,12 @@ async function fetchImageAsDataUrl(url: string): Promise<string | null> {
     const contentType = response.headers.get("content-type");
     if (!contentType || !contentType.startsWith("image/")) {
       console.warn(`[fetchImageAsDataUrl] Invalid content type: ${contentType}`);
+      return null;
+    }
+
+    // Check towards GIF support (not supported by react-pdf)
+    if (contentType.includes("gif")) {
+      console.warn(`[fetchImageAsDataUrl] GIF format not supported by renderer: ${url}`);
       return null;
     }
 
