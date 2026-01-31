@@ -2,6 +2,35 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth";
 
+async function generateUniqueCopyName(baseName: string, orgId: string): Promise<string> {
+  // Find all templates that match the pattern "baseName (Copy)" or "baseName (Copy N)"
+  const existingTemplates = await prisma.template.findMany({
+    where: {
+      organizationId: orgId,
+      name: {
+        startsWith: baseName,
+      },
+    },
+    select: { name: true },
+  });
+
+  const existingNames = new Set(existingTemplates.map((t) => t.name));
+
+  // Try "Name (Copy)" first
+  const simpleCopyName = `${baseName} (Copy)`;
+  if (!existingNames.has(simpleCopyName)) {
+    return simpleCopyName;
+  }
+
+  // Find the next available number
+  let copyNumber = 2;
+  while (existingNames.has(`${baseName} (Copy ${copyNumber})`)) {
+    copyNumber++;
+  }
+
+  return `${baseName} (Copy ${copyNumber})`;
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -31,10 +60,14 @@ export async function POST(
       );
     }
 
-    // Create a duplicate with "(Copy)" suffix
+    // Generate a unique name for the duplicate
+    const baseName = existing.name.replace(/\s*\(Copy(?:\s+\d+)?\)$/, "");
+    const copyName = await generateUniqueCopyName(baseName, orgId);
+
+    // Create a duplicate with unique name
     const duplicate = await prisma.template.create({
       data: {
-        name: `${existing.name} (Copy)`,
+        name: copyName,
         description: existing.description,
         schema: existing.schema as object,
         paperSize: existing.paperSize,
