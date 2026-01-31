@@ -225,7 +225,7 @@ export default function TemplatesPage() {
           </div>
         </div>
       ) : (
-        <div className="grid gap-5 grid-cols-1">
+        <div className="grid gap-5 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {templates.map((template) => (
             <Card key={template.id} className="group relative overflow-hidden">
               <CardHeader className="pb-3">
