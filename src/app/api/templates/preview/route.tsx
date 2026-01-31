@@ -5,7 +5,19 @@ import { Block, GlobalStyles } from "@/types/template";
 
 export const maxDuration = 30;
 
+// Helper to add timeout to any promise
+function withTimeout<T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(errorMessage)), ms)
+    ),
+  ]);
+}
+
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+
   try {
     // Get request body as text first to handle empty bodies gracefully
     const text = await request.text();
@@ -45,18 +57,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Process blocks to convert remote images to data URLs
-    const processedBlocks = await preprocessBlocksForPdf(blocks);
+    console.log(`[PDF Preview] Starting - ${blocks.length} blocks`);
 
-    // Generate PDF buffer
-    const pdfBuffer = await renderToBuffer(
-      <TemplatePDF
-        blocks={processedBlocks}
-        globalStyles={globalStyles}
-        paperSize={paperSize}
-        orientation={orientation}
-      />
+    // Process blocks to convert remote images to data URLs (10s timeout)
+    const processedBlocks = await withTimeout(
+      preprocessBlocksForPdf(blocks),
+      10000,
+      "Image processing timed out"
     );
+
+    console.log(`[PDF Preview] Images processed in ${Date.now() - startTime}ms`);
+
+    // Generate PDF buffer (15s timeout)
+    const pdfBuffer = await withTimeout(
+      renderToBuffer(
+        <TemplatePDF
+          blocks={processedBlocks}
+          globalStyles={globalStyles}
+          paperSize={paperSize}
+          orientation={orientation}
+        />
+      ),
+      15000,
+      "PDF generation timed out"
+    );
+
+    console.log(`[PDF Preview] PDF generated in ${Date.now() - startTime}ms, size: ${pdfBuffer.length} bytes`);
 
     // Convert Buffer to Uint8Array for NextResponse compatibility
     const uint8Array = new Uint8Array(pdfBuffer);
@@ -69,9 +95,10 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("[PDF Preview] Error generating preview:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error(`[PDF Preview] Error after ${Date.now() - startTime}ms:`, errorMessage);
     return NextResponse.json(
-      { error: "Failed to generate PDF preview" },
+      { error: errorMessage },
       { status: 500 }
     );
   }

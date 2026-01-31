@@ -490,59 +490,66 @@ export function TemplatePDF({
 
 export { BlockRenderer };
 
+// 1x1 transparent PNG placeholder for failed images
+const PLACEHOLDER_IMAGE = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
 /**
  * Converts a remote image URL to a data URL by fetching it.
  * This is needed because react-pdf cannot infer image format for URLs without extensions.
  */
-async function fetchImageAsDataUrl(url: string): Promise<string | null> {
+async function fetchImageAsDataUrl(url: string, timeoutMs: number = 5000): Promise<string> {
   try {
-    const response = await fetch(url);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
       console.warn(`[fetchImageAsDataUrl] Failed to fetch image: ${response.status}`);
-      return null;
+      return PLACEHOLDER_IMAGE;
     }
 
     const contentType = response.headers.get("content-type");
     if (!contentType || !contentType.startsWith("image/")) {
       console.warn(`[fetchImageAsDataUrl] Invalid content type: ${contentType}`);
-      return null;
+      return PLACEHOLDER_IMAGE;
     }
 
-    // Check towards GIF support (not supported by react-pdf)
+    // GIF not supported by react-pdf
     if (contentType.includes("gif")) {
-      console.warn(`[fetchImageAsDataUrl] GIF format not supported by renderer: ${url}`);
-      return null;
+      console.warn(`[fetchImageAsDataUrl] GIF format not supported by renderer`);
+      return PLACEHOLDER_IMAGE;
     }
 
     const arrayBuffer = await response.arrayBuffer();
     const base64 = Buffer.from(arrayBuffer).toString("base64");
     return `data:${contentType};base64,${base64}`;
   } catch (error) {
-    console.warn(`[fetchImageAsDataUrl] Error fetching image:`, error);
-    return null;
+    if (error instanceof Error && error.name === "AbortError") {
+      console.warn(`[fetchImageAsDataUrl] Image fetch timed out: ${url.substring(0, 50)}...`);
+    } else {
+      console.warn(`[fetchImageAsDataUrl] Error fetching image:`, error);
+    }
+    return PLACEHOLDER_IMAGE;
   }
 }
 
 /**
- * Pre-processes blocks to convert remote image URLs (without extensions) to data URLs.
- * Call this before rendering TemplatePDF to avoid "Not valid image extension" errors.
+ * Pre-processes blocks to convert ALL remote image URLs to data URLs.
+ * This prevents "Not valid image extension" errors from react-pdf.
  */
 export async function preprocessBlocksForPdf(blocks: Block[]): Promise<Block[]> {
   const processBlock = async (block: Block): Promise<Block> => {
     if (block.type === "image") {
       const props = block.properties as ImageBlockProperties;
-      if (
-        props.src &&
-        props.src.startsWith("http") &&
-        !/\.(jpg|jpeg|png|bmp|gif)(\?.*)?$/i.test(props.src)
-      ) {
+      // Convert ALL http(s) images to data URLs
+      if (props.src && props.src.startsWith("http")) {
         const dataUrl = await fetchImageAsDataUrl(props.src);
-        if (dataUrl) {
-          return {
-            ...block,
-            properties: { ...props, src: dataUrl },
-          };
-        }
+        return {
+          ...block,
+          properties: { ...props, src: dataUrl },
+        };
       }
     }
 
