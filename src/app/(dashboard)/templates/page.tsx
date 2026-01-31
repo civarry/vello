@@ -37,6 +37,8 @@ import {
   Copy,
   Loader2,
   FileOutput,
+  Sparkles,
+  ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -138,9 +140,68 @@ export default function TemplatesPage() {
     });
   };
 
+  // Empty state - show welcoming onboarding experience
+  if (!isLoading && templates.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6 lg:p-8">
+        {/* Decorative background elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-accent/10 rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative z-10 max-w-lg text-center">
+          {/* Icon */}
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25">
+            <FileText className="h-10 w-10" />
+          </div>
+
+          {/* Content */}
+          <h1 className="text-3xl font-bold tracking-tight mb-3">
+            Create your first template
+          </h1>
+          <p className="text-muted-foreground text-lg mb-8 max-w-md mx-auto">
+            Design a custom payslip layout once, then generate documents for all your employees with ease.
+          </p>
+
+          {/* Features preview */}
+          <div className="grid grid-cols-3 gap-4 mb-8 text-sm">
+            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-card border border-border/50">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <span className="text-muted-foreground font-medium">Visual Builder</span>
+            </div>
+            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-card border border-border/50">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                <FileOutput className="h-5 w-5" />
+              </div>
+              <span className="text-muted-foreground font-medium">PDF Export</span>
+            </div>
+            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-card border border-border/50">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                <Copy className="h-5 w-5" />
+              </div>
+              <span className="text-muted-foreground font-medium">Reusable</span>
+            </div>
+          </div>
+
+          {/* CTA */}
+          <Link href="/templates/new">
+            <Button size="lg" className="h-12 px-8 text-base shadow-lg shadow-primary/25 group">
+              <Plus className="mr-2 h-5 w-5" />
+              Create Template
+              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 lg:p-8">
-      {/* Page Header */}
+      {/* Page Header - only shown when templates exist */}
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Templates</h1>
@@ -157,40 +218,39 @@ export default function TemplatesPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex h-48 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <div className="flex h-64 items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Loading templates...</p>
+          </div>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <Link href="/templates/new">
-            <Card className="group flex h-48 cursor-pointer items-center justify-center border-dashed border-2 border-border/50 hover:border-primary hover:bg-primary/5 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300">
-              <CardContent className="flex flex-col items-center gap-3 text-muted-foreground group-hover:text-primary transition-colors">
-                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-muted group-hover:bg-primary/10 transition-colors">
-                  <Plus className="h-7 w-7" />
-                </div>
-                <span className="font-medium">Create new template</span>
-              </CardContent>
-            </Card>
-          </Link>
-
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {templates.map((template) => (
-            <Card key={template.id} className="h-48 group">
-              <CardHeader className="pb-2">
+            <Card key={template.id} className="group relative overflow-hidden">
+              <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <CardTitle className="flex items-center gap-3 text-base">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
                       <FileText className="h-4 w-4" />
                     </div>
-                    <span className="group-hover:text-primary transition-colors">{template.name}</span>
+                    <div className="min-w-0">
+                      <span className="block truncate group-hover:text-primary transition-colors font-semibold">
+                        {template.name}
+                      </span>
+                      <span className="text-xs text-muted-foreground font-normal">
+                        {template.paperSize} · {template.orientation}
+                      </span>
+                    </div>
                     {template.isDefault && (
-                      <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">
+                      <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground shrink-0">
                         Default
                       </span>
                     )}
                   </CardTitle>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -229,16 +289,16 @@ export default function TemplatesPage() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-                <CardDescription className="line-clamp-1">
+                <CardDescription className="line-clamp-2 mt-1 pl-12">
                   {template.description || "No description"}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="flex gap-2">
+              <CardContent className="pt-0">
+                <div className="flex gap-2 pl-12">
                   <Link href={`/templates/${template.id}/generate`} className="flex-1">
                     <Button variant="default" size="sm" className="w-full">
                       <FileOutput className="mr-2 h-4 w-4" />
-                      Generate Document
+                      Generate
                     </Button>
                   </Link>
                   <Link href={`/templates/${template.id}/edit`}>
@@ -247,25 +307,12 @@ export default function TemplatesPage() {
                     </Button>
                   </Link>
                 </div>
-                <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{template.paperSize} &bull; {template.orientation}</span>
-                  <span>Updated {formatDate(template.updatedAt)}</span>
+                <div className="mt-3 pt-3 border-t border-border/50 text-xs text-muted-foreground pl-12">
+                  Updated {formatDate(template.updatedAt)}
                 </div>
               </CardContent>
             </Card>
           ))}
-
-          {templates.length === 0 && (
-            <Card className="col-span-full flex h-48 items-center justify-center border-dashed border-2 border-border/50">
-              <CardContent className="text-center text-muted-foreground">
-                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-muted mx-auto mb-3">
-                  <FileText className="h-7 w-7" />
-                </div>
-                <p className="font-medium">No templates yet</p>
-                <p className="text-sm mt-1">Create your first template to get started</p>
-              </CardContent>
-            </Card>
-          )}
         </div>
       )}
 
