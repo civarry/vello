@@ -59,7 +59,7 @@ export default async function MembersPage() {
 
             {/* Content */}
             <div className="flex-1 overflow-auto bg-muted/30">
-                <div className="p-4 md:p-6 space-y-4">
+                <div className="p-4 md:p-6 space-y-4 max-w-4xl mx-auto">
                     <MembersTable
                         currentUserId={user.id}
                         currentRole={currentMembership.role}

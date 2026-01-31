@@ -327,7 +327,7 @@ export default function EmailSettingsPage() {
 
             {/* Content */}
             <div className="flex-1 overflow-auto bg-muted/30">
-                <div className="p-4 md:p-6 space-y-4">
+                <div className="p-4 md:p-6 space-y-4 max-w-4xl mx-auto">
                     {configs.length === 0 ? (
                         /* Enhanced Empty State */
                         <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-primary/5 via-background to-amber-500/5">

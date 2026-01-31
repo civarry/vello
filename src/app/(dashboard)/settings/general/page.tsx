@@ -146,7 +146,7 @@ export default function GeneralSettingsPage() {
 
             {/* Content */}
             <div className="flex-1 overflow-auto bg-muted/30">
-                <div className="p-4 md:p-6 space-y-4">
+                <div className="p-4 md:p-6 space-y-4 max-w-4xl mx-auto">
                     {/* Organization Name Card */}
                     <Card>
                         <CardContent className="p-4 md:p-6">
