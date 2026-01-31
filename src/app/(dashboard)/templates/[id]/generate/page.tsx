@@ -24,9 +24,7 @@ import {
   Eye,
   MoreVertical,
   Maximize2,
-  ZoomIn,
-  ZoomOut,
-  RotateCcw,
+  Info,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -34,6 +32,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 import { toast } from "sonner";
@@ -75,7 +79,6 @@ export default function GenerateDocumentsPage({
 
   // Preview modal state
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [previewZoom, setPreviewZoom] = useState(100);
 
   // File input ref
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -651,10 +654,7 @@ export default function GenerateDocumentsPage({
       </div>
 
       {/* Preview Modal */}
-      <Dialog open={isPreviewOpen} onOpenChange={(open) => {
-        setIsPreviewOpen(open);
-        if (!open) setPreviewZoom(100); // Reset zoom when closing
-      }}>
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent
           className={cn(
             "flex flex-col p-0 gap-0",
@@ -668,37 +668,18 @@ export default function GenerateDocumentsPage({
             <DialogTitle className="text-base">
               Preview: Record #{selectedRecordIndex + 1}
             </DialogTitle>
-            <div className="flex items-center gap-1 mr-6">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => setPreviewZoom(z => Math.max(50, z - 25))}
-                disabled={previewZoom <= 50}
-              >
-                <ZoomIn className="h-3.5 w-3.5" />
-              </Button>
-              <span className="text-xs text-muted-foreground w-10 text-center">{previewZoom}%</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => setPreviewZoom(z => Math.min(200, z + 25))}
-                disabled={previewZoom >= 200}
-              >
-                <ZoomOut className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => setPreviewZoom(100)}
-                disabled={previewZoom === 100}
-                title="Reset zoom"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-              </Button>
-            </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 mr-6">
+                    <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Use Ctrl + scroll wheel to zoom</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </DialogHeader>
           <div className="flex-1 bg-muted/30 p-4 min-h-0 overflow-auto flex items-center justify-center">
             <div
@@ -709,7 +690,6 @@ export default function GenerateDocumentsPage({
                 maxWidth: '100%',
                 maxHeight: '100%',
                 aspectRatio: template.orientation === "LANDSCAPE" ? '1.414 / 1' : '1 / 1.414',
-                zoom: previewZoom / 100,
               }}
             >
               {isPreviewOpen && (
