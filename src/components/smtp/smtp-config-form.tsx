@@ -371,32 +371,35 @@ export function SMTPConfigForm({
             {selectedProvider && (
                 <Card className="bg-muted/30">
                     <CardContent className="pt-4 pb-4">
-                        <div className="flex items-center gap-4">
-                            <ProviderIcon name={selectedProvider.name} size="md" />
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                    <h3 className="font-semibold text-lg">{selectedProvider.name}</h3>
-                                    <Badge variant="outline" className="text-xs">
-                                        {selectedProvider.useTLS ? "TLS" : "Plain"}
-                                    </Badge>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <ProviderIcon name={selectedProvider.name} size="md" />
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <h3 className="font-semibold text-lg">{selectedProvider.name}</h3>
+                                        <Badge variant="outline" className="text-xs shrink-0">
+                                            {selectedProvider.useTLS ? "TLS" : "Plain"}
+                                        </Badge>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground font-mono truncate">
+                                        {selectedProvider.name === "Custom" ? "Custom SMTP Server" : (
+                                            `${selectedProvider.smtpServer}:${selectedProvider.smtpPort}`
+                                        )}
+                                    </p>
                                 </div>
-                                <p className="text-sm text-muted-foreground font-mono">
-                                    {selectedProvider.name === "Custom" ? "Custom SMTP Server" : (
-                                        `${selectedProvider.smtpServer}:${selectedProvider.smtpPort}`
-                                    )}
-                                </p>
                             </div>
                             {!initialConfig && (
                                 <Button
                                     type="button"
-                                    variant="ghost"
+                                    variant="outline"
                                     size="sm"
+                                    className="w-full sm:w-auto shrink-0"
                                     onClick={() => {
                                         setStep("select");
                                         setErrors({});
                                     }}
                                 >
-                                    Change
+                                    Change Provider
                                 </Button>
                             )}
                         </div>

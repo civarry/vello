@@ -165,7 +165,7 @@ export default function TemplatesPage() {
           </p>
 
           {/* Features preview */}
-          <div className="grid grid-cols-3 gap-4 mb-8 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8 text-sm">
             <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-card border border-border/50">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
                 <Sparkles className="h-5 w-5" />
@@ -200,17 +200,17 @@ export default function TemplatesPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {/* Page Header - only shown when templates exist */}
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center gap-4 sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Templates</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Templates</h1>
+          <p className="text-muted-foreground text-sm mt-1">
             Design and manage your payslip templates
           </p>
         </div>
         <Link href="/templates/new">
-          <Button className="shadow-lg">
+          <Button className="shadow-lg w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" />
             New Template
           </Button>

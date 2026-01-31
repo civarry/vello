@@ -154,7 +154,53 @@ export function PendingInvitesSection({ canManageInvites }: PendingInvitesSectio
         </h3>
       </div>
 
-      <div className="rounded-md border">
+      {/* Mobile card layout */}
+      <div className="md:hidden space-y-3">
+        {invites.map((invite) => (
+          <div key={invite.id} className="rounded-lg border bg-card p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="font-medium truncate">{invite.email}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant={getRoleBadgeVariant(invite.role)} className="text-xs">
+                    {invite.role}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    Expires in {formatExpiresIn(invite.expiresAt)}
+                  </span>
+                </div>
+              </div>
+              {canManageInvites && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => handleCopyLink(invite.token)}
+                  >
+                    {copiedToken === invite.token ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                    onClick={() => setCancelInvite(invite)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table layout */}
+      <div className="hidden md:block rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
