@@ -20,7 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Copy, Check } from "lucide-react";
+import { Loader2, Copy, Check, AlertCircle, Mail } from "lucide-react";
+import Link from "next/link";
 
 interface InviteDialogProps {
   open: boolean;
@@ -39,7 +40,27 @@ export function InviteDialog({
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [emailSent, setEmailSent] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [hasSmtpConfig, setHasSmtpConfig] = useState<boolean | null>(null);
+  const [checkingSmtp, setCheckingSmtp] = useState(false);
   const prevOrgNameRef = useRef<string>(organizationName);
+
+  // Check SMTP configuration when dialog opens
+  useEffect(() => {
+    if (open && hasSmtpConfig === null) {
+      setCheckingSmtp(true);
+      fetch("/api/smtp/config?default=true")
+        .then((res) => res.json())
+        .then((data) => {
+          setHasSmtpConfig(!!data.data);
+        })
+        .catch(() => {
+          setHasSmtpConfig(false);
+        })
+        .finally(() => {
+          setCheckingSmtp(false);
+        });
+    }
+  }, [open, hasSmtpConfig]);
 
   // Reset state when organization changes
   useEffect(() => {
@@ -51,6 +72,7 @@ export function InviteDialog({
       setEmailSent(false);
       setCopied(false);
       setIsLoading(false);
+      setHasSmtpConfig(null);
       onOpenChange(false);
       prevOrgNameRef.current = organizationName;
     }
@@ -130,6 +152,31 @@ export function InviteDialog({
 
         {!inviteLink ? (
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* SMTP Warning */}
+            {!checkingSmtp && hasSmtpConfig === false && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950 p-3">
+                <div className="flex gap-2">
+                  <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                      Email not configured
+                    </p>
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
+                      Set up email in{" "}
+                      <Link
+                        href="/settings/email"
+                        className="underline font-medium hover:text-amber-900 dark:hover:text-amber-100"
+                        onClick={handleClose}
+                      >
+                        Settings → Email
+                      </Link>{" "}
+                      to send invite emails automatically. For now, you can copy and share the invite link instead.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="email">Email address</Label>
               <Input
@@ -169,7 +216,14 @@ export function InviteDialog({
               </Button>
               <Button type="submit" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Send Invite
+                {hasSmtpConfig ? (
+                  <>
+                    <Mail className="mr-2 h-4 w-4" />
+                    Send Invite
+                  </>
+                ) : (
+                  "Create Invite"
+                )}
               </Button>
             </DialogFooter>
           </form>

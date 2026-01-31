@@ -219,18 +219,43 @@ export async function POST(request: NextRequest) {
             },
         });
 
-        // Send invite email
+        // Send invite email using SMTP if configured
         let emailSent = false;
+        let smtpConfigured = false;
         try {
-            if (process.env.RESEND_API_KEY) {
-                await sendInviteEmail({
+            // Fetch default SMTP config for this organization
+            const smtpConfig = await prisma.sMTPConfiguration.findFirst({
+                where: {
+                    organizationId: orgId,
+                    isDefault: true,
+                },
+                include: {
+                    provider: true,
+                },
+            });
+
+            if (smtpConfig) {
+                smtpConfigured = true;
+                const result = await sendInviteEmail({
                     to: email,
                     inviterName: context.user.name || context.user.email,
                     organizationName: context.currentMembership.organization.name,
                     role,
                     inviteToken: invite.token,
+                    smtpConfig: {
+                        smtpServer: smtpConfig.provider.smtpServer,
+                        smtpPort: smtpConfig.provider.smtpPort,
+                        useTLS: smtpConfig.provider.useTLS,
+                        senderEmail: smtpConfig.senderEmail,
+                        senderName: smtpConfig.senderName,
+                        smtpUsername: smtpConfig.smtpUsername,
+                        smtpPassword: smtpConfig.smtpPassword,
+                    },
                 });
-                emailSent = true;
+                emailSent = result.success;
+                if (!result.success) {
+                    console.error("SMTP email send result:", result.message);
+                }
             }
         } catch (emailError) {
             // Log but don't fail the invite creation if email fails
@@ -243,6 +268,7 @@ export async function POST(request: NextRequest) {
             inviteId: invite.id,
             email,
             emailSent,
+            smtpConfigured,
             action: "create_invite",
         });
 
@@ -260,6 +286,7 @@ export async function POST(request: NextRequest) {
                     token: invite.token,
                     expiresAt: invite.expiresAt,
                     emailSent,
+                    smtpConfigured,
                 },
             },
             { status: 201, headers }

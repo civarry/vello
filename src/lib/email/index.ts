@@ -1,9 +1,6 @@
-import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { SMTPClient, SMTPConfig } from "./smtp-client";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-const FROM_EMAIL = process.env.FROM_EMAIL || "Vello <onboarding@resend.dev>";
 
 interface SendInviteEmailParams {
   to: string;
@@ -11,6 +8,7 @@ interface SendInviteEmailParams {
   organizationName: string;
   role: string;
   inviteToken: string;
+  smtpConfig: SMTPConfig;
 }
 
 export async function sendInviteEmail({
@@ -19,15 +17,12 @@ export async function sendInviteEmail({
   organizationName,
   role,
   inviteToken,
-}: SendInviteEmailParams) {
+  smtpConfig,
+}: SendInviteEmailParams): Promise<{ success: boolean; message: string }> {
   const inviteUrl = `${APP_URL}/invite/${inviteToken}`;
   const roleDisplay = role.charAt(0) + role.slice(1).toLowerCase();
 
-  const { data, error } = await resend.emails.send({
-    from: FROM_EMAIL,
-    to,
-    subject: `You've been invited to join ${organizationName} on Vello`,
-    html: `
+  const html = `
       <!DOCTYPE html>
       <html>
         <head>
@@ -97,8 +92,9 @@ export async function sendInviteEmail({
           </table>
         </body>
       </html>
-    `,
-    text: `
+    `;
+
+  const text = `
 You've been invited to join ${organizationName} on Vello!
 
 ${inviterName} has invited you to join ${organizationName} as a ${roleDisplay}.
@@ -108,13 +104,26 @@ Accept your invitation here: ${inviteUrl}
 This invitation will expire in 7 days.
 
 If you didn't expect this invitation, you can safely ignore this email.
-    `.trim(),
-  });
+    `.trim();
 
-  if (error) {
+  const client = new SMTPClient(smtpConfig);
+
+  try {
+    const result = await client.sendEmail({
+      to,
+      subject: `You've been invited to join ${organizationName} on Vello`,
+      html,
+      text,
+    });
+
+    await client.disconnect();
+    return result;
+  } catch (error) {
+    await client.disconnect();
     console.error("Failed to send invite email:", error);
-    throw new Error(`Failed to send invite email: ${error.message}`);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Failed to send email",
+    };
   }
-
-  return data;
 }

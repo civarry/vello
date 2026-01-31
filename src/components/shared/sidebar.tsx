@@ -50,7 +50,6 @@ import { toast } from "sonner";
 
 const navigation = [
   { name: "Templates", href: "/templates", icon: LayoutTemplate },
-  { name: "Settings", href: "/settings", icon: Settings },
 ];
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed";
@@ -453,13 +452,11 @@ export function Sidebar({
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem disabled>
-              <User className="mr-2 h-4 w-4" />
-              Profile (coming soon)
-            </DropdownMenuItem>
-            <DropdownMenuItem disabled>
-              <Settings className="mr-2 h-4 w-4" />
-              Settings (coming soon)
+            <DropdownMenuItem asChild>
+              <Link href="/settings">
+                <Settings className="mr-2 h-4 w-4" />
+                Settings
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
