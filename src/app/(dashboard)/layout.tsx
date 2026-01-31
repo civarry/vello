@@ -5,8 +5,8 @@ import { Sidebar } from "@/components/shared/sidebar";
 import { MobileNav } from "@/components/shared/mobile-nav";
 import { DashboardErrorBoundary } from "@/components/dashboard-error-boundary";
 
-// Force dynamic rendering to ensure fresh organization data on every request
-export const dynamic = "force-dynamic";
+// Next.js will automatically detect this as dynamic due to auth checks and DB queries
+// Removed explicit force-dynamic to allow better edge caching of static assets
 
 export default async function DashboardLayout({
   children,
