@@ -103,7 +103,7 @@ export default async function DashboardLayout({
             currentRole={currentMembership.role}
             allOrganizations={allOrganizations}
           />
-          <main className="flex-1 overflow-auto">{children}</main>
+          <main className="flex-1 overflow-y-auto overflow-x-hidden">{children}</main>
         </div>
       </div>
     </DashboardErrorBoundary>

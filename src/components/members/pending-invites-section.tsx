@@ -134,15 +134,9 @@ export function PendingInvitesSection({ canManageInvites }: PendingInvitesSectio
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (invites.length === 0) {
+  // Don't show loading spinner - MembersTable already shows one
+  // Return null while loading or if no invites
+  if (isLoading || invites.length === 0) {
     return null;
   }
 

@@ -11,7 +11,6 @@ import { toast } from "sonner";
 interface Organization {
     id: string;
     name: string;
-    slug: string;
     logo: string | null;
     address: string | null;
     createdAt: string;
@@ -171,24 +170,6 @@ export default function GeneralSettingsPage() {
                         </CardContent>
                     </Card>
 
-                    {/* Organization ID Card */}
-                    <Card>
-                        <CardContent className="p-4 md:p-6">
-                            <div className="space-y-1">
-                                <Label className="text-sm font-medium text-muted-foreground">
-                                    Organization ID
-                                </Label>
-                                <div className="flex items-center gap-2">
-                                    <code className="px-2 py-1 bg-muted rounded text-sm font-mono">
-                                        {organization?.slug}
-                                    </code>
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                    Unique identifier for your organization. This cannot be changed.
-                                </p>
-                            </div>
-                        </CardContent>
-                    </Card>
                 </div>
             </div>
         </div>
