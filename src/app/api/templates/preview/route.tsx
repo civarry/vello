@@ -7,7 +7,25 @@ export const maxDuration = 30;
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    // Get request body as text first to handle empty bodies gracefully
+    const text = await request.text();
+    if (!text) {
+      return NextResponse.json(
+        { error: "Empty request body" },
+        { status: 400 }
+      );
+    }
+
+    let body;
+    try {
+      body = JSON.parse(text);
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid JSON in request body" },
+        { status: 400 }
+      );
+    }
+
     const {
       blocks,
       globalStyles,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { Template } from "@/types/template";
 import { Loader2 } from "lucide-react";
 import { applyDataToBlocks } from "@/lib/template-utils";
@@ -12,93 +12,108 @@ interface LivePdfPreviewProps {
 }
 
 export function LivePdfPreview({ template, data, debouncedDelay = 500 }: LivePdfPreviewProps) {
-  const [debouncedData, setDebouncedData] = useState(data);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-
-  // Debounce data changes
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedData(data);
-    }, debouncedDelay);
-    return () => clearTimeout(handler);
-  }, [data, debouncedDelay]);
+  const previousUrlRef = useRef<string | null>(null);
+  const isMountedRef = useRef(true);
 
   // Apply data substitution to blocks
   const substitutedBlocks = useMemo(
-    () => applyDataToBlocks(template.schema.blocks, debouncedData),
-    [template.schema.blocks, debouncedData]
+    () => applyDataToBlocks(template.schema.blocks, data),
+    [template.schema.blocks, data]
   );
 
-  // Generate PDF via server API
-  useEffect(() => {
-    // Abort previous request if still pending
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
+  // Stable reference for the request payload
+  const requestPayload = useMemo(
+    () => JSON.stringify({
+      blocks: substitutedBlocks,
+      globalStyles: template.schema.globalStyles,
+      paperSize: template.paperSize,
+      orientation: template.orientation,
+    }),
+    [substitutedBlocks, template.schema.globalStyles, template.paperSize, template.orientation]
+  );
+
+  const generatePdf = useCallback(async (payload: string, signal: AbortSignal) => {
+    const response = await fetch("/api/templates/preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: payload,
+      signal,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP ${response.status}`);
     }
 
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
+    return response.blob();
+  }, []);
 
-    const generatePdf = async () => {
+  // Debounced PDF generation
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    const timeoutId = setTimeout(async () => {
+      // Abort any pending request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+
       setLoading(true);
       setError(null);
 
       try {
-        const response = await fetch("/api/templates/preview", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            blocks: substitutedBlocks,
-            globalStyles: template.schema.globalStyles,
-            paperSize: template.paperSize,
-            orientation: template.orientation,
-          }),
-          signal: abortController.signal,
-        });
+        const blob = await generatePdf(requestPayload, abortController.signal);
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || `HTTP ${response.status}`);
+        if (!isMountedRef.current || abortController.signal.aborted) {
+          return;
         }
 
-        const blob = await response.blob();
-
         // Revoke previous URL to prevent memory leaks
-        if (pdfUrl) {
-          URL.revokeObjectURL(pdfUrl);
+        if (previousUrlRef.current) {
+          URL.revokeObjectURL(previousUrlRef.current);
         }
 
         const url = URL.createObjectURL(blob);
+        previousUrlRef.current = url;
         setPdfUrl(url);
+        setError(null);
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") {
-          // Request was aborted, ignore
+          return;
+        }
+        if (!isMountedRef.current) {
           return;
         }
         console.error("[LivePdfPreview] Error:", err);
         setError(err instanceof Error ? err.message : "Failed to generate preview");
       } finally {
-        if (!abortController.signal.aborted) {
+        if (isMountedRef.current && !abortController.signal.aborted) {
           setLoading(false);
         }
       }
-    };
-
-    generatePdf();
+    }, debouncedDelay);
 
     return () => {
-      abortController.abort();
+      clearTimeout(timeoutId);
     };
-  }, [substitutedBlocks, template.schema.globalStyles, template.paperSize, template.orientation]);
+  }, [requestPayload, debouncedDelay, generatePdf]);
 
-  // Cleanup blob URL on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (pdfUrl) {
-        URL.revokeObjectURL(pdfUrl);
+      isMountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      if (previousUrlRef.current) {
+        URL.revokeObjectURL(previousUrlRef.current);
       }
     };
   }, []);
@@ -127,11 +142,13 @@ export function LivePdfPreview({ template, data, debouncedDelay = 500 }: LivePdf
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       )}
-      <iframe
-        src={`${pdfUrl}#toolbar=0&view=Fit`}
-        className="h-full w-full border-none bg-transparent"
-        title="PDF Preview"
-      />
+      {pdfUrl && (
+        <iframe
+          src={`${pdfUrl}#toolbar=0&view=Fit`}
+          className="h-full w-full border-none bg-transparent"
+          title="PDF Preview"
+        />
+      )}
     </div>
   );
 }
