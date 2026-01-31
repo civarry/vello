@@ -16,7 +16,6 @@ export function LivePdfPreview({ template, data, debouncedDelay = 500 }: LivePdf
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const previousUrlRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
 
   // Apply data substitution to blocks
@@ -36,7 +35,7 @@ export function LivePdfPreview({ template, data, debouncedDelay = 500 }: LivePdf
     [substitutedBlocks, template.schema.globalStyles, template.paperSize, template.orientation]
   );
 
-  const generatePdf = useCallback(async (payload: string, signal: AbortSignal) => {
+  const generatePdf = useCallback(async (payload: string, signal: AbortSignal): Promise<string> => {
     const response = await fetch("/api/templates/preview", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -49,7 +48,22 @@ export function LivePdfPreview({ template, data, debouncedDelay = 500 }: LivePdf
       throw new Error(errorData.error || `HTTP ${response.status}`);
     }
 
-    return response.blob();
+    const blob = await response.blob();
+
+    // Convert blob to base64 data URL for better mobile browser compatibility
+    // Blob URLs don't work reliably in iframes on mobile browsers (especially iOS Safari)
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === "string") {
+          resolve(reader.result);
+        } else {
+          reject(new Error("Failed to convert PDF to data URL"));
+        }
+      };
+      reader.onerror = () => reject(new Error("Failed to read PDF blob"));
+      reader.readAsDataURL(blob);
+    });
   }, []);
 
   // Debounced PDF generation
@@ -69,20 +83,13 @@ export function LivePdfPreview({ template, data, debouncedDelay = 500 }: LivePdf
       setError(null);
 
       try {
-        const blob = await generatePdf(requestPayload, abortController.signal);
+        const dataUrl = await generatePdf(requestPayload, abortController.signal);
 
         if (!isMountedRef.current || abortController.signal.aborted) {
           return;
         }
 
-        // Revoke previous URL to prevent memory leaks
-        if (previousUrlRef.current) {
-          URL.revokeObjectURL(previousUrlRef.current);
-        }
-
-        const url = URL.createObjectURL(blob);
-        previousUrlRef.current = url;
-        setPdfUrl(url);
+        setPdfUrl(dataUrl);
         setError(null);
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") {
@@ -111,9 +118,6 @@ export function LivePdfPreview({ template, data, debouncedDelay = 500 }: LivePdf
       isMountedRef.current = false;
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
-      }
-      if (previousUrlRef.current) {
-        URL.revokeObjectURL(previousUrlRef.current);
       }
     };
   }, []);
