@@ -15,10 +15,12 @@ import {
   LogOut,
   User,
   ChevronDown,
+  ChevronRight,
   Check,
   Plus,
   UserPlus,
   Mail,
+  Building2,
 } from "lucide-react";
 import { InviteDialog } from "./invite-dialog";
 import { Button } from "@/components/ui/button";
@@ -33,6 +35,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useTemplateBuilderStore } from "@/stores/template-builder-store";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   Tooltip,
   TooltipContent,
@@ -50,6 +57,12 @@ import { toast } from "sonner";
 
 const navigation = [
   { name: "Templates", href: "/templates", icon: LayoutTemplate },
+];
+
+const settingsNavigation = [
+  { name: "General", href: "/settings/general", icon: Building2 },
+  { name: "Members", href: "/settings/members", icon: Users },
+  { name: "Email", href: "/settings/email", icon: Mail },
 ];
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed";
@@ -92,6 +105,15 @@ export function Sidebar({
     orgId: string;
     orgName: string;
   } | null>(null);
+
+  // Settings collapsible state - auto-expand when on settings page
+  const isOnSettingsPage = pathname.startsWith("/settings");
+  const [settingsOpen, setSettingsOpen] = useState(isOnSettingsPage);
+
+  // Sync settings open state with pathname
+  useEffect(() => {
+    setSettingsOpen(isOnSettingsPage);
+  }, [isOnSettingsPage]);
 
   // Get isDirty from template builder store to check for unsaved changes
   const isDirty = useTemplateBuilderStore((state) => state.isDirty);
@@ -225,7 +247,7 @@ export function Sidebar({
   return (
     <div
       className={cn(
-        "flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out",
+        "hidden md:flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out",
         collapsed ? "w-16" : "w-64"
       )}
     >
@@ -411,6 +433,74 @@ export function Sidebar({
 
           return <div key={item.name}>{linkContent}</div>;
         })}
+
+        {/* Settings with collapsible sub-nav */}
+        {collapsed ? (
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <Link
+                href="/settings/general"
+                className={cn(
+                  "flex items-center justify-center rounded-lg px-2 py-2.5 text-sm font-medium transition-all duration-200",
+                  isOnSettingsPage
+                    ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                )}
+              >
+                <Settings className="h-4 w-4" />
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right" sideOffset={10}>
+              Settings
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen}>
+            <CollapsibleTrigger asChild>
+              <button
+                className={cn(
+                  "flex items-center justify-between w-full rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                  isOnSettingsPage
+                    ? "bg-sidebar-accent text-sidebar-foreground"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <Settings className="h-4 w-4" />
+                  Settings
+                </div>
+                <ChevronRight
+                  className={cn(
+                    "h-4 w-4 transition-transform",
+                    settingsOpen && "rotate-90"
+                  )}
+                />
+              </button>
+            </CollapsibleTrigger>
+            {settingsOpen && (
+              <CollapsibleContent className="pl-4 pt-1 space-y-1" forceMount>
+                {settingsNavigation.map((item) => {
+                  const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
+                        isActive
+                          ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                      )}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {item.name}
+                    </Link>
+                  );
+                })}
+              </CollapsibleContent>
+            )}
+          </Collapsible>
+        )}
       </nav>
 
       {/* User Menu */}

@@ -58,7 +58,7 @@ export default async function MembersPage() {
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-auto">
+            <div className="flex-1 overflow-auto bg-muted/30">
                 <div className="p-4 md:p-6 space-y-4">
                     <MembersTable
                         currentUserId={user.id}

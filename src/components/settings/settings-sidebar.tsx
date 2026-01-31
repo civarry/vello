@@ -17,7 +17,7 @@ import { useState } from "react";
 const items = [
     {
         title: "General",
-        href: "/settings",
+        href: "/settings/general",
         icon: Settings,
         description: "Organization profile and preferences",
     },
@@ -41,7 +41,7 @@ function NavItems({ onItemClick }: { onItemClick?: () => void }) {
     return (
         <>
             {items.map((item) => {
-                const isActive = pathname === item.href || (item.href !== "/settings" && pathname.startsWith(item.href));
+                const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
 
                 return (
                     <Link
@@ -67,7 +67,7 @@ function NavItems({ onItemClick }: { onItemClick?: () => void }) {
 
 export function SettingsSidebar() {
     return (
-        <nav className="hidden md:flex flex-col space-y-1 w-64 pr-6 shrink-0 h-[calc(100vh-4rem)] overflow-y-auto pt-6">
+        <nav className="hidden lg:flex flex-col space-y-1 w-64 pr-6 shrink-0 h-[calc(100vh-4rem)] overflow-y-auto pt-6">
             <h3 className="font-semibold text-lg px-2 mb-4">Settings</h3>
             <NavItems />
         </nav>
@@ -80,7 +80,7 @@ export function MobileSettingsNav() {
 
     // Get current page title
     const currentItem = items.find(item =>
-        pathname === item.href || (item.href !== "/settings" && pathname.startsWith(item.href))
+        pathname === item.href || pathname.startsWith(item.href + "/")
     );
 
     return (

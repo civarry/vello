@@ -326,7 +326,7 @@ export default function EmailSettingsPage() {
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-auto">
+            <div className="flex-1 overflow-auto bg-muted/30">
                 <div className="p-4 md:p-6 space-y-4">
                     {configs.length === 0 ? (
                         /* Enhanced Empty State */
