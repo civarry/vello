@@ -22,6 +22,20 @@ export function ImageBlock({ block, isPreview }: ImageBlockProps) {
   const handleUpload = useCallback(
     async (file: File) => {
       setUploadError(null);
+
+      // Validate file type - only PNG and JPG are supported for PDF generation
+      const supportedTypes = ["image/png", "image/jpeg", "image/jpg"];
+      if (!supportedTypes.includes(file.type)) {
+        setUploadError("Only PNG and JPG images are supported for PDF generation");
+        return;
+      }
+
+      // Validate file size (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        setUploadError("Image must be less than 5MB");
+        return;
+      }
+
       setIsUploading(true);
 
       try {
@@ -58,7 +72,7 @@ export function ImageBlock({ block, isPreview }: ImageBlockProps) {
       if (isPreview) return;
 
       const file = e.dataTransfer.files[0];
-      if (file && file.type.startsWith("image/")) {
+      if (file) {
         handleUpload(file);
       } else {
         setUploadError("Please drop an image file");
@@ -146,7 +160,7 @@ export function ImageBlock({ block, isPreview }: ImageBlockProps) {
     >
       <input
         type="file"
-        accept="image/*"
+        accept="image/png,image/jpeg,image/jpg"
         onChange={handleFileSelect}
         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
         disabled={isUploading}
@@ -162,7 +176,7 @@ export function ImageBlock({ block, isPreview }: ImageBlockProps) {
           <Upload className="h-8 w-8 mb-2" />
           <span className="text-xs font-medium">Drop image here or click to upload</span>
           <span className="text-xs text-muted-foreground/70 mt-1">
-            PNG, JPG, GIF, WebP, SVG (max 5MB)
+            PNG or JPG only (max 5MB)
           </span>
         </>
       )}

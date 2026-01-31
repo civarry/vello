@@ -57,7 +57,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[PDF Preview] Starting - ${blocks.length} blocks`);
+    // Log block types for debugging
+    const blockTypes = blocks.map((b) => b.type);
+    console.log(`[PDF Preview] Starting - ${blocks.length} blocks: ${blockTypes.join(", ")}`);
 
     // Process blocks to convert remote images to data URLs (10s timeout)
     const processedBlocks = await withTimeout(
@@ -66,21 +68,34 @@ export async function POST(request: NextRequest) {
       "Image processing timed out"
     );
 
+    // Log any image blocks for debugging
+    const imageBlocks = processedBlocks.filter((b) => b.type === "image");
+    imageBlocks.forEach((b, i) => {
+      const src = (b.properties as { src?: string }).src || "";
+      console.log(`[PDF Preview] Image ${i + 1}: ${src.substring(0, 50)}...`);
+    });
+
     console.log(`[PDF Preview] Images processed in ${Date.now() - startTime}ms`);
 
     // Generate PDF buffer (15s timeout)
-    const pdfBuffer = await withTimeout(
-      renderToBuffer(
-        <TemplatePDF
-          blocks={processedBlocks}
-          globalStyles={globalStyles}
-          paperSize={paperSize}
-          orientation={orientation}
-        />
-      ),
-      15000,
-      "PDF generation timed out"
-    );
+    let pdfBuffer: Buffer;
+    try {
+      pdfBuffer = await withTimeout(
+        renderToBuffer(
+          <TemplatePDF
+            blocks={processedBlocks}
+            globalStyles={globalStyles}
+            paperSize={paperSize}
+            orientation={orientation}
+          />
+        ),
+        15000,
+        "PDF generation timed out"
+      );
+    } catch (renderError) {
+      console.error(`[PDF Preview] Render error:`, renderError);
+      throw renderError;
+    }
 
     console.log(`[PDF Preview] PDF generated in ${Date.now() - startTime}ms, size: ${pdfBuffer.length} bytes`);
 
@@ -96,7 +111,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorStack = error instanceof Error ? error.stack : "";
     console.error(`[PDF Preview] Error after ${Date.now() - startTime}ms:`, errorMessage);
+    console.error(`[PDF Preview] Stack trace:`, errorStack);
     return NextResponse.json(
       { error: errorMessage },
       { status: 500 }

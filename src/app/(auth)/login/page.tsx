@@ -51,16 +51,16 @@ function LoginForm() {
 
     return (
         <>
-            <div className="text-center mb-6">
-                <h1 className="text-2xl font-bold">Welcome back</h1>
-                <p className="text-muted-foreground mt-1">
+            <div className="text-center mb-8">
+                <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
+                <p className="text-muted-foreground mt-2">
                     Sign in to your Vello account
                 </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email" className="text-sm font-medium">Email</Label>
                     <Input
                         id="email"
                         type="email"
@@ -70,15 +70,16 @@ function LoginForm() {
                         required
                         autoComplete="email"
                         disabled={isLoading}
+                        className="h-11"
                     />
                 </div>
 
                 <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                        <Label htmlFor="password">Password</Label>
+                        <Label htmlFor="password" className="text-sm font-medium">Password</Label>
                         <Link
                             href="/forgot-password"
-                            className="text-sm text-primary hover:underline"
+                            className="text-sm text-primary hover:text-primary/80 hover:underline transition-colors"
                             tabIndex={-1}
                         >
                             Forgot password?
@@ -93,19 +94,28 @@ function LoginForm() {
                         required
                         autoComplete="current-password"
                         disabled={isLoading}
+                        className="h-11"
                     />
                 </div>
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button type="submit" className="w-full h-11 text-base font-medium mt-2" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Sign in
                 </Button>
             </form>
 
-            <p className="text-center text-sm text-muted-foreground mt-6">
-                Don&apos;t have an account?{" "}
-                <Link href="/signup" className="text-primary hover:underline" tabIndex={-1}>
-                    Sign up
+            <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-border/60"></div>
+                </div>
+                <div className="relative flex justify-center text-xs">
+                    <span className="bg-card px-3 text-muted-foreground">New to Vello?</span>
+                </div>
+            </div>
+
+            <p className="text-center text-sm text-muted-foreground">
+                <Link href="/signup" className="text-primary font-medium hover:text-primary/80 hover:underline transition-colors" tabIndex={-1}>
+                    Create an account
                 </Link>
             </p>
         </>

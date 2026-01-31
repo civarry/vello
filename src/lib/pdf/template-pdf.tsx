@@ -77,27 +77,35 @@ function createBlockStyles(style: BlockStyle, globalStyles: GlobalStyles) {
   // Convert pixel positions to points (1pt = 1/72 inch, 1px ≈ 0.75pt at 96 DPI)
   const pxToPt = 0.75;
 
+  // Ensure dimensions are valid finite numbers (fallback to 0 if invalid)
+  const safeNum = (val: number | undefined, fallback = 0): number => {
+    if (val === undefined || val === null || !isFinite(val) || isNaN(val)) {
+      return fallback;
+    }
+    return val;
+  };
+
   return StyleSheet.create({
     block: {
       position: "absolute",
-      left: style.x * pxToPt,
-      top: style.y * pxToPt,
-      width: style.width * pxToPt,
-      height: style.height * pxToPt,
-      paddingTop: (style.paddingTop ?? 0) * pxToPt,
-      paddingBottom: (style.paddingBottom ?? 0) * pxToPt,
-      paddingLeft: (style.paddingLeft ?? 0) * pxToPt,
-      paddingRight: (style.paddingRight ?? 0) * pxToPt,
-      fontSize: (style.fontSize ?? globalStyles.fontSize) * pxToPt,
+      left: safeNum(style.x) * pxToPt,
+      top: safeNum(style.y) * pxToPt,
+      width: safeNum(style.width, 100) * pxToPt,
+      height: safeNum(style.height, 50) * pxToPt,
+      paddingTop: safeNum(style.paddingTop) * pxToPt,
+      paddingBottom: safeNum(style.paddingBottom) * pxToPt,
+      paddingLeft: safeNum(style.paddingLeft) * pxToPt,
+      paddingRight: safeNum(style.paddingRight) * pxToPt,
+      fontSize: safeNum(style.fontSize, globalStyles.fontSize || 12) * pxToPt,
       fontWeight: mapFontWeight(style.fontWeight),
       // fontFamily: style.fontFamily || globalStyles.fontFamily || "Helvetica",
       fontFamily: "Helvetica",
       textAlign: style.textAlign ?? "left",
       color: style.color ?? globalStyles.primaryColor,
       backgroundColor: style.backgroundColor,
-      borderWidth: style.borderWidth !== undefined ? style.borderWidth * pxToPt : undefined,
+      borderWidth: style.borderWidth !== undefined ? safeNum(style.borderWidth) * pxToPt : undefined,
       borderColor: style.borderColor,
-      borderRadius: style.borderRadius !== undefined ? style.borderRadius * pxToPt : undefined,
+      borderRadius: style.borderRadius !== undefined ? safeNum(style.borderRadius) * pxToPt : undefined,
       borderStyle: style.borderStyle,
       overflow: "hidden",
     },
@@ -268,13 +276,24 @@ function ImageBlock({
   }
 
   logPdf('[ImageBlock] Rendering image');
+
+  // Get dimensions, ensuring we have at least one explicit dimension
+  let width = parseNumericDimension(properties.width);
+  let height = parseNumericDimension(properties.height);
+
+  // If both are auto, yoga-layout can crash - provide sensible defaults
+  if (width === "auto" && height === "auto") {
+    width = 100; // Default width in points
+    height = "auto";
+  }
+
   return (
     <View style={styles.block}>
       <Image
         src={properties.src}
         style={{
-          width: parseNumericDimension(properties.width),
-          height: parseNumericDimension(properties.height),
+          width,
+          height,
           objectFit: properties.objectFit ?? "contain",
         }}
       />
@@ -490,8 +509,8 @@ export function TemplatePDF({
 
 export { BlockRenderer };
 
-// 1x1 transparent PNG placeholder for failed images
-const PLACEHOLDER_IMAGE = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+// Empty string to signal that the image should be skipped
+const PLACEHOLDER_IMAGE = "";
 
 /**
  * Converts a remote image URL to a data URL by fetching it.
@@ -516,13 +535,21 @@ async function fetchImageAsDataUrl(url: string, timeoutMs: number = 5000): Promi
       return PLACEHOLDER_IMAGE;
     }
 
-    // GIF not supported by react-pdf
-    if (contentType.includes("gif")) {
-      console.warn(`[fetchImageAsDataUrl] GIF format not supported by renderer`);
+    // Only allow PNG and JPG - react-pdf doesn't support GIF, WebP, SVG, etc.
+    const isSupported = contentType.includes("png") || contentType.includes("jpeg") || contentType.includes("jpg");
+    if (!isSupported) {
+      console.warn(`[fetchImageAsDataUrl] Unsupported format: ${contentType}. Only PNG and JPG are supported.`);
       return PLACEHOLDER_IMAGE;
     }
 
     const arrayBuffer = await response.arrayBuffer();
+
+    // Limit image size to 5MB to prevent memory issues
+    if (arrayBuffer.byteLength > 5 * 1024 * 1024) {
+      console.warn(`[fetchImageAsDataUrl] Image too large: ${(arrayBuffer.byteLength / 1024 / 1024).toFixed(2)}MB. Max 5MB.`);
+      return PLACEHOLDER_IMAGE;
+    }
+
     const base64 = Buffer.from(arrayBuffer).toString("base64");
     return `data:${contentType};base64,${base64}`;
   } catch (error) {

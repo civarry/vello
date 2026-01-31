@@ -139,16 +139,17 @@ export default function TemplatesPage() {
   };
 
   return (
-    <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="p-6 lg:p-8">
+      {/* Page Header */}
+      <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Templates</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-bold tracking-tight">Templates</h1>
+          <p className="text-muted-foreground mt-1">
             Design and manage your payslip templates
           </p>
         </div>
         <Link href="/templates/new">
-          <Button>
+          <Button className="shadow-lg">
             <Plus className="mr-2 h-4 w-4" />
             New Template
           </Button>
@@ -162,23 +163,27 @@ export default function TemplatesPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <Link href="/templates/new">
-            <Card className="flex h-48 cursor-pointer items-center justify-center border-dashed transition-colors hover:border-primary hover:bg-muted/50">
-              <CardContent className="flex flex-col items-center gap-2 text-muted-foreground">
-                <Plus className="h-8 w-8" />
-                <span>Create new template</span>
+            <Card className="group flex h-48 cursor-pointer items-center justify-center border-dashed border-2 border-border/50 hover:border-primary hover:bg-primary/5 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300">
+              <CardContent className="flex flex-col items-center gap-3 text-muted-foreground group-hover:text-primary transition-colors">
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-muted group-hover:bg-primary/10 transition-colors">
+                  <Plus className="h-7 w-7" />
+                </div>
+                <span className="font-medium">Create new template</span>
               </CardContent>
             </Card>
           </Link>
 
           {templates.map((template) => (
-            <Card key={template.id} className="h-48">
+            <Card key={template.id} className="h-48 group">
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">
                   <CardTitle className="flex items-center gap-2 text-base">
-                    <FileText className="h-4 w-4" />
-                    {template.name}
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <FileText className="h-4 w-4" />
+                    </div>
+                    <span className="group-hover:text-primary transition-colors">{template.name}</span>
                     {template.isDefault && (
-                      <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">
+                      <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">
                         Default
                       </span>
                     )}
@@ -251,11 +256,13 @@ export default function TemplatesPage() {
           ))}
 
           {templates.length === 0 && (
-            <Card className="col-span-full flex h-48 items-center justify-center border-dashed">
+            <Card className="col-span-full flex h-48 items-center justify-center border-dashed border-2 border-border/50">
               <CardContent className="text-center text-muted-foreground">
-                <FileText className="mx-auto mb-2 h-8 w-8" />
-                <p>No templates yet</p>
-                <p className="text-sm">Create your first template to get started</p>
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-muted mx-auto mb-3">
+                  <FileText className="h-7 w-7" />
+                </div>
+                <p className="font-medium">No templates yet</p>
+                <p className="text-sm mt-1">Create your first template to get started</p>
               </CardContent>
             </Card>
           )}

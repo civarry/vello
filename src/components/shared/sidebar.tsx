@@ -10,7 +10,6 @@ import {
   FileText,
   Users,
   Settings,
-  Building2,
   ChevronsLeft,
   ChevronsRight,
   LogOut,
@@ -212,38 +211,40 @@ export function Sidebar({
     .toUpperCase()
     .slice(0, 2);
 
-  // Get role badge color
+  // Get role badge color - using brand palette
   const getRoleBadgeClass = (role: string) => {
     switch (role) {
       case "OWNER":
-        return "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200";
+        return "bg-[oklch(0.88_0.12_85_/_0.15)] text-[oklch(0.45_0.12_75)] dark:bg-[oklch(0.75_0.12_85_/_0.20)] dark:text-[oklch(0.85_0.12_85)]";
       case "ADMIN":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+        return "bg-[oklch(0.55_0.12_175_/_0.12)] text-[oklch(0.40_0.10_175)] dark:bg-[oklch(0.55_0.12_175_/_0.25)] dark:text-[oklch(0.80_0.10_175)]";
       default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
+        return "bg-muted text-muted-foreground";
     }
   };
 
   return (
     <div
       className={cn(
-        "flex h-full flex-col border-r bg-muted/30 transition-all duration-300 ease-in-out",
+        "flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out",
         collapsed ? "w-16" : "w-64"
       )}
     >
       {/* Header */}
-      <div className="flex h-14 items-center border-b px-3">
+      <div className="flex h-14 items-center border-b border-sidebar-border px-3">
         <Link
           href="/templates"
           className={cn(
             "flex items-center overflow-hidden",
-            collapsed ? "justify-center w-full" : "gap-2"
+            collapsed ? "justify-center w-full" : "gap-2.5"
           )}
         >
-          <Building2 className="h-6 w-6 shrink-0" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shrink-0">
+            <FileText className="h-4 w-4" />
+          </div>
           <span
             className={cn(
-              "font-semibold whitespace-nowrap transition-all duration-300",
+              "font-semibold text-lg tracking-tight whitespace-nowrap transition-all duration-300",
               collapsed ? "opacity-0 w-0" : "opacity-100"
             )}
           >
@@ -253,21 +254,20 @@ export function Sidebar({
       </div>
 
       {/* Organization Switcher */}
-      <div className={cn("border-b", collapsed ? "p-2" : "p-3")}>
+      <div className={cn("border-b border-sidebar-border", collapsed ? "p-2" : "p-3")}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               disabled={isSwitching}
               className={cn(
-                "w-full justify-start gap-2 h-auto py-2",
+                "w-full justify-start gap-2 h-auto py-2 hover:bg-sidebar-accent text-sidebar-foreground",
                 collapsed ? "justify-center px-2" : "px-2"
               )}
             >
               <div
                 className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary text-sm font-medium shrink-0",
-                  collapsed ? "" : ""
+                  "flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary/20 text-sidebar-primary text-sm font-semibold shrink-0"
                 )}
               >
                 {currentOrganization.name.charAt(0).toUpperCase()}
@@ -275,12 +275,12 @@ export function Sidebar({
               {!collapsed && (
                 <>
                   <div className="flex-1 text-left overflow-hidden">
-                    <p className="text-sm font-medium truncate">
+                    <p className="text-sm font-medium truncate text-sidebar-foreground">
                       {currentOrganization.name}
                     </p>
-                    <p className="text-xs text-muted-foreground">{currentRole}</p>
+                    <p className="text-xs text-sidebar-foreground/60">{currentRole}</p>
                   </div>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <ChevronDown className="h-4 w-4 text-sidebar-foreground/50 shrink-0" />
                 </>
               )}
             </Button>
@@ -380,11 +380,11 @@ export function Sidebar({
             <Link
               href={item.href}
               className={cn(
-                "flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                 collapsed ? "justify-center px-2" : "gap-3",
                 isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
               )}
             >
               <item.icon className="h-4 w-4 shrink-0" />
@@ -415,28 +415,28 @@ export function Sidebar({
       </nav>
 
       {/* User Menu */}
-      <div className="border-t p-2">
+      <div className="border-t border-sidebar-border p-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               className={cn(
-                "w-full justify-start gap-2",
+                "w-full justify-start gap-2 hover:bg-sidebar-accent text-sidebar-foreground",
                 collapsed ? "justify-center px-2" : ""
               )}
             >
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-medium shrink-0">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-sidebar-primary to-[oklch(0.50_0.14_200)] text-sidebar-primary-foreground text-xs font-semibold shrink-0 ring-2 ring-sidebar-primary/20">
                 {initials}
               </div>
               {!collapsed && (
                 <>
                   <div className="flex-1 text-left overflow-hidden">
-                    <p className="text-sm font-medium truncate">{displayName}</p>
-                    <p className="text-xs text-muted-foreground truncate">
+                    <p className="text-sm font-medium truncate text-sidebar-foreground">{displayName}</p>
+                    <p className="text-xs text-sidebar-foreground/60 truncate">
                       {currentRole}
                     </p>
                   </div>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  <ChevronDown className="h-4 w-4 text-sidebar-foreground/50" />
                 </>
               )}
             </Button>
@@ -475,7 +475,7 @@ export function Sidebar({
       </div>
 
       {/* Collapse Toggle Button */}
-      <div className="border-t p-2">
+      <div className="border-t border-sidebar-border p-2">
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>
             <Button
@@ -483,7 +483,7 @@ export function Sidebar({
               size="sm"
               onClick={toggleCollapsed}
               className={cn(
-                "w-full justify-center",
+                "w-full justify-center hover:bg-sidebar-accent text-sidebar-foreground/70 hover:text-sidebar-foreground",
                 collapsed ? "px-2" : "px-3"
               )}
             >
