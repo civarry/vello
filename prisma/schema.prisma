@@ -16,12 +16,13 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members    OrganizationMember[]
-  invites    Invite[]
-  templates  Template[]
-  employees  Employee[]
-  payslips   Payslip[]
-  smtpConfigs SMTPConfiguration[]
+  members       OrganizationMember[]
+  invites       Invite[]
+  templates     Template[]
+  employees     Employee[]
+  payslips      Payslip[]
+  smtpConfigs   SMTPConfiguration[]
+  currentUsers  User[] @relation("CurrentOrganization") // Users who have this as their current org
 }
 
 model EmailProvider {
@@ -72,10 +73,12 @@ model User {
   currentOrganizationId String?  // Track active org (nullable for users with no memberships yet)
   createdAt             DateTime @default(now())
 
-  memberships OrganizationMember[]
-  invitesSent Invite[]
+  currentOrganization Organization? @relation("CurrentOrganization", fields: [currentOrganizationId], references: [id], onDelete: SetNull)
+  memberships         OrganizationMember[]
+  invitesSent         Invite[]
 
   @@index([authId])
+  @@index([currentOrganizationId])
 }
 
 model OrganizationMember {
