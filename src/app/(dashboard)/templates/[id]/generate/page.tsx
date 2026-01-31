@@ -657,14 +657,12 @@ export default function GenerateDocumentsPage({
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent
           className={cn(
-            "flex flex-col p-0 gap-0",
-            template.orientation === "LANDSCAPE"
-              ? "w-[95vw] h-[85vh] max-w-none"
-              : "w-[85vw] max-w-[800px] h-[95vh] max-h-[95vh]"
+            "flex flex-col p-0 gap-0 w-[95vw] h-[90vh]",
+            template.orientation === "LANDSCAPE" ? "max-w-6xl" : "max-w-3xl"
           )}
           aria-describedby={undefined}
         >
-          <DialogHeader className="p-3 border-b flex flex-row items-center justify-between shrink-0">
+          <DialogHeader className="px-4 py-3 border-b flex flex-row items-center justify-between shrink-0">
             <DialogTitle className="text-base">
               Preview: Record #{selectedRecordIndex + 1}
             </DialogTitle>
@@ -681,15 +679,12 @@ export default function GenerateDocumentsPage({
               </Tooltip>
             </TooltipProvider>
           </DialogHeader>
-          <div className="flex-1 bg-muted/30 p-4 min-h-0 overflow-auto flex items-center justify-center">
+          <div className="flex-1 min-h-0 overflow-auto bg-muted/50 flex justify-center px-2 py-4">
             <div
-              className="bg-white shadow-lg rounded-sm overflow-hidden"
+              className="bg-white shadow-lg shrink-0"
               style={{
-                width: template.orientation === "LANDSCAPE" ? '100%' : 'auto',
-                height: template.orientation === "LANDSCAPE" ? 'auto' : '100%',
-                maxWidth: '100%',
-                maxHeight: '100%',
-                aspectRatio: template.orientation === "LANDSCAPE" ? '1.414 / 1' : '1 / 1.414',
+                width: template.orientation === "LANDSCAPE" ? 842 : 595,
+                height: template.orientation === "LANDSCAPE" ? 595 : 842,
               }}
             >
               {isPreviewOpen && (
