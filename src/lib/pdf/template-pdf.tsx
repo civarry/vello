@@ -140,6 +140,11 @@ function TableBlock({
   const styles = createBlockStyles(block.style, globalStyles);
   const pxToPt = 0.75;
 
+  // Get border settings from block style with defaults
+  const borderWidth = block.style.borderWidth !== undefined ? block.style.borderWidth * pxToPt : 1 * pxToPt;
+  const borderColor = block.style.borderColor || "#e5e7eb";
+  const borderStyle = block.style.borderStyle || "solid";
+
   const tableStyles = StyleSheet.create({
     table: {
       ...styles.block,
@@ -147,18 +152,18 @@ function TableBlock({
       display: "flex",
       flexDirection: "column",
       ...(properties.showBorders && {
-        borderWidth: 1 * pxToPt,
-        borderColor: "#e5e7eb",
-        borderStyle: "solid",
+        borderWidth: borderWidth,
+        borderColor: borderColor,
+        borderStyle: borderStyle,
       }),
     },
     row: {
       flex: 1, // Distribute table height evenly across rows
       display: "flex",
       flexDirection: "row",
-      borderBottomWidth: properties.showBorders ? 1 * pxToPt : 0,
-      borderBottomColor: "#e5e7eb",
-      borderBottomStyle: "solid",
+      borderBottomWidth: properties.showBorders ? borderWidth : 0,
+      borderBottomColor: borderColor,
+      borderBottomStyle: borderStyle,
     },
     headerRow: {
       backgroundColor: properties.headerBackground || "#f3f4f6",
@@ -173,9 +178,9 @@ function TableBlock({
       flexDirection: "column",
       justifyContent: "center", // Center content vertically in cell
       padding: (properties.compact ? 2 : 6) * pxToPt,
-      borderRightWidth: properties.showBorders ? 1 * pxToPt : 0,
-      borderRightColor: "#e5e7eb",
-      borderRightStyle: "solid",
+      borderRightWidth: properties.showBorders ? borderWidth : 0,
+      borderRightColor: borderColor,
+      borderRightStyle: borderStyle,
     },
     lastCell: {
       borderRightWidth: 0,

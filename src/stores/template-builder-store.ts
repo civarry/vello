@@ -347,6 +347,12 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
             y,
             width: sizes.width,
             height: sizes.height,
+            // Add default border properties for tables
+            ...(type === "table" && {
+              borderWidth: 1,
+              borderColor: "#e5e7eb",
+              borderStyle: "solid" as const,
+            }),
           },
         };
         return {
