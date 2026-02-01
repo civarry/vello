@@ -143,6 +143,7 @@ function TableBlock({
   const tableStyles = StyleSheet.create({
     table: {
       ...styles.block,
+      height: styles.block.height, // Respect the configured table height
       display: "flex",
       flexDirection: "column",
       ...(properties.showBorders && {
@@ -150,9 +151,9 @@ function TableBlock({
         borderColor: "#e5e7eb",
         borderStyle: "solid",
       }),
-      height: "auto", // Allow table to shrink to fit rows
     },
     row: {
+      flex: 1, // Distribute table height evenly across rows
       display: "flex",
       flexDirection: "row",
       borderBottomWidth: properties.showBorders ? 1 * pxToPt : 0,
@@ -168,6 +169,9 @@ function TableBlock({
     },
     cell: {
       flex: 1,
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "center", // Center content vertically in cell
       padding: (properties.compact ? 2 : 6) * pxToPt,
       borderRightWidth: properties.showBorders ? 1 * pxToPt : 0,
       borderRightColor: "#e5e7eb",
