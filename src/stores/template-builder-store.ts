@@ -92,6 +92,7 @@ interface TemplateBuilderState {
   updateBlockPosition: (id: string, x: number, y: number) => void;
   updateBlockPositions: (updates: Map<string, { x: number; y: number }>) => void;
   updateBlockSize: (id: string, width: number, height: number) => void;
+  resizeContainerProportionally: (id: string, newWidth: number, newHeight: number) => void;
   removeBlock: (id: string) => void;
   removeSelectedBlocks: () => void;
   duplicateBlock: (id: string) => void;
@@ -430,6 +431,106 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         ),
         isDirty: true,
       })),
+
+    // Proportionally resize a container and all its children
+    resizeContainerProportionally: (id, newWidth, newHeight) =>
+      set((state) => {
+        const block = state.blocks.find((b) => b.id === id);
+        if (!block || block.type !== "container") return state;
+
+        const props = block.properties as { children?: Block[] };
+        const children = props.children || [];
+        if (children.length === 0) {
+          // No children, just resize normally
+          return {
+            blocks: state.blocks.map((b) =>
+              b.id === id ? { ...b, style: { ...b.style, width: newWidth, height: newHeight } } : b
+            ),
+            isDirty: true,
+          };
+        }
+
+        const oldWidth = block.style.width;
+        const oldHeight = block.style.height;
+
+        // Calculate scale factors
+        const scaleX = newWidth / oldWidth;
+        const scaleY = newHeight / oldHeight;
+
+        // Helper function to scale a block and its nested children recursively
+        const scaleBlock = (child: Block): Block => {
+          const scaledStyle: BlockStyle = {
+            ...child.style,
+            x: child.style.x * scaleX,
+            y: child.style.y * scaleY,
+            width: child.style.width * scaleX,
+            height: child.style.height * scaleY,
+          };
+
+          // Scale style properties that should scale proportionally
+          // Use average scale for properties like fontSize, padding, border
+          const avgScale = (scaleX + scaleY) / 2;
+
+          if (child.style.fontSize !== undefined) {
+            scaledStyle.fontSize = Math.max(6, child.style.fontSize * avgScale);
+          }
+          if (child.style.paddingTop !== undefined) {
+            scaledStyle.paddingTop = child.style.paddingTop * avgScale;
+          }
+          if (child.style.paddingBottom !== undefined) {
+            scaledStyle.paddingBottom = child.style.paddingBottom * avgScale;
+          }
+          if (child.style.paddingLeft !== undefined) {
+            scaledStyle.paddingLeft = child.style.paddingLeft * scaleX;
+          }
+          if (child.style.paddingRight !== undefined) {
+            scaledStyle.paddingRight = child.style.paddingRight * scaleX;
+          }
+          if (child.style.borderWidth !== undefined) {
+            scaledStyle.borderWidth = Math.max(1, child.style.borderWidth * avgScale);
+          }
+          if (child.style.borderRadius !== undefined) {
+            scaledStyle.borderRadius = child.style.borderRadius * avgScale;
+          }
+
+          // Handle nested containers recursively
+          if (child.type === "container") {
+            const childProps = child.properties as { children?: Block[] };
+            const nestedChildren = childProps.children || [];
+            if (nestedChildren.length > 0) {
+              return {
+                ...child,
+                style: scaledStyle,
+                properties: {
+                  ...child.properties,
+                  children: nestedChildren.map(scaleBlock),
+                },
+              };
+            }
+          }
+
+          return {
+            ...child,
+            style: scaledStyle,
+          };
+        };
+
+        // Scale all children
+        const scaledChildren = children.map(scaleBlock);
+
+        return {
+          blocks: state.blocks.map((b) =>
+            b.id === id
+              ? {
+                  ...b,
+                  style: { ...b.style, width: newWidth, height: newHeight },
+                  properties: { ...b.properties, children: scaledChildren },
+                }
+              : b
+          ),
+          isDirty: true,
+        };
+      }),
 
     removeBlock: (id) =>
       set((state) => ({

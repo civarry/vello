@@ -11,7 +11,7 @@ interface RulersProps {
 }
 
 export function Rulers({ canvasWidth, canvasHeight, zoom, onAddGuide }: RulersProps) {
-  const RULER_SIZE = 20;
+  const RULER_SIZE = 24;
   const MAJOR_TICK_INTERVAL = 50; // pixels
   const MINOR_TICK_INTERVAL = 10; // pixels
 
@@ -40,20 +40,20 @@ export function Rulers({ canvasWidth, canvasHeight, zoom, onAddGuide }: RulersPr
     horizontalTicks.push(
       <div
         key={`h-${i}`}
-        className="absolute top-0"
+        className="absolute bottom-0"
         style={{ left: i * zoom }}
       >
-        <div
-          className={cn(
-            "bg-muted-foreground/50",
-            isMajor ? "h-3 w-px" : "h-1.5 w-px"
-          )}
-        />
         {isMajor && (
-          <span className="absolute top-3 left-0.5 text-[8px] text-muted-foreground select-none">
+          <span className="absolute bottom-2.5 left-0.5 text-[9px] leading-none text-muted-foreground select-none">
             {i}
           </span>
         )}
+        <div
+          className={cn(
+            "absolute bottom-0 bg-muted-foreground/50",
+            isMajor ? "h-2 w-px" : "h-1 w-px"
+          )}
+        />
       </div>
     );
   }
@@ -65,23 +65,23 @@ export function Rulers({ canvasWidth, canvasHeight, zoom, onAddGuide }: RulersPr
     verticalTicks.push(
       <div
         key={`v-${i}`}
-        className="absolute left-0"
+        className="absolute right-0"
         style={{ top: i * zoom }}
       >
-        <div
-          className={cn(
-            "bg-muted-foreground/50",
-            isMajor ? "w-3 h-px" : "w-1.5 h-px"
-          )}
-        />
         {isMajor && (
           <span
-            className="absolute left-3.5 -top-1.5 text-[8px] text-muted-foreground select-none"
+            className="absolute right-2.5 -top-2 text-[9px] leading-none text-muted-foreground select-none"
             style={{ writingMode: "vertical-lr", transform: "rotate(180deg)" }}
           >
             {i}
           </span>
         )}
+        <div
+          className={cn(
+            "absolute right-0 bg-muted-foreground/50",
+            isMajor ? "w-2 h-px" : "w-1 h-px"
+          )}
+        />
       </div>
     );
   }
@@ -90,7 +90,7 @@ export function Rulers({ canvasWidth, canvasHeight, zoom, onAddGuide }: RulersPr
     <>
       {/* Horizontal ruler (top) */}
       <div
-        className="absolute bg-muted border-b cursor-pointer hover:bg-muted/80 transition-colors z-20"
+        className="absolute bg-muted border-b cursor-pointer hover:bg-muted/80 transition-colors z-20 overflow-hidden"
         style={{
           top: 0,
           left: RULER_SIZE,
@@ -100,14 +100,14 @@ export function Rulers({ canvasWidth, canvasHeight, zoom, onAddGuide }: RulersPr
         onClick={handleHorizontalRulerClick}
         title="Click to add vertical guide"
       >
-        <div className="relative w-full h-full overflow-hidden">
+        <div className="relative w-full h-full">
           {horizontalTicks}
         </div>
       </div>
 
       {/* Vertical ruler (left) */}
       <div
-        className="absolute bg-muted border-r cursor-pointer hover:bg-muted/80 transition-colors z-20"
+        className="absolute bg-muted border-r cursor-pointer hover:bg-muted/80 transition-colors z-20 overflow-hidden"
         style={{
           top: RULER_SIZE,
           left: 0,
@@ -117,7 +117,7 @@ export function Rulers({ canvasWidth, canvasHeight, zoom, onAddGuide }: RulersPr
         onClick={handleVerticalRulerClick}
         title="Click to add horizontal guide"
       >
-        <div className="relative w-full h-full overflow-hidden">
+        <div className="relative w-full h-full">
           {verticalTicks}
         </div>
       </div>

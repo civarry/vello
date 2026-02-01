@@ -42,6 +42,7 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
     updateBlockPosition,
     updateBlockPositions,
     updateBlockSize,
+    resizeContainerProportionally,
     alignBlock,
     blocks,
     pushHistorySnapshot,
@@ -280,6 +281,14 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
     // Push history snapshot before starting resize
     pushHistorySnapshot();
 
+    // Check if this is a container with children for proportional scaling
+    const isContainerWithChildren = block.type === "container" &&
+      Array.isArray((block.properties as { children?: unknown[] }).children) &&
+      ((block.properties as { children?: unknown[] }).children?.length ?? 0) > 0;
+
+    // Calculate original aspect ratio for shift-constrained resize
+    const aspectRatio = block.style.width / block.style.height;
+
     resizeStartRef.current = {
       x: e.clientX,
       y: e.clientY,
@@ -299,6 +308,7 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
       let newX = resizeStartRef.current.blockX;
       let newY = resizeStartRef.current.blockY;
 
+      // Calculate unconstrained dimensions first
       if (handle.includes("e")) newWidth = Math.max(50, resizeStartRef.current.width + dx);
       if (handle.includes("w")) {
         newWidth = Math.max(50, resizeStartRef.current.width - dx);
@@ -310,7 +320,52 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
         newY = resizeStartRef.current.blockY + dy;
       }
 
-      updateBlockSize(block.id, newWidth, newHeight);
+      // Shift key = lock aspect ratio
+      if (e.shiftKey) {
+        const isCorner = handle.length === 2; // ne, se, sw, nw
+        const isHorizontal = handle === "e" || handle === "w";
+        const isVertical = handle === "n" || handle === "s";
+
+        if (isCorner) {
+          // For corners, use the dominant axis (larger change) to determine size
+          const widthChange = Math.abs(newWidth - resizeStartRef.current.width);
+          const heightChange = Math.abs(newHeight - resizeStartRef.current.height);
+
+          if (widthChange > heightChange * aspectRatio) {
+            // Width is dominant, adjust height
+            newHeight = newWidth / aspectRatio;
+          } else {
+            // Height is dominant, adjust width
+            newWidth = newHeight * aspectRatio;
+          }
+
+          // Recalculate position for n/w handles with constrained dimensions
+          if (handle.includes("w")) {
+            newX = resizeStartRef.current.blockX + (resizeStartRef.current.width - newWidth);
+          }
+          if (handle.includes("n")) {
+            newY = resizeStartRef.current.blockY + (resizeStartRef.current.height - newHeight);
+          }
+        } else if (isHorizontal) {
+          // Horizontal edge: width drives height
+          newHeight = newWidth / aspectRatio;
+        } else if (isVertical) {
+          // Vertical edge: height drives width
+          newWidth = newHeight * aspectRatio;
+        }
+
+        // Ensure minimums are still respected
+        newWidth = Math.max(50, newWidth);
+        newHeight = Math.max(20, newHeight);
+      }
+
+      // Use proportional scaling for containers with children
+      if (isContainerWithChildren) {
+        resizeContainerProportionally(block.id, newWidth, newHeight);
+      } else {
+        updateBlockSize(block.id, newWidth, newHeight);
+      }
+
       if (handle.includes("w") || handle.includes("n")) {
         updateBlockPosition(block.id, Math.max(0, newX), Math.max(0, newY));
       }
@@ -326,7 +381,7 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
 
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
-  }, [block.id, block.style, scale, selectBlock, updateBlockPosition, updateBlockSize, pushHistorySnapshot]);
+  }, [block.id, block.type, block.properties, block.style, scale, selectBlock, updateBlockPosition, updateBlockSize, resizeContainerProportionally, pushHistorySnapshot]);
 
   const resizeHandles = ["n", "e", "s", "w", "ne", "se", "sw", "nw"];
 
@@ -528,7 +583,7 @@ export function BuilderCanvas() {
   // Temporary snap guides shown during drag operations
   const [snapGuides, setSnapGuides] = useState<SnapGuide[]>([]);
 
-  const RULER_SIZE = showRulers ? 20 : 0;
+  const RULER_SIZE = showRulers ? 24 : 0;
 
   const { setNodeRef, isOver } = useDroppable({
     id: "canvas",
