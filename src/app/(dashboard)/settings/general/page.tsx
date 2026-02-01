@@ -1,53 +1,29 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Building2, Save, Check } from "lucide-react";
 import { toast } from "sonner";
-
-interface Organization {
-    id: string;
-    name: string;
-    logo: string | null;
-    address: string | null;
-    createdAt: string;
-    updatedAt: string;
-}
+import { useOrganization, useUpdateOrganization } from "@/hooks/use-queries";
 
 export default function GeneralSettingsPage() {
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
-    const [organization, setOrganization] = useState<Organization | null>(null);
+    const { data: organization, isLoading } = useOrganization();
+    const updateOrganization = useUpdateOrganization();
+
     const [name, setName] = useState("");
     const [hasChanges, setHasChanges] = useState(false);
 
-    const fetchOrganization = useCallback(async () => {
-        try {
-            setIsLoading(true);
-            const response = await fetch("/api/organization");
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || "Failed to fetch organization");
-            }
-
-            setOrganization(data.data);
-            setName(data.data.name);
-        } catch (error) {
-            console.error("Failed to fetch organization:", error);
-            toast.error("Failed to load organization settings");
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
+    // Sync local state with fetched data
     useEffect(() => {
-        fetchOrganization();
-    }, [fetchOrganization]);
+        if (organization) {
+            setName(organization.name);
+        }
+    }, [organization]);
 
+    // Track changes
     useEffect(() => {
         if (organization) {
             setHasChanges(name !== organization.name);
@@ -57,31 +33,13 @@ export default function GeneralSettingsPage() {
     const handleSave = async () => {
         if (!hasChanges) return;
 
-        setIsSaving(true);
         try {
-            const response = await fetch("/api/organization", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name }),
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || "Failed to update organization");
-            }
-
-            setOrganization(data.data);
-            setName(data.data.name);
+            await updateOrganization.mutateAsync({ name });
             toast.success("Organization settings saved");
-
             // Refresh the page to update sidebar
             window.location.reload();
         } catch (error) {
-            console.error("Failed to update organization:", error);
             toast.error(error instanceof Error ? error.message : "Failed to save settings");
-        } finally {
-            setIsSaving(false);
         }
     };
 
@@ -110,8 +68,8 @@ export default function GeneralSettingsPage() {
                     </div>
                 </div>
                 {hasChanges && (
-                    <Button onClick={handleSave} disabled={isSaving} className="glow-primary">
-                        {isSaving ? (
+                    <Button onClick={handleSave} disabled={updateOrganization.isPending} className="glow-primary">
+                        {updateOrganization.isPending ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 Saving...
@@ -133,8 +91,8 @@ export default function GeneralSettingsPage() {
                     <span className="font-medium text-sm">General Settings</span>
                 </div>
                 {hasChanges && (
-                    <Button size="sm" onClick={handleSave} disabled={isSaving}>
-                        {isSaving ? (
+                    <Button size="sm" onClick={handleSave} disabled={updateOrganization.isPending}>
+                        {updateOrganization.isPending ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                             <Check className="h-4 w-4" />
@@ -169,7 +127,6 @@ export default function GeneralSettingsPage() {
                             </div>
                         </CardContent>
                     </Card>
-
                 </div>
             </div>
         </div>

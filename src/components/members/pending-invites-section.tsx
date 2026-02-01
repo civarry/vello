@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -23,77 +23,29 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Loader2, X, Copy, Check } from "lucide-react";
-
-interface Invite {
-  id: string;
-  email: string;
-  role: "ADMIN" | "MEMBER";
-  token: string;
-  expiresAt: string;
-  createdAt: string;
-  invitedBy: {
-    id: string;
-    name: string | null;
-    email: string;
-  };
-}
+import { useInvites, useCancelInvite, type Invite } from "@/hooks/use-queries";
 
 interface PendingInvitesSectionProps {
   canManageInvites: boolean;
 }
 
 export function PendingInvitesSection({ canManageInvites }: PendingInvitesSectionProps) {
-  const [invites, setInvites] = useState<Invite[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [cancelInvite, setCancelInvite] = useState<Invite | null>(null);
-  const [isCanceling, setIsCanceling] = useState(false);
+  const { data: invites = [], isLoading } = useInvites();
+  const cancelInvite = useCancelInvite();
+
+  const [cancelingInvite, setCancelingInvite] = useState<Invite | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
-  const fetchInvites = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const response = await fetch("/api/invites");
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to fetch invites");
-      }
-
-      setInvites(data.data);
-    } catch (error) {
-      console.error("Failed to fetch invites:", error);
-      toast.error("Failed to load pending invites");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchInvites();
-  }, [fetchInvites]);
-
   const handleCancelInvite = async () => {
-    if (!cancelInvite) return;
-
-    setIsCanceling(true);
+    if (!cancelingInvite) return;
 
     try {
-      const response = await fetch(`/api/invites/${cancelInvite.id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to cancel invite");
-      }
-
-      toast.success(`Invite for ${cancelInvite.email} has been canceled`);
-      setInvites((prev) => prev.filter((i) => i.id !== cancelInvite.id));
+      await cancelInvite.mutateAsync(cancelingInvite.id);
+      toast.success(`Invite for ${cancelingInvite.email} has been canceled`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to cancel invite");
     } finally {
-      setIsCanceling(false);
-      setCancelInvite(null);
+      setCancelingInvite(null);
     }
   };
 
@@ -182,7 +134,7 @@ export function PendingInvitesSection({ canManageInvites }: PendingInvitesSectio
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-destructive hover:text-destructive"
-                    onClick={() => setCancelInvite(invite)}
+                    onClick={() => setCancelingInvite(invite)}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -236,7 +188,7 @@ export function PendingInvitesSection({ canManageInvites }: PendingInvitesSectio
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => setCancelInvite(invite)}
+                        onClick={() => setCancelingInvite(invite)}
                         title="Cancel invite"
                       >
                         <X className="h-4 w-4" />
@@ -250,24 +202,24 @@ export function PendingInvitesSection({ canManageInvites }: PendingInvitesSectio
         </Table>
       </div>
 
-      <AlertDialog open={!!cancelInvite} onOpenChange={() => setCancelInvite(null)}>
+      <AlertDialog open={!!cancelingInvite} onOpenChange={() => setCancelingInvite(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Cancel invite?</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to cancel the invite for{" "}
-              <span className="font-medium">{cancelInvite?.email}</span>?
+              <span className="font-medium">{cancelingInvite?.email}</span>?
               They will not be able to join using the existing invite link.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isCanceling}>Keep Invite</AlertDialogCancel>
+            <AlertDialogCancel disabled={cancelInvite.isPending}>Keep Invite</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleCancelInvite}
-              disabled={isCanceling}
+              disabled={cancelInvite.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isCanceling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {cancelInvite.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Cancel Invite
             </AlertDialogAction>
           </AlertDialogFooter>

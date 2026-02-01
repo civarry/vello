@@ -41,17 +41,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
-
-export interface Template {
-  id: string;
-  name: string;
-  description: string | null;
-  paperSize: string;
-  orientation: string;
-  isDefault: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+import { useTemplates, useDeleteTemplate, useDuplicateTemplate, type Template } from "@/hooks/use-queries";
 
 interface TemplatesListProps {
   initialTemplates: Template[];
@@ -59,57 +49,31 @@ interface TemplatesListProps {
 
 export function TemplatesList({ initialTemplates }: TemplatesListProps) {
   const router = useRouter();
-  const [templates, setTemplates] = useState<Template[]>(initialTemplates);
+  const { data: templates = initialTemplates } = useTemplates();
+  const deleteTemplate = useDeleteTemplate();
+  const duplicateTemplate = useDuplicateTemplate();
+
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async () => {
     if (!deleteId) return;
 
-    setIsDeleting(true);
     try {
-      const response = await fetch(`/api/templates/${deleteId}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const result = await response.json();
-        throw new Error(result.error || "Failed to delete template");
-      }
-
+      await deleteTemplate.mutateAsync(deleteId);
       toast.success("Template deleted");
-      setTemplates((prev) => prev.filter((t) => t.id !== deleteId));
     } catch (error) {
-      console.error("Failed to delete template:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to delete template"
-      );
+      toast.error(error instanceof Error ? error.message : "Failed to delete template");
     } finally {
-      setIsDeleting(false);
       setDeleteId(null);
     }
   };
 
   const handleDuplicate = async (template: Template) => {
     try {
-      const response = await fetch(`/api/templates/${template.id}/duplicate`, {
-        method: "POST",
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to duplicate template");
-      }
-
+      await duplicateTemplate.mutateAsync(template.id);
       toast.success("Template duplicated");
-      // Refresh to get the new template from server
-      router.refresh();
     } catch (error) {
-      console.error("Failed to duplicate template:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to duplicate template"
-      );
+      toast.error(error instanceof Error ? error.message : "Failed to duplicate template");
     }
   };
 
@@ -229,25 +193,19 @@ export function TemplatesList({ initialTemplates }: TemplatesListProps) {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem
-                      onClick={() =>
-                        router.push(`/templates/${template.id}/generate`)
-                      }
+                      onClick={() => router.push(`/templates/${template.id}/generate`)}
                     >
                       <FileOutput className="mr-2 h-4 w-4" />
                       Generate Document
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      onClick={() =>
-                        router.push(`/templates/${template.id}/edit`)
-                      }
+                      onClick={() => router.push(`/templates/${template.id}/edit`)}
                     >
                       <Pencil className="mr-2 h-4 w-4" />
                       Edit
                     </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => handleDuplicate(template)}
-                    >
+                    <DropdownMenuItem onClick={() => handleDuplicate(template)}>
                       <Copy className="mr-2 h-4 w-4" />
                       Duplicate
                     </DropdownMenuItem>
@@ -293,20 +251,17 @@ export function TemplatesList({ initialTemplates }: TemplatesListProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete template?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the
-              template.
+              This action cannot be undone. This will permanently delete the template.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteTemplate.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              disabled={isDeleting}
+              disabled={deleteTemplate.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeleting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
+              {deleteTemplate.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
