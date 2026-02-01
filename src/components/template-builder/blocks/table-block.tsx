@@ -522,24 +522,23 @@ export function TableBlock({ block, isPreview, data }: TableBlockProps) {
           </tbody>
         </table>
 
-        {/* ... buttons ... */}
-        {!isPreview && isSelected && (
-          <>
-            {/* ... */}
-            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => addTableRow(block.id)}>
-                <Plus className="h-3 w-3 mr-1" /> Row
-              </Button>
-            </div>
-            <div className="absolute -right-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => addTableColumn(block.id)}>
-                <Plus className="h-3 w-3 mr-1" /> Col
-              </Button>
-            </div>
-          </>
-        )}
-
       </div>
+
+      {/* Add row/column buttons - positioned relative to block container */}
+      {!isPreview && isSelected && (
+        <>
+          <div className="absolute -bottom-10 left-1/2 -translate-x-1 /2 opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-auto">
+            <Button variant="outline" size="sm" className="h-7 text-xs shadow-lg bg-background" onClick={() => addTableRow(block.id)}>
+              <Plus className="h-3 w-3 mr-1" /> Row
+            </Button>
+          </div>
+          <div className="absolute -right-10 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-auto">
+            <Button variant="outline" size="sm" className="h-7 text-xs shadow-lg bg-background" onClick={() => addTableColumn(block.id)}>
+              <Plus className="h-3 w-3 mr-1" /> Col
+            </Button>
+          </div>
+        </>
+      )}
 
       {/* Label ID Dialog */}
       <Dialog open={labelDialogOpen} onOpenChange={setLabelDialogOpen}>

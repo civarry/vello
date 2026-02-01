@@ -505,7 +505,7 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
       />
 
       {/* Block content */}
-      <div className="w-full h-full overflow-hidden">
+      <div className="w-full h-full overflow-visible">
         <BlockRenderer block={block} />
       </div >
 
@@ -766,7 +766,7 @@ export function BuilderCanvas() {
             if (node) canvasRef.current = node;
           }}
           className={cn(
-            "bg-white shadow-lg rounded-sm relative overflow-hidden",
+            "bg-white shadow-lg rounded-sm relative overflow-visible",
             isOver && "ring-2 ring-primary ring-dashed"
           )}
           style={{

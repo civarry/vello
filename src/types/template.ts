@@ -217,7 +217,7 @@ export const DEFAULT_BLOCK_STYLE: BlockStyle = {
 // Default sizes for different block types
 export const DEFAULT_BLOCK_SIZES: Record<BlockType, { width: number; height: number }> = {
   text: { width: 200, height: 40 },
-  table: { width: 400, height: 150 },
+  table: { width: 400, height: 80 },
   image: { width: 150, height: 100 },
   container: { width: 300, height: 200 },
   divider: { width: 400, height: 2 },

@@ -1064,7 +1064,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         const block = state.blocks.find((b) => b.id === blockId);
         if (!block || block.type !== "table") return state;
 
-        const props = block.properties as { rows: TableRow[] };
+        const props = block.properties as { rows: TableRow[]; compact?: boolean };
         const colCount = props.rows[0]?.cells.length || 2;
         const newRow: TableRow = {
           cells: Array(colCount).fill(null).map(() => ({ content: "" })),
@@ -1075,11 +1075,20 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         const insertIndex = afterIndex !== undefined ? afterIndex + 1 : newRows.length;
         newRows.splice(insertIndex, 0, newRow);
 
+        // Auto-increase height to accommodate new row
+        // Approximate row height: compact ? 20px : 35px (includes padding and borders)
+        const rowHeight = props.compact ? 20 : 35;
+        const newHeight = block.style.height + rowHeight;
+
         return {
           ...pushHistory(state),
           blocks: state.blocks.map((b) =>
             b.id === blockId
-              ? { ...b, properties: { ...props, rows: newRows } }
+              ? {
+                ...b,
+                properties: { ...props, rows: newRows },
+                style: { ...b.style, height: newHeight }
+              }
               : b
           ),
           isDirty: true,
@@ -1091,16 +1100,24 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
         const block = state.blocks.find((b) => b.id === blockId);
         if (!block || block.type !== "table") return state;
 
-        const props = block.properties as { rows: TableRow[] };
+        const props = block.properties as { rows: TableRow[]; compact?: boolean };
         if (props.rows.length <= 1) return state;
 
         const newRows = props.rows.filter((_, i) => i !== rowIndex);
+
+        // Auto-decrease height when removing row
+        const rowHeight = props.compact ? 20 : 35;
+        const newHeight = Math.max(60, block.style.height - rowHeight);
 
         return {
           ...pushHistory(state),
           blocks: state.blocks.map((b) =>
             b.id === blockId
-              ? { ...b, properties: { ...props, rows: newRows } }
+              ? {
+                ...b,
+                properties: { ...props, rows: newRows },
+                style: { ...b.style, height: newHeight }
+              }
               : b
           ),
           isDirty: true,
