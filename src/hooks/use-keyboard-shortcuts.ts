@@ -50,10 +50,24 @@ export function useKeyboardShortcuts() {
         e.preventDefault();
         copySelectedBlocks();
       }
-      // Paste: Cmd/Ctrl+V
-      else if (isCmdOrCtrl && e.key.toLowerCase() === "v") {
+      // Cut: Cmd/Ctrl+X
+      else if (isCmdOrCtrl && e.key.toLowerCase() === "x") {
         e.preventDefault();
-        pasteBlocks();
+        if (selectedBlockIds.length > 0) {
+          copySelectedBlocks();
+          removeSelectedBlocks();
+        }
+      }
+      // Paste: Cmd/Ctrl+V
+      // Only prevent default and paste internal blocks if we have something in the clipboard
+      // Otherwise, let the external paste handler (use-external-paste hook) handle it
+      else if (isCmdOrCtrl && e.key.toLowerCase() === "v") {
+        const state = useTemplateBuilderStore.getState();
+        if (state.clipboard && state.clipboard.length > 0) {
+          e.preventDefault();
+          pasteBlocks();
+        }
+        // If no internal clipboard, don't prevent default - let external paste work
       }
       // Duplicate: Cmd/Ctrl+D
       else if (isCmdOrCtrl && e.key.toLowerCase() === "d") {

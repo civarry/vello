@@ -9,9 +9,10 @@ import {
 import { Block, BlockType, DEFAULT_BLOCK_SIZES } from "@/types/template";
 import { BlockRenderer } from "../blocks/block-renderer";
 import { cn } from "@/lib/utils";
-import { Trash2, Copy, AlignLeft, AlignCenter, AlignRight, ArrowUpToLine, ArrowDownToLine, AlignCenterVertical } from "lucide-react";
+import { Trash2, Copy, AlignLeft, AlignCenter, AlignRight, ArrowUpToLine, ArrowDownToLine, AlignCenterVertical, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { useExternalPaste } from "@/hooks/use-external-paste";
 import { Rulers } from "./rulers";
 import { CanvasGuides } from "./canvas-guides";
 import { CanvasGrid } from "./canvas-grid";
@@ -676,6 +677,9 @@ export function BuilderCanvas() {
 
   useKeyboardShortcuts();
 
+  // Enable external paste (images/text from outside the app)
+  const { isPasting, error: pasteError } = useExternalPaste({ enabled: true });
+
   const canvasRef = useRef<HTMLDivElement>(null);
   const [scale] = useState(1);
   // Temporary snap guides shown during drag operations
@@ -854,6 +858,20 @@ export function BuilderCanvas() {
           </div>
         </div>
       </div>
+
+      {/* Paste feedback UI */}
+      {isPasting && (
+        <div className="fixed bottom-4 right-4 flex items-center gap-2 bg-background border rounded-md shadow-lg px-4 py-2 z-50">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          <span className="text-sm">Uploading image...</span>
+        </div>
+      )}
+
+      {pasteError && (
+        <div className="fixed bottom-4 right-4 flex items-center gap-2 bg-destructive/10 border border-destructive/20 rounded-md shadow-lg px-4 py-2 z-50">
+          <span className="text-sm text-destructive">{pasteError}</span>
+        </div>
+      )}
     </div>
   );
 }

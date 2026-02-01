@@ -232,6 +232,7 @@ function ImageBlock({
 }) {
   const properties = block.properties as ImageBlockProperties;
   const styles = createBlockStyles(block.style, globalStyles);
+  const pxToPt = 0.75;
 
   if (!properties.src) {
     logPdf('[ImageBlock] No src, skipping');
@@ -239,17 +240,6 @@ function ImageBlock({
   }
 
   logPdf('[ImageBlock] Processing image:', properties.src.substring(0, 100));
-
-  // Helper to parse numeric dimensions safely
-  const parseNumericDimension = (value: string | undefined): number | "auto" => {
-    if (!value) return "auto";
-    const num = parseFloat(value);
-    // Check if it's a valid number and doesn't contain % or other units
-    if (!isNaN(num) && /^\d+(\.\d+)?$/.test(value.trim())) {
-      return num * 0.75;
-    }
-    return "auto";
-  };
 
   // Handle data URLs and properly formatted remote URLs
   const isValidSrc =
@@ -275,25 +265,26 @@ function ImageBlock({
     );
   }
 
-  logPdf('[ImageBlock] Rendering image');
+  logPdf('[ImageBlock] Rendering image with block dimensions:', block.style.width, 'x', block.style.height);
 
-  // Get dimensions, ensuring we have at least one explicit dimension
-  let width = parseNumericDimension(properties.width);
-  let height = parseNumericDimension(properties.height);
+  // Use the block's style dimensions (from canvas resize) for the image
+  // This ensures resizing the image block on canvas reflects in the PDF
+  const imageWidth = block.style.width * pxToPt;
+  const imageHeight = block.style.height * pxToPt;
 
-  // If both are auto, yoga-layout can crash - provide sensible defaults
-  if (width === "auto" && height === "auto") {
-    width = 100; // Default width in points
-    height = "auto";
-  }
+  // Account for padding in the container
+  const paddingH = ((block.style.paddingLeft ?? 0) + (block.style.paddingRight ?? 0)) * pxToPt;
+  const paddingV = ((block.style.paddingTop ?? 0) + (block.style.paddingBottom ?? 0)) * pxToPt;
+  const contentWidth = Math.max(10, imageWidth - paddingH);
+  const contentHeight = Math.max(10, imageHeight - paddingV);
 
   return (
     <View style={styles.block}>
       <Image
         src={properties.src}
         style={{
-          width,
-          height,
+          width: contentWidth,
+          height: contentHeight,
           objectFit: properties.objectFit ?? "contain",
         }}
       />
