@@ -48,6 +48,7 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
     pushHistorySnapshot,
     snapToGrid,
     gridSize,
+    mobileToolMode,
   } = useTemplateBuilderStore();
 
   const isSelected = selectedBlockIds.includes(block.id);
@@ -60,6 +61,7 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
     initialPositions: Map<string, { x: number; y: number }>
   } | null>(null);
   const resizeStartRef = useRef<{ x: number; y: number; width: number; height: number; blockX: number; blockY: number } | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number; blockX: number; blockY: number; width: number; height: number } | null>(null);
 
   const SNAP_THRESHOLD = 5;
 
@@ -383,12 +385,82 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
     document.addEventListener("mouseup", handleMouseUp);
   }, [block.id, block.type, block.properties, block.style, scale, selectBlock, updateBlockPosition, updateBlockSize, resizeContainerProportionally, pushHistorySnapshot]);
 
+  // Touch event handlers for mobile
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    e.stopPropagation();
+    const touch = e.touches[0];
+
+    // Select the block
+    selectBlock(block.id);
+
+    // Store starting position
+    pushHistorySnapshot();
+    touchStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      blockX: block.style.x,
+      blockY: block.style.y,
+      width: block.style.width,
+      height: block.style.height,
+    };
+
+    if (mobileToolMode === "move") {
+      setIsDragging(true);
+    } else {
+      setIsResizing(true);
+    }
+  }, [block.id, block.style, mobileToolMode, selectBlock, pushHistorySnapshot]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    e.stopPropagation();
+    const touch = e.touches[0];
+
+    const dx = (touch.clientX - touchStartRef.current.x) / scale;
+    const dy = (touch.clientY - touchStartRef.current.y) / scale;
+
+    if (mobileToolMode === "move") {
+      // Move mode: reposition the block
+      const newX = Math.max(0, touchStartRef.current.blockX + dx);
+      const newY = Math.max(0, touchStartRef.current.blockY + dy);
+      updateBlockPosition(block.id, newX, newY);
+    } else if (mobileToolMode === "resize") {
+      // Resize mode: change dimensions freely
+      const newWidth = Math.max(50, touchStartRef.current.width + dx);
+      const newHeight = Math.max(20, touchStartRef.current.height + dy);
+      updateBlockSize(block.id, newWidth, newHeight);
+    } else if (mobileToolMode === "aspectResize") {
+      // Aspect ratio resize: resize while maintaining proportions
+      const aspectRatio = touchStartRef.current.width / touchStartRef.current.height;
+      // Use the dominant axis
+      const absDx = Math.abs(dx);
+      const absDy = Math.abs(dy);
+
+      let newWidth, newHeight;
+      if (absDx > absDy) {
+        newWidth = Math.max(50, touchStartRef.current.width + dx);
+        newHeight = newWidth / aspectRatio;
+      } else {
+        newHeight = Math.max(20, touchStartRef.current.height + dy);
+        newWidth = newHeight * aspectRatio;
+      }
+
+      updateBlockSize(block.id, Math.max(50, newWidth), Math.max(20, newHeight));
+    }
+  }, [block.id, scale, mobileToolMode, updateBlockPosition, updateBlockSize]);
+
+  const handleTouchEnd = useCallback(() => {
+    touchStartRef.current = null;
+    setIsDragging(false);
+    setIsResizing(false);
+  }, []);
+
   const resizeHandles = ["n", "e", "s", "w", "ne", "se", "sw", "nw"];
 
   return (
     <div
       className={cn(
-        "absolute group",
+        "absolute group touch-none",
         isSelected && "z-10",
         isDragging && "cursor-grabbing",
         !isDragging && "cursor-grab"
@@ -400,6 +472,9 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
         height: block.style.height,
       }}
       onMouseDown={handleMouseDown}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       onClick={(e) => {
         e.stopPropagation();
       }}
@@ -415,143 +490,149 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
       {/* Block content */}
       <div className="w-full h-full overflow-hidden">
         <BlockRenderer block={block} />
-      </div>
+      </div >
 
       {/* Controls toolbar - show only on one block for selection */}
-      {isSelected && showToolbar && (
-        <div
-          className="absolute -top-9 left-0 flex items-center gap-1 bg-background border rounded-md shadow-sm p-1"
-          data-block-toolbar="true"
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={(e) => {
-              e.stopPropagation();
-              alignBlock(block.id, "left");
-            }}
-            title="Align left"
+      {
+        isSelected && showToolbar && (
+          <div
+            className="absolute -top-9 left-0 flex items-center gap-1 bg-background border rounded-md shadow-sm p-1"
+            data-block-toolbar="true"
+            onMouseDown={(e) => e.stopPropagation()}
           >
-            <AlignLeft className="h-3 w-3" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={(e) => {
-              e.stopPropagation();
-              alignBlock(block.id, "center");
-            }}
-            title="Center horizontally"
-          >
-            <AlignCenter className="h-3 w-3" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={(e) => {
-              e.stopPropagation();
-              alignBlock(block.id, "right");
-            }}
-            title="Align right"
-          >
-            <AlignRight className="h-3 w-3" />
-          </Button>
-          <div className="w-px h-4 bg-border" />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={(e) => {
-              e.stopPropagation();
-              alignBlock(block.id, "top");
-            }}
-            title="Align top"
-          >
-            <ArrowUpToLine className="h-3 w-3" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={(e) => {
-              e.stopPropagation();
-              alignBlock(block.id, "middle");
-            }}
-            title="Center vertically"
-          >
-            <AlignCenterVertical className="h-3 w-3" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={(e) => {
-              e.stopPropagation();
-              alignBlock(block.id, "bottom");
-            }}
-            title="Align bottom"
-          >
-            <ArrowDownToLine className="h-3 w-3" />
-          </Button>
-          <div className="w-px h-4 bg-border" />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={(e) => {
-              e.stopPropagation();
-              duplicateBlock(block.id);
-            }}
-            title="Duplicate"
-          >
-            <Copy className="h-3 w-3" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 text-destructive hover:text-destructive"
-            onClick={(e) => {
-              e.stopPropagation();
-              removeBlock(block.id);
-            }}
-            title="Delete"
-          >
-            <Trash2 className="h-3 w-3" />
-          </Button>
-        </div>
-      )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={(e) => {
+                e.stopPropagation();
+                alignBlock(block.id, "left");
+              }}
+              title="Align left"
+            >
+              <AlignLeft className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={(e) => {
+                e.stopPropagation();
+                alignBlock(block.id, "center");
+              }}
+              title="Center horizontally"
+            >
+              <AlignCenter className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={(e) => {
+                e.stopPropagation();
+                alignBlock(block.id, "right");
+              }}
+              title="Align right"
+            >
+              <AlignRight className="h-3 w-3" />
+            </Button>
+            <div className="w-px h-4 bg-border" />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={(e) => {
+                e.stopPropagation();
+                alignBlock(block.id, "top");
+              }}
+              title="Align top"
+            >
+              <ArrowUpToLine className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={(e) => {
+                e.stopPropagation();
+                alignBlock(block.id, "middle");
+              }}
+              title="Center vertically"
+            >
+              <AlignCenterVertical className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={(e) => {
+                e.stopPropagation();
+                alignBlock(block.id, "bottom");
+              }}
+              title="Align bottom"
+            >
+              <ArrowDownToLine className="h-3 w-3" />
+            </Button>
+            <div className="w-px h-4 bg-border" />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={(e) => {
+                e.stopPropagation();
+                duplicateBlock(block.id);
+              }}
+              title="Duplicate"
+            >
+              <Copy className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-destructive hover:text-destructive"
+              onClick={(e) => {
+                e.stopPropagation();
+                removeBlock(block.id);
+              }}
+              title="Delete"
+            >
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </div>
+        )
+      }
 
       {/* Resize handles - show on selection */}
-      {isSelected && resizeHandles.map((handle) => (
-        <div
-          key={handle}
-          data-resize-handle={handle}
-          className={cn(
-            "absolute w-3 h-3 bg-primary border border-background rounded-sm",
-            handle === "n" && "left-1/2 -top-1.5 -translate-x-1/2 cursor-n-resize",
-            handle === "e" && "top-1/2 -right-1.5 -translate-y-1/2 cursor-e-resize",
-            handle === "s" && "left-1/2 -bottom-1.5 -translate-x-1/2 cursor-s-resize",
-            handle === "w" && "top-1/2 -left-1.5 -translate-y-1/2 cursor-w-resize",
-            handle === "ne" && "-top-1.5 -right-1.5 cursor-ne-resize",
-            handle === "se" && "-bottom-1.5 -right-1.5 cursor-se-resize",
-            handle === "sw" && "-bottom-1.5 -left-1.5 cursor-sw-resize",
-            handle === "nw" && "-top-1.5 -left-1.5 cursor-nw-resize"
-          )}
-          onMouseDown={(e) => handleResizeMouseDown(e, handle)}
-        />
-      ))}
+      {
+        isSelected && resizeHandles.map((handle) => (
+          <div
+            key={handle}
+            data-resize-handle={handle}
+            className={cn(
+              "absolute w-3 h-3 bg-primary border border-background rounded-sm",
+              handle === "n" && "left-1/2 -top-1.5 -translate-x-1/2 cursor-n-resize",
+              handle === "e" && "top-1/2 -right-1.5 -translate-y-1/2 cursor-e-resize",
+              handle === "s" && "left-1/2 -bottom-1.5 -translate-x-1/2 cursor-s-resize",
+              handle === "w" && "top-1/2 -left-1.5 -translate-y-1/2 cursor-w-resize",
+              handle === "ne" && "-top-1.5 -right-1.5 cursor-ne-resize",
+              handle === "se" && "-bottom-1.5 -right-1.5 cursor-se-resize",
+              handle === "sw" && "-bottom-1.5 -left-1.5 cursor-sw-resize",
+              handle === "nw" && "-top-1.5 -left-1.5 cursor-nw-resize"
+            )}
+            onMouseDown={(e) => handleResizeMouseDown(e, handle)}
+          />
+        ))
+      }
 
       {/* Size indicator - show while resizing */}
-      {(isResizing || isDragging) && (
-        <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded whitespace-nowrap">
-          {Math.round(block.style.width)} x {Math.round(block.style.height)}
-        </div>
-      )}
-    </div>
+      {
+        (isResizing || isDragging) && (
+          <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded whitespace-nowrap">
+            {Math.round(block.style.width)} x {Math.round(block.style.height)}
+          </div>
+        )
+      }
+    </div >
   );
 }
 

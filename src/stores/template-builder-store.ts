@@ -75,6 +75,9 @@ interface TemplateBuilderState {
   showLeftPanel: boolean;
   showRightPanel: boolean;
 
+  // Mobile tool mode for touch-based manipulation
+  mobileToolMode: "move" | "resize" | "aspectResize";
+
   // Actions
   setTemplateName: (name: string) => void;
   setTemplateType: (type: TemplateType) => void;
@@ -169,6 +172,7 @@ interface TemplateBuilderState {
   setShowRightPanel: (show: boolean) => void;
   toggleLeftPanel: () => void;
   toggleRightPanel: () => void;
+  setMobileToolMode: (mode: "move" | "resize" | "aspectResize") => void;
 }
 
 function generateId() {
@@ -225,6 +229,7 @@ const initialState = {
   snapToGrid: false,
   showLeftPanel: true,
   showRightPanel: true,
+  mobileToolMode: "move" as const,
 };
 
 // Helper to create a history snapshot from current state
@@ -522,10 +527,10 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
           blocks: state.blocks.map((b) =>
             b.id === id
               ? {
-                  ...b,
-                  style: { ...b.style, width: newWidth, height: newHeight },
-                  properties: { ...b.properties, children: scaledChildren },
-                }
+                ...b,
+                style: { ...b.style, width: newWidth, height: newHeight },
+                properties: { ...b.properties, children: scaledChildren },
+              }
               : b
           ),
           isDirty: true,
@@ -1318,6 +1323,7 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
     setShowRightPanel: (show) => set({ showRightPanel: show }),
     toggleLeftPanel: () => set((state) => ({ showLeftPanel: !state.showLeftPanel })),
     toggleRightPanel: () => set((state) => ({ showRightPanel: !state.showRightPanel })),
+    setMobileToolMode: (mode) => set({ mobileToolMode: mode }),
   })
 );
 

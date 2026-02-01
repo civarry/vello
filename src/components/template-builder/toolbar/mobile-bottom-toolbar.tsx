@@ -40,6 +40,9 @@ import {
   MoreHorizontal,
   ZoomIn,
   LayoutGrid,
+  Move,
+  Scaling,
+  RatioIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -83,10 +86,14 @@ export function MobileBottomToolbar({
     setGridSize,
     snapToGrid,
     setSnapToGrid,
+    selectedBlockIds,
+    mobileToolMode,
+    setMobileToolMode,
   } = useTemplateBuilderStore();
 
   const defaultZoom = useDefaultZoom();
   const resetToDefaultZoom = () => setZoom(defaultZoom);
+  const hasSelectedBlock = selectedBlockIds.length > 0;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
@@ -114,6 +121,39 @@ export function MobileBottomToolbar({
             <RotateCw className="h-5 w-5" />
           </Button>
         </div>
+
+        {/* Tool Mode Buttons - shown when block is selected */}
+        {hasSelectedBlock && (
+          <div className="flex items-center gap-0.5 border-l pl-2 ml-1">
+            <Button
+              variant={mobileToolMode === "move" ? "secondary" : "ghost"}
+              size="icon"
+              onClick={() => setMobileToolMode("move")}
+              className="h-10 w-10"
+              aria-label="Move mode"
+            >
+              <Move className="h-5 w-5" />
+            </Button>
+            <Button
+              variant={mobileToolMode === "resize" ? "secondary" : "ghost"}
+              size="icon"
+              onClick={() => setMobileToolMode("resize")}
+              className="h-10 w-10"
+              aria-label="Resize mode"
+            >
+              <Scaling className="h-5 w-5" />
+            </Button>
+            <Button
+              variant={mobileToolMode === "aspectResize" ? "secondary" : "ghost"}
+              size="icon"
+              onClick={() => setMobileToolMode("aspectResize")}
+              className="h-10 w-10"
+              aria-label="Aspect ratio resize mode"
+            >
+              <RatioIcon className="h-5 w-5" />
+            </Button>
+          </div>
+        )}
 
         {/* Page Setup */}
         <Popover>
