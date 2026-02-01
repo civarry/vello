@@ -45,16 +45,7 @@ export function useKeyboardShortcuts() {
         e.preventDefault();
         selectedBlockIds.forEach(id => sendBackward(id));
       }
-      // Bring to Front: Cmd/Ctrl + Alt + ]
-      else if (isCmdOrCtrl && isAlt && e.key === "]") {
-        e.preventDefault();
-        selectedBlockIds.forEach(id => bringToFront(id));
-      }
-      // Send to Back: Cmd/Ctrl + Alt + [
-      else if (isCmdOrCtrl && isAlt && e.key === "[") {
-        e.preventDefault();
-        selectedBlockIds.forEach(id => sendToBack(id));
-      }
+
 
       // Undo: Cmd/Ctrl+Z
       else if (isCmdOrCtrl && !isShift && e.key.toLowerCase() === "z") {
@@ -121,7 +112,7 @@ export function useKeyboardShortcuts() {
           e.preventDefault();
           let dx = 0;
           let dy = 0;
-          const step = isShift ? 10 : 1; // 1px normally, 10px with shift
+          const step = isShift ? 20 : 1; // 1px normally, 20px with shift
 
           switch (e.key) {
             case "ArrowUp":
@@ -138,7 +129,7 @@ export function useKeyboardShortcuts() {
               break;
           }
 
-          nudgeSelectedBlocks(dx, dy);
+          nudgeSelectedBlocks(dx, dy, false); // Skip history for faster movement
         }
       }
       // Deselect all: Escape

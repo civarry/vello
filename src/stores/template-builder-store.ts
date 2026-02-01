@@ -136,7 +136,7 @@ interface TemplateBuilderState {
   pasteBlocks: () => void;
 
   // Nudge actions
-  nudgeSelectedBlocks: (dx: number, dy: number) => void;
+  nudgeSelectedBlocks: (dx: number, dy: number, pushHistoryState?: boolean) => void;
 
   // History actions
   pushHistorySnapshot: () => void;
@@ -1295,12 +1295,12 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
       }),
 
     // Nudge actions
-    nudgeSelectedBlocks: (dx, dy) =>
+    nudgeSelectedBlocks: (dx, dy, pushHistoryState = true) =>
       set((state) => {
         if (state.selectedBlockIds.length === 0) return state;
 
         return {
-          ...pushHistory(state),
+          ...(pushHistoryState ? pushHistory(state) : {}),
           blocks: state.blocks.map((block) =>
             state.selectedBlockIds.includes(block.id)
               ? {

@@ -60,9 +60,11 @@ import {
   LayoutGrid,
   BringToFront,
   SendToBack,
+  Keyboard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { clearDraft } from "@/lib/draft";
+import { KeyboardShortcutsDialog } from "../keyboard-shortcuts-dialog";
 import {
   useTemplateBuilderStore,
   PaperSize,
@@ -119,6 +121,7 @@ export function BuilderToolbar() {
   } = useTemplateBuilderStore();
 
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -295,6 +298,20 @@ export function BuilderToolbar() {
           {isDesktop ? (
             // Desktop: Full toolbar
             <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={isShortcutsOpen ? "secondary" : "ghost"}
+                    size="icon"
+                    onClick={() => setIsShortcutsOpen(true)}
+                    className="h-8 w-8"
+                  >
+                    <Keyboard className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Keyboard Shortcuts</TooltipContent>
+              </Tooltip>
+
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -611,6 +628,10 @@ export function BuilderToolbar() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <KeyboardShortcutsDialog
+        open={isShortcutsOpen}
+        onOpenChange={setIsShortcutsOpen}
+      />
     </>
   );
 }
