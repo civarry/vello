@@ -49,6 +49,7 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
     snapToGrid,
     gridSize,
     mobileToolMode,
+    zoom,
   } = useTemplateBuilderStore();
 
   const isSelected = selectedBlockIds.includes(block.id);
@@ -416,8 +417,13 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
     e.stopPropagation();
     const touch = e.touches[0];
 
-    const dx = (touch.clientX - touchStartRef.current.x) / scale;
-    const dy = (touch.clientY - touchStartRef.current.y) / scale;
+    const dx = (touch.clientX - touchStartRef.current.x) / zoom;
+    const dy = (touch.clientY - touchStartRef.current.y) / zoom;
+
+    // Check if this is a container with children for proportional scaling
+    const isContainerWithChildren = block.type === "container" &&
+      Array.isArray((block.properties as { children?: unknown[] }).children) &&
+      ((block.properties as { children?: unknown[] }).children?.length ?? 0) > 0;
 
     if (mobileToolMode === "move") {
       // Move mode: reposition the block
@@ -428,7 +434,13 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
       // Resize mode: change dimensions freely
       const newWidth = Math.max(50, touchStartRef.current.width + dx);
       const newHeight = Math.max(20, touchStartRef.current.height + dy);
-      updateBlockSize(block.id, newWidth, newHeight);
+
+      // Use proportional scaling for containers with children
+      if (isContainerWithChildren) {
+        resizeContainerProportionally(block.id, newWidth, newHeight);
+      } else {
+        updateBlockSize(block.id, newWidth, newHeight);
+      }
     } else if (mobileToolMode === "aspectResize") {
       // Aspect ratio resize: resize while maintaining proportions
       const aspectRatio = touchStartRef.current.width / touchStartRef.current.height;
@@ -445,9 +457,14 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
         newWidth = newHeight * aspectRatio;
       }
 
-      updateBlockSize(block.id, Math.max(50, newWidth), Math.max(20, newHeight));
+      // Use proportional scaling for containers with children
+      if (isContainerWithChildren) {
+        resizeContainerProportionally(block.id, Math.max(50, newWidth), Math.max(20, newHeight));
+      } else {
+        updateBlockSize(block.id, Math.max(50, newWidth), Math.max(20, newHeight));
+      }
     }
-  }, [block.id, scale, mobileToolMode, updateBlockPosition, updateBlockSize]);
+  }, [block.id, block.type, block.properties, zoom, mobileToolMode, updateBlockPosition, updateBlockSize, resizeContainerProportionally]);
 
   const handleTouchEnd = useCallback(() => {
     touchStartRef.current = null;
@@ -460,7 +477,7 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
   return (
     <div
       className={cn(
-        "absolute group touch-none",
+        "absolute group",
         isSelected && "z-10",
         isDragging && "cursor-grabbing",
         !isDragging && "cursor-grab"
