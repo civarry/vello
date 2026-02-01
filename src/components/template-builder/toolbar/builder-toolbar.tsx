@@ -33,7 +33,32 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ArrowLeft, Save, Eye, Download, Loader2, RotateCcw, RotateCw, Minus, Plus, Maximize2, Ruler, Grid3X3, Magnet } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
+} from "@/components/ui/dropdown-menu";
+import {
+  ArrowLeft,
+  Save,
+  Eye,
+  Download,
+  Loader2,
+  RotateCcw,
+  RotateCw,
+  Minus,
+  Plus,
+  Maximize2,
+  Ruler,
+  Grid3X3,
+  Magnet,
+  Settings,
+  LayoutGrid,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { clearDraft } from "@/lib/draft";
 import {
@@ -41,16 +66,18 @@ import {
   PaperSize,
   Orientation,
   GridSize,
-  PAPER_DIMENSIONS,
 } from "@/stores/template-builder-store";
 import { toast } from "sonner";
 import { LivePdfPreview } from "@/components/previews/live-pdf-preview";
 import { Template } from "@/types/template";
 import { TemplateSettingsDialog } from "../template-settings-dialog";
-import { Settings } from "lucide-react";
+import { useIsDesktop } from "@/hooks/use-media-query";
+import { MobileBottomToolbar } from "./mobile-bottom-toolbar";
 
 export function BuilderToolbar() {
   const router = useRouter();
+  const isDesktop = useIsDesktop(); // >= 1024px
+
   const {
     templateId,
     templateName,
@@ -72,9 +99,7 @@ export function BuilderToolbar() {
     setZoom,
     zoomIn,
     zoomOut,
-    zoomToFit,
     resetZoom,
-    // Grid and rulers
     showRulers,
     setShowRulers,
     showGrid,
@@ -83,8 +108,6 @@ export function BuilderToolbar() {
     setGridSize,
     snapToGrid,
     setSnapToGrid,
-    guides,
-    // Email settings
     templateType,
     recipientEmailField,
     recipientNameField,
@@ -100,13 +123,11 @@ export function BuilderToolbar() {
     if (isDirty) {
       setShowLeaveDialog(true);
     } else {
-      // Use hard navigation to ensure sidebar refreshes with correct org
       window.location.href = "/templates";
     }
   };
 
   const handleConfirmLeave = () => {
-    // Clear draft since user is discarding changes
     if (templateId) {
       clearDraft(templateId);
     }
@@ -154,13 +175,11 @@ export function BuilderToolbar() {
 
       resetDirty();
 
-      // Clear the draft since changes are now saved
       if (templateId) {
         clearDraft(templateId);
       }
 
       if (!templateId && result.data?.id) {
-        // Redirect to edit URL for new templates
         router.replace(`/templates/${result.data.id}/edit`);
       }
 
@@ -181,7 +200,6 @@ export function BuilderToolbar() {
 
     setIsExporting(true);
     try {
-      // If template is saved, use GET endpoint, otherwise POST with current data
       const url = templateId
         ? `/api/templates/${templateId}/export`
         : "/api/templates/export";
@@ -205,7 +223,6 @@ export function BuilderToolbar() {
         throw new Error(error.error || "Failed to export PDF");
       }
 
-      // Download the PDF
       const blob = await response.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -225,7 +242,6 @@ export function BuilderToolbar() {
     }
   };
 
-  // Construct a temporary template object for the preview
   const previewTemplate: Template = {
     id: templateId || "temp-preview",
     name: templateName,
@@ -242,222 +258,264 @@ export function BuilderToolbar() {
 
   return (
     <>
-      <div className="flex h-14 items-center justify-between border-b bg-background px-4">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={handleBack}>
+      {/* Top Toolbar - Sticky within container */}
+      <div className="sticky top-0 z-40 flex h-12 lg:h-14 items-center justify-between border-b bg-background px-2 sm:px-4 gap-2">
+        {/* Left: Back, Name, Status */}
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          <Button variant="ghost" size="icon" onClick={handleBack} className="flex-shrink-0 h-8 w-8">
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <Separator orientation="vertical" className="h-6" />
+
           <Input
             value={templateName}
             onChange={(e) => setTemplateName(e.target.value)}
-            className="h-8 w-48 border-none bg-transparent px-2 text-sm font-medium focus-visible:ring-1"
+            className="h-8 flex-1 max-w-[200px] lg:max-w-[240px] border-none bg-transparent px-2 text-sm font-medium focus-visible:ring-1"
             placeholder="Template name"
           />
-          {isDirty ? (
-            <span className="text-xs text-muted-foreground" title="Your changes are auto-saved as a draft">
-              Unsaved changes <span className="text-muted-foreground/60">(draft auto-saved)</span>
-            </span>
-          ) : templateId ? (
-            <span className="text-xs text-green-600 dark:text-green-500">Saved</span>
-          ) : null}
+
+          {/* Status indicator */}
+          <div className="hidden sm:flex items-center flex-shrink-0">
+            {isDirty ? (
+              <span className="text-xs text-muted-foreground">
+                Unsaved
+              </span>
+            ) : templateId ? (
+              <span className="text-xs text-green-600 dark:text-green-500">Saved</span>
+            ) : null}
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant={isSettingsOpen ? "secondary" : "ghost"}
-                size="icon"
-                onClick={() => setIsSettingsOpen(true)}
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Template Settings</TooltipContent>
-          </Tooltip>
+        {/* Right: Desktop tools OR Save button on mobile */}
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          {isDesktop ? (
+            // Desktop: Full toolbar
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={isSettingsOpen ? "secondary" : "ghost"}
+                    size="icon"
+                    onClick={() => setIsSettingsOpen(true)}
+                    className="h-8 w-8"
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Template Settings</TooltipContent>
+              </Tooltip>
 
-          <Separator orientation="vertical" className="h-6" />
+              <Separator orientation="vertical" className="h-6" />
 
-          {/* Undo/Redo Buttons */}
-          <div className="flex items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={undo}
-                  disabled={!canUndo()}
-                >
-                  <RotateCcw className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Undo (Ctrl+Z)</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={redo}
-                  disabled={!canRedo()}
-                >
-                  <RotateCw className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Redo (Ctrl+Shift+Z)</TooltipContent>
-            </Tooltip>
-          </div>
+              {/* Undo/Redo */}
+              <div className="flex items-center">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={undo}
+                      disabled={!canUndo()}
+                      className="h-8 w-8"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Undo (Ctrl+Z)</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={redo}
+                      disabled={!canRedo()}
+                      className="h-8 w-8"
+                    >
+                      <RotateCw className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Redo (Ctrl+Shift+Z)</TooltipContent>
+                </Tooltip>
+              </div>
 
-          <Separator orientation="vertical" className="h-6" />
+              <Separator orientation="vertical" className="h-6" />
 
-          <Select value={paperSize} onValueChange={(v) => setPaperSize(v as PaperSize)}>
-            <SelectTrigger className="h-8 w-24">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="A4">A4</SelectItem>
-              <SelectItem value="LETTER">Letter</SelectItem>
-              <SelectItem value="LEGAL">Legal</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={orientation} onValueChange={(v) => setOrientation(v as Orientation)}>
-            <SelectTrigger className="h-8 w-28">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="PORTRAIT">Portrait</SelectItem>
-              <SelectItem value="LANDSCAPE">Landscape</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Separator orientation="vertical" className="h-6" />
-
-          {/* Zoom Controls */}
-          <div className="flex items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={zoomOut}
-                  disabled={zoom <= 0.25}
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Zoom Out</TooltipContent>
-            </Tooltip>
-            <span className="text-xs w-12 text-center">{Math.round(zoom * 100)}%</span>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={zoomIn}
-                  disabled={zoom >= 2}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Zoom In</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={resetZoom}
-                >
-                  <Maximize2 className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Reset Zoom (100%)</TooltipContent>
-            </Tooltip>
-          </div>
-
-          <Separator orientation="vertical" className="h-6" />
-
-          {/* Canvas Display Controls */}
-          <div className="flex items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={showRulers ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setShowRulers(!showRulers)}
-                >
-                  <Ruler className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Toggle Rulers</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={showGrid ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setShowGrid(!showGrid)}
-                >
-                  <Grid3X3 className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Toggle Grid</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={snapToGrid ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSnapToGrid(!snapToGrid)}
-                  disabled={!showGrid}
-                >
-                  <Magnet className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Snap to Grid</TooltipContent>
-            </Tooltip>
-            {showGrid && (
-              <Select value={String(gridSize)} onValueChange={(v) => setGridSize(Number(v) as GridSize)}>
-                <SelectTrigger className="h-8 w-16">
+              {/* Paper Size & Orientation */}
+              <Select value={paperSize} onValueChange={(v) => setPaperSize(v as PaperSize)}>
+                <SelectTrigger className="h-8 w-20">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="5">5px</SelectItem>
-                  <SelectItem value="10">10px</SelectItem>
-                  <SelectItem value="20">20px</SelectItem>
+                  <SelectItem value="A4">A4</SelectItem>
+                  <SelectItem value="LETTER">Letter</SelectItem>
+                  <SelectItem value="LEGAL">Legal</SelectItem>
                 </SelectContent>
               </Select>
-            )}
-          </div>
 
-          <Separator orientation="vertical" className="h-6" />
+              <Select value={orientation} onValueChange={(v) => setOrientation(v as Orientation)}>
+                <SelectTrigger className="h-8 w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PORTRAIT">Portrait</SelectItem>
+                  <SelectItem value="LANDSCAPE">Landscape</SelectItem>
+                </SelectContent>
+              </Select>
 
-          <Button variant="outline" size="sm" onClick={() => setIsPreviewOpen(true)}>
-            <Eye className="mr-2 h-4 w-4" />
-            Preview
-          </Button>
+              <Separator orientation="vertical" className="h-6" />
 
-          <Button variant="outline" size="sm" onClick={handleExport} disabled={isExporting}>
-            {isExporting ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="mr-2 h-4 w-4" />
-            )}
-            Export
-          </Button>
+              {/* Zoom Controls */}
+              <div className="flex items-center gap-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={zoomOut}
+                      disabled={zoom <= 0.25}
+                      className="h-8 w-8"
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Zoom Out</TooltipContent>
+                </Tooltip>
+                <span className="text-xs w-10 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={zoomIn}
+                      disabled={zoom >= 2}
+                      className="h-8 w-8"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Zoom In</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={resetZoom}
+                      className="h-8 w-8"
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Reset Zoom (100%)</TooltipContent>
+                </Tooltip>
+              </div>
 
-          <Button size="sm" onClick={handleSave} disabled={isSaving}>
-            {isSaving ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="mr-2 h-4 w-4" />
-            )}
-            Save
-          </Button>
+              <Separator orientation="vertical" className="h-6" />
+
+              {/* View Controls */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant={(showRulers || showGrid) ? "secondary" : "outline"}
+                    size="sm"
+                    className="h-8 gap-1"
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                    <span className="hidden xl:inline">View</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel>Canvas Options</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={showRulers}
+                    onCheckedChange={setShowRulers}
+                  >
+                    <Ruler className="h-4 w-4 mr-2" />
+                    Show Rulers
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={showGrid}
+                    onCheckedChange={setShowGrid}
+                  >
+                    <Grid3X3 className="h-4 w-4 mr-2" />
+                    Show Grid
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={snapToGrid}
+                    onCheckedChange={setSnapToGrid}
+                    disabled={!showGrid}
+                  >
+                    <Magnet className="h-4 w-4 mr-2" />
+                    Snap to Grid
+                  </DropdownMenuCheckboxItem>
+                  {showGrid && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel className="text-xs">Grid Size</DropdownMenuLabel>
+                      <DropdownMenuItem onClick={() => setGridSize(5)}>
+                        <span className={cn(gridSize === 5 && "font-medium")}>5px</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setGridSize(10)}>
+                        <span className={cn(gridSize === 10 && "font-medium")}>10px</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setGridSize(20)}>
+                        <span className={cn(gridSize === 20 && "font-medium")}>20px</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Separator orientation="vertical" className="h-6" />
+
+              {/* Action Buttons */}
+              <Button variant="outline" size="sm" onClick={() => setIsPreviewOpen(true)} className="h-8">
+                <Eye className="h-4 w-4 xl:mr-2" />
+                <span className="hidden xl:inline">Preview</span>
+              </Button>
+
+              <Button variant="outline" size="sm" onClick={handleExport} disabled={isExporting} className="h-8">
+                {isExporting ? (
+                  <Loader2 className="h-4 w-4 xl:mr-2 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4 xl:mr-2" />
+                )}
+                <span className="hidden xl:inline">Export</span>
+              </Button>
+
+              <Button size="sm" onClick={handleSave} disabled={isSaving} className="h-8">
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 xl:mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 xl:mr-2" />
+                )}
+                <span className="hidden xl:inline">Save</span>
+              </Button>
+            </>
+          ) : (
+            // Mobile/Tablet: Just save button (other tools in bottom bar)
+            <Button size="sm" onClick={handleSave} disabled={isSaving} className="h-8">
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-1" />
+              )}
+              Save
+            </Button>
+          )}
         </div>
       </div>
+
+      {/* Mobile Bottom Toolbar */}
+      {!isDesktop && (
+        <MobileBottomToolbar
+          onPreview={() => setIsPreviewOpen(true)}
+          onExport={handleExport}
+          onSettings={() => setIsSettingsOpen(true)}
+          isExporting={isExporting}
+        />
+      )}
 
       {/* Settings Dialog */}
       <TemplateSettingsDialog
@@ -469,7 +527,7 @@ export function BuilderToolbar() {
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent
           className={cn(
-            "flex flex-col p-0 gap-0",
+            "flex flex-col p-0 gap-0 max-h-[90vh]",
             orientation === "LANDSCAPE"
               ? "max-w-6xl h-[70vh]"
               : "max-w-4xl h-[85vh]"
@@ -479,7 +537,7 @@ export function BuilderToolbar() {
           <DialogHeader className="p-4 border-b">
             <DialogTitle>Template Preview (PDF)</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 bg-muted/50 p-4 overflow-hidden">
+          <div className="flex-1 bg-muted/50 p-2 sm:p-4 overflow-hidden">
             <div className="h-full w-full bg-white shadow-sm rounded-md overflow-hidden">
               {isPreviewOpen && (
                 <LivePdfPreview

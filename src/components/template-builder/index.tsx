@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { DndContext } from "@dnd-kit/core";
 import { BuilderToolbar } from "./toolbar/builder-toolbar";
 import { BlockPalette } from "./sidebar/block-palette";
@@ -14,25 +15,48 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useIsLargeDesktop, useIsDesktop } from "@/hooks/use-media-query";
 
 export function TemplateBuilder() {
+  const isLargeDesktop = useIsLargeDesktop(); // >= 1280px
+  const isDesktop = useIsDesktop(); // >= 1024px
+
   const {
     showLeftPanel,
     showRightPanel,
     toggleLeftPanel,
     toggleRightPanel,
+    setShowLeftPanel,
+    setShowRightPanel,
   } = useTemplateBuilderStore();
+
+  // Auto-hide panels on smaller screens
+  useEffect(() => {
+    if (!isLargeDesktop) {
+      // On smaller screens, hide both panels by default
+      setShowLeftPanel(false);
+      setShowRightPanel(false);
+    } else {
+      // On large desktops, show both panels
+      setShowLeftPanel(true);
+      setShowRightPanel(true);
+    }
+  }, [isLargeDesktop, setShowLeftPanel, setShowRightPanel]);
 
   return (
     <DndContext>
       <div className="flex h-screen flex-col">
         <BuilderToolbar />
-        <div className="flex flex-1 overflow-hidden relative">
+        {/* Add bottom padding on mobile/tablet for the fixed bottom toolbar */}
+        <div className={cn(
+          "flex flex-1 overflow-hidden relative",
+          !isDesktop && "pb-14" // Height of bottom toolbar
+        )}>
           {/* Left Panel */}
           <div
             className={cn(
-              "transition-all duration-300 ease-in-out overflow-hidden",
-              showLeftPanel ? "w-64" : "w-0"
+              "transition-all duration-300 ease-in-out overflow-hidden border-r bg-background",
+              showLeftPanel ? "w-56 lg:w-64" : "w-0"
             )}
           >
             <BlockPalette />
@@ -45,9 +69,9 @@ export function TemplateBuilder() {
                 variant="ghost"
                 size="icon"
                 className={cn(
-                  "absolute z-40 h-8 w-6 rounded-r-md rounded-l-none border border-l-0 bg-background shadow-sm hover:bg-muted",
+                  "absolute z-40 h-10 w-7 sm:h-8 sm:w-6 rounded-r-md rounded-l-none border border-l-0 bg-background shadow-sm hover:bg-muted",
                   "top-1/2 -translate-y-1/2",
-                  showLeftPanel ? "left-64" : "left-0"
+                  showLeftPanel ? "left-56 lg:left-64" : "left-0"
                 )}
                 style={{ transition: "left 300ms ease-in-out" }}
                 onClick={toggleLeftPanel}
@@ -74,9 +98,9 @@ export function TemplateBuilder() {
                 variant="ghost"
                 size="icon"
                 className={cn(
-                  "absolute z-40 h-8 w-6 rounded-l-md rounded-r-none border border-r-0 bg-background shadow-sm hover:bg-muted",
+                  "absolute z-40 h-10 w-7 sm:h-8 sm:w-6 rounded-l-md rounded-r-none border border-r-0 bg-background shadow-sm hover:bg-muted",
                   "top-1/2 -translate-y-1/2",
-                  showRightPanel ? "right-72" : "right-0"
+                  showRightPanel ? "right-64 lg:right-72" : "right-0"
                 )}
                 style={{ transition: "right 300ms ease-in-out" }}
                 onClick={toggleRightPanel}
@@ -96,8 +120,8 @@ export function TemplateBuilder() {
           {/* Right Panel */}
           <div
             className={cn(
-              "transition-all duration-300 ease-in-out overflow-hidden",
-              showRightPanel ? "w-72" : "w-0"
+              "transition-all duration-300 ease-in-out overflow-hidden border-l bg-background",
+              showRightPanel ? "w-64 lg:w-72" : "w-0"
             )}
           >
             <PropertiesPanel />

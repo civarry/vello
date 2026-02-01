@@ -636,7 +636,7 @@ export function BuilderCanvas() {
 
   return (
     <div
-      className="flex-1 overflow-auto bg-muted/50 p-8"
+      className="flex-1 overflow-auto bg-muted/50 p-2 sm:p-4 lg:p-8"
       onClick={() => selectBlock(null)}
       onWheel={handleWheel}
     >
