@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"];
+// Security: SVG removed from allowed types to prevent XSS attacks
+// SVG files can contain embedded JavaScript that executes when viewed
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 
 export async function POST(request: NextRequest) {
   try {
+    // Security: Require authentication for file uploads
+    const { context, error: authError } = await getCurrentUser();
+
+    if (!context) {
+      return NextResponse.json(
+        { error: authError || "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
 
@@ -19,7 +32,7 @@ export async function POST(request: NextRequest) {
     // Validate file type
     if (!ALLOWED_TYPES.includes(file.type)) {
       return NextResponse.json(
-        { error: "Invalid file type. Allowed types: JPEG, PNG, GIF, WebP, SVG" },
+        { error: "Invalid file type. Allowed types: JPEG, PNG, GIF, WebP" },
         { status: 400 }
       );
     }
@@ -45,7 +58,7 @@ export async function POST(request: NextRequest) {
     const buffer = new Uint8Array(arrayBuffer);
 
     // Upload to Supabase Storage
-    const { data, error } = await supabase.storage
+    const { data, error: uploadError } = await supabase.storage
       .from("uploads")
       .upload(path, buffer, {
         contentType: file.type,
@@ -53,10 +66,17 @@ export async function POST(request: NextRequest) {
         upsert: false,
       });
 
-    if (error) {
-      console.error("Supabase upload error:", error);
+    if (uploadError) {
+      console.error("Supabase upload error:", uploadError);
       return NextResponse.json(
         { error: "Failed to upload file" },
+        { status: 500 }
+      );
+    }
+
+    if (!data) {
+      return NextResponse.json(
+        { error: "Upload succeeded but no data returned" },
         { status: 500 }
       );
     }
@@ -70,8 +90,8 @@ export async function POST(request: NextRequest) {
       url: urlData.publicUrl,
       path: data.path,
     });
-  } catch (error) {
-    console.error("Upload error:", error);
+  } catch (err) {
+    console.error("Upload error:", err);
     return NextResponse.json(
       { error: "Failed to process upload" },
       { status: 500 }

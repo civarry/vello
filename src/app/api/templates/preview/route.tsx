@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { TemplatePDF, preprocessBlocksForPdf } from "@/lib/pdf/template-pdf";
 import { Block, GlobalStyles } from "@/types/template";
+import { getCurrentUser } from "@/lib/auth";
 
 export const maxDuration = 30;
 
@@ -19,6 +20,16 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now();
 
   try {
+    // Security: Require authentication for PDF preview
+    const { context, error } = await getCurrentUser();
+
+    if (!context) {
+      return NextResponse.json(
+        { error: error || "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     // Get request body as text first to handle empty bodies gracefully
     const text = await request.text();
     if (!text) {

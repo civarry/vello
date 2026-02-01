@@ -513,11 +513,78 @@ export { BlockRenderer };
 const PLACEHOLDER_IMAGE = "";
 
 /**
+ * Security: Validates URL to prevent SSRF attacks.
+ * Blocks internal IPs, localhost, and cloud metadata endpoints.
+ */
+function isUrlSafeForFetching(url: string): { safe: boolean; reason?: string } {
+  try {
+    const parsedUrl = new URL(url);
+
+    // Only allow HTTP and HTTPS protocols
+    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+      return { safe: false, reason: `Blocked protocol: ${parsedUrl.protocol}` };
+    }
+
+    const hostname = parsedUrl.hostname.toLowerCase();
+
+    // Block localhost and loopback addresses
+    if (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "[::1]" ||
+      hostname.endsWith(".localhost")
+    ) {
+      return { safe: false, reason: "Blocked: localhost" };
+    }
+
+    // Block private IP ranges (RFC 1918)
+    // 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+    const ipMatch = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (ipMatch) {
+      const [, a, b] = ipMatch.map(Number);
+      if (
+        a === 10 || // 10.0.0.0/8
+        (a === 172 && b >= 16 && b <= 31) || // 172.16.0.0/12
+        (a === 192 && b === 168) || // 192.168.0.0/16
+        a === 127 || // Loopback 127.0.0.0/8
+        (a === 169 && b === 254) // Link-local 169.254.0.0/16 (AWS metadata)
+      ) {
+        return { safe: false, reason: "Blocked: private IP range" };
+      }
+    }
+
+    // Block cloud metadata endpoints
+    const blockedHosts = [
+      "metadata.google.internal",
+      "metadata.google",
+      "metadata",
+      "169.254.169.254", // AWS/GCP metadata
+      "169.254.170.2", // AWS ECS metadata
+      "fd00:ec2::254", // AWS EC2 IPv6 metadata
+    ];
+    if (blockedHosts.includes(hostname)) {
+      return { safe: false, reason: "Blocked: cloud metadata endpoint" };
+    }
+
+    return { safe: true };
+  } catch {
+    return { safe: false, reason: "Invalid URL" };
+  }
+}
+
+/**
  * Converts a remote image URL to a data URL by fetching it.
  * This is needed because react-pdf cannot infer image format for URLs without extensions.
  */
 async function fetchImageAsDataUrl(url: string, timeoutMs: number = 5000): Promise<string> {
   try {
+    // Security: Validate URL before fetching to prevent SSRF
+    const urlCheck = isUrlSafeForFetching(url);
+    if (!urlCheck.safe) {
+      console.warn(`[SECURITY] SSRF blocked - ${urlCheck.reason}: ${url}`);
+      return PLACEHOLDER_IMAGE;
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 

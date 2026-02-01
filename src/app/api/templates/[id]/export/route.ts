@@ -49,11 +49,19 @@ export async function GET(
 
     // Return PDF as response
     const uint8Array = new Uint8Array(pdfBuffer);
+
+    // Security: Sanitize filename to prevent header injection
+    // Remove special characters and limit length
+    const safeFilename = template.name
+      .replace(/[^a-zA-Z0-9_\-\s.]/g, "_") // Replace unsafe chars with underscore
+      .replace(/\s+/g, "_") // Replace spaces with underscore
+      .substring(0, 200); // Limit length
+
     return new NextResponse(uint8Array, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${template.name}.pdf"`,
+        "Content-Disposition": `attachment; filename="${encodeURIComponent(safeFilename)}.pdf"`,
         "Content-Length": pdfBuffer.length.toString(),
       },
     });

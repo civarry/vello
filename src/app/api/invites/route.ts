@@ -72,12 +72,13 @@ export async function GET() {
             action: "fetch_invites",
         });
 
+        // Security: Do NOT expose invite tokens in list response
+        // Tokens are only returned when creating a new invite
         return NextResponse.json({
             data: invites.map((invite) => ({
                 id: invite.id,
                 email: invite.email,
                 role: invite.role,
-                token: invite.token,
                 expiresAt: invite.expiresAt,
                 createdAt: invite.createdAt,
                 invitedBy: invite.invitedBy,

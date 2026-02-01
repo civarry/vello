@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { parseExcelUpload } from "@/lib/excel/parser";
 
+// Security: Limit Excel file size to prevent memory exhaustion
+const MAX_EXCEL_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
 export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -19,6 +22,14 @@ export async function POST(
         if (!file) {
             return NextResponse.json(
                 { error: "No file provided" },
+                { status: 400 }
+            );
+        }
+
+        // Security: Validate file size before processing
+        if (file.size > MAX_EXCEL_FILE_SIZE) {
+            return NextResponse.json(
+                { error: `File size exceeds ${MAX_EXCEL_FILE_SIZE / 1024 / 1024}MB limit` },
                 { status: 400 }
             );
         }

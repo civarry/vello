@@ -5,8 +5,12 @@ const IV_LENGTH = 16;
 const AUTH_TAG_LENGTH = 16;
 const SALT_LENGTH = 64;
 
+// Expected key length for AES-256
+const EXPECTED_KEY_LENGTH = 32; // 256 bits = 32 bytes
+
 /**
  * Get encryption key from environment variable
+ * Security: Validates key length to ensure AES-256 compatibility
  */
 function getEncryptionKey(): Buffer {
     const key = process.env.ENCRYPTION_KEY;
@@ -15,7 +19,18 @@ function getEncryptionKey(): Buffer {
     }
 
     // Convert base64 key to buffer
-    return Buffer.from(key, "base64");
+    const keyBuffer = Buffer.from(key, "base64");
+
+    // Security: Validate key length for AES-256
+    if (keyBuffer.length !== EXPECTED_KEY_LENGTH) {
+        throw new Error(
+            `ENCRYPTION_KEY must be exactly ${EXPECTED_KEY_LENGTH} bytes (256 bits) when decoded from base64. ` +
+            `Current key is ${keyBuffer.length} bytes. ` +
+            `Generate a valid key with: openssl rand -base64 32`
+        );
+    }
+
+    return keyBuffer;
 }
 
 /**
