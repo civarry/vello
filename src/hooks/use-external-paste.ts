@@ -62,10 +62,24 @@ export function useExternalPaste(options: UseExternalPasteOptions = {}) {
   // Create an image block from a pasted image
   const createImageBlock = useCallback(
     async (file: File): Promise<Block | null> => {
+      // Get image dimensions first using a temporary object URL
+      // This allows us to set the correct block size before the upload completes
+      const dimensions = await new Promise<{ width: number; height: number }>((resolve) => {
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(file);
+        img.onload = () => {
+          resolve({ width: img.naturalWidth, height: img.naturalHeight });
+          URL.revokeObjectURL(objectUrl);
+        };
+        img.onerror = () => {
+          resolve(DEFAULT_BLOCK_SIZES.image);
+          URL.revokeObjectURL(objectUrl);
+        };
+        img.src = objectUrl;
+      });
+
       const url = await uploadImage(file);
       if (!url) return null;
-
-      const sizes = DEFAULT_BLOCK_SIZES.image;
 
       // Calculate center position based on paper size
       const PAPER_DIMENSIONS = {
@@ -74,13 +88,25 @@ export function useExternalPaste(options: UseExternalPasteOptions = {}) {
         LEGAL: { width: 216, height: 356 },
       };
 
-      const dimensions = PAPER_DIMENSIONS[paperSize];
-      const canvasWidth = orientation === "PORTRAIT" ? dimensions.width : dimensions.height;
+      const paperDims = PAPER_DIMENSIONS[paperSize];
+      const canvasWidth = orientation === "PORTRAIT" ? paperDims.width : paperDims.height;
       const pxPerMm = 3.78;
       const canvasWidthPx = canvasWidth * pxPerMm;
 
+      // Calculate final dimensions, scaling down if the image is too wide
+      // Max width is canvas width minus some padding (e.g. 40px on each side)
+      const maxWidth = canvasWidthPx - 80;
+      let finalWidth = dimensions.width;
+      let finalHeight = dimensions.height;
+
+      if (finalWidth > maxWidth) {
+        const ratio = maxWidth / finalWidth;
+        finalWidth = maxWidth;
+        finalHeight = dimensions.height * ratio;
+      }
+
       // Center horizontally, place near top
-      const x = (canvasWidthPx - sizes.width) / 2;
+      const x = (canvasWidthPx - finalWidth) / 2;
       const y = 50;
 
       return {
@@ -97,8 +123,8 @@ export function useExternalPaste(options: UseExternalPasteOptions = {}) {
           ...DEFAULT_BLOCK_STYLE,
           x,
           y,
-          width: sizes.width,
-          height: sizes.height,
+          width: finalWidth,
+          height: finalHeight,
         },
       };
     },

@@ -16,6 +16,10 @@ export function useKeyboardShortcuts() {
     groupSelectedBlocks,
     ungroupSelectedBlocks,
     selectedBlockIds,
+    bringToFront,
+    sendToBack,
+    bringForward,
+    sendBackward,
   } = useTemplateBuilderStore();
 
   useEffect(() => {
@@ -30,8 +34,30 @@ export function useKeyboardShortcuts() {
       const isShift = e.shiftKey;
       const isAlt = e.altKey;
 
+      // Layering Shortcuts
+      // Bring Forward: Cmd/Ctrl + ]
+      if (isCmdOrCtrl && e.key === "]" && !isAlt) {
+        e.preventDefault();
+        selectedBlockIds.forEach(id => bringForward(id));
+      }
+      // Send Backward: Cmd/Ctrl + [
+      else if (isCmdOrCtrl && e.key === "[" && !isAlt) {
+        e.preventDefault();
+        selectedBlockIds.forEach(id => sendBackward(id));
+      }
+      // Bring to Front: Cmd/Ctrl + Alt + ]
+      else if (isCmdOrCtrl && isAlt && e.key === "]") {
+        e.preventDefault();
+        selectedBlockIds.forEach(id => bringToFront(id));
+      }
+      // Send to Back: Cmd/Ctrl + Alt + [
+      else if (isCmdOrCtrl && isAlt && e.key === "[") {
+        e.preventDefault();
+        selectedBlockIds.forEach(id => sendToBack(id));
+      }
+
       // Undo: Cmd/Ctrl+Z
-      if (isCmdOrCtrl && !isShift && e.key.toLowerCase() === "z") {
+      else if (isCmdOrCtrl && !isShift && e.key.toLowerCase() === "z") {
         e.preventDefault();
         undo();
       }
@@ -139,5 +165,9 @@ export function useKeyboardShortcuts() {
     groupSelectedBlocks,
     ungroupSelectedBlocks,
     selectedBlockIds,
+    bringToFront,
+    sendToBack,
+    bringForward,
+    sendBackward,
   ]);
 }

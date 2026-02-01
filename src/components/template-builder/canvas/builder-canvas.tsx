@@ -479,7 +479,6 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
     <div
       className={cn(
         "absolute group",
-        isSelected && "z-10",
         isDragging && "cursor-grabbing",
         !isDragging && "cursor-grab"
       )}

@@ -58,6 +58,8 @@ import {
   Magnet,
   Settings,
   LayoutGrid,
+  BringToFront,
+  SendToBack,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { clearDraft } from "@/lib/draft";
@@ -111,6 +113,9 @@ export function BuilderToolbar() {
     templateType,
     recipientEmailField,
     recipientNameField,
+    selectedBlockIds,
+    bringToFront,
+    sendToBack,
   } = useTemplateBuilderStore();
 
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -335,6 +340,40 @@ export function BuilderToolbar() {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">Redo (Ctrl+Shift+Z)</TooltipContent>
+                </Tooltip>
+              </div>
+
+              <Separator orientation="vertical" className="h-6" />
+
+              {/* Layer Controls */}
+              <div className="flex items-center">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => selectedBlockIds.forEach((id) => bringToFront(id))}
+                      disabled={selectedBlockIds.length === 0}
+                      className="h-8 w-8"
+                    >
+                      <BringToFront className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Bring to Front</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => selectedBlockIds.forEach((id) => sendToBack(id))}
+                      disabled={selectedBlockIds.length === 0}
+                      className="h-8 w-8"
+                    >
+                      <SendToBack className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Send to Back</TooltipContent>
                 </Tooltip>
               </div>
 

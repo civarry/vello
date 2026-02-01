@@ -147,6 +147,8 @@ interface TemplateBuilderState {
   centerSelectionOnPage: () => void;
   bringToFront: (id: string) => void;
   sendToBack: (id: string) => void;
+  bringForward: (id: string) => void;
+  sendBackward: (id: string) => void;
 
   // Table-specific actions
   addTableRow: (blockId: string, afterIndex?: number) => void;
@@ -1014,6 +1016,44 @@ export const useTemplateBuilderStore = create<TemplateBuilderState>(
             block,
             ...state.blocks.filter((b) => b.id !== id),
           ],
+          isDirty: true,
+        };
+      }),
+
+    bringForward: (id) =>
+      set((state) => {
+        const index = state.blocks.findIndex((b) => b.id === id);
+        if (index === -1 || index === state.blocks.length - 1) return state;
+
+        const newBlocks = [...state.blocks];
+        // Swap with next element
+        [newBlocks[index], newBlocks[index + 1]] = [
+          newBlocks[index + 1],
+          newBlocks[index],
+        ];
+
+        return {
+          ...pushHistory(state),
+          blocks: newBlocks,
+          isDirty: true,
+        };
+      }),
+
+    sendBackward: (id) =>
+      set((state) => {
+        const index = state.blocks.findIndex((b) => b.id === id);
+        if (index <= 0) return state;
+
+        const newBlocks = [...state.blocks];
+        // Swap with prev element
+        [newBlocks[index - 1], newBlocks[index]] = [
+          newBlocks[index],
+          newBlocks[index - 1],
+        ];
+
+        return {
+          ...pushHistory(state),
+          blocks: newBlocks,
           isDirty: true,
         };
       }),
