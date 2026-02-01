@@ -71,12 +71,13 @@ import { toast } from "sonner";
 import { LivePdfPreview } from "@/components/previews/live-pdf-preview";
 import { Template } from "@/types/template";
 import { TemplateSettingsDialog } from "../template-settings-dialog";
-import { useIsDesktop } from "@/hooks/use-media-query";
+import { useIsDesktop, useDefaultZoom } from "@/hooks/use-media-query";
 import { MobileBottomToolbar } from "./mobile-bottom-toolbar";
 
 export function BuilderToolbar() {
   const router = useRouter();
   const isDesktop = useIsDesktop(); // >= 1024px
+  const defaultZoom = useDefaultZoom();
 
   const {
     templateId,
@@ -99,7 +100,6 @@ export function BuilderToolbar() {
     setZoom,
     zoomIn,
     zoomOut,
-    resetZoom,
     showRulers,
     setShowRulers,
     showGrid,
@@ -400,13 +400,13 @@ export function BuilderToolbar() {
                     <Button
                       variant="outline"
                       size="icon"
-                      onClick={resetZoom}
+                      onClick={() => setZoom(defaultZoom)}
                       className="h-8 w-8"
                     >
                       <Maximize2 className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom">Reset Zoom (100%)</TooltipContent>
+                  <TooltipContent side="bottom">Fit to Screen</TooltipContent>
                 </Tooltip>
               </div>
 

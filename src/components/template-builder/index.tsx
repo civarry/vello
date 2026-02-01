@@ -15,11 +15,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useIsLargeDesktop, useIsDesktop } from "@/hooks/use-media-query";
+import { useIsLargeDesktop, useIsDesktop, useDefaultZoom } from "@/hooks/use-media-query";
 
 export function TemplateBuilder() {
   const isLargeDesktop = useIsLargeDesktop(); // >= 1280px
   const isDesktop = useIsDesktop(); // >= 1024px
+  const defaultZoom = useDefaultZoom();
 
   const {
     showLeftPanel,
@@ -28,6 +29,7 @@ export function TemplateBuilder() {
     toggleRightPanel,
     setShowLeftPanel,
     setShowRightPanel,
+    setZoom,
   } = useTemplateBuilderStore();
 
   // Auto-hide panels on smaller screens
@@ -42,6 +44,11 @@ export function TemplateBuilder() {
       setShowRightPanel(true);
     }
   }, [isLargeDesktop, setShowLeftPanel, setShowRightPanel]);
+
+  // Auto-set zoom based on screen size for optimal preview
+  useEffect(() => {
+    setZoom(defaultZoom);
+  }, [defaultZoom, setZoom]);
 
   return (
     <DndContext>

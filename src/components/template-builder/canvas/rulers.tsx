@@ -12,8 +12,26 @@ interface RulersProps {
 
 export function Rulers({ canvasWidth, canvasHeight, zoom, onAddGuide }: RulersProps) {
   const RULER_SIZE = 24;
-  const MAJOR_TICK_INTERVAL = 50; // pixels
-  const MINOR_TICK_INTERVAL = 10; // pixels
+
+  // Dynamic tick intervals based on zoom level for readability
+  // At low zoom, we need larger intervals so numbers don't overlap
+  const getTickIntervals = (currentZoom: number) => {
+    if (currentZoom >= 0.75) {
+      // Normal: every 50px with labels
+      return { major: 50, minor: 10 };
+    } else if (currentZoom >= 0.5) {
+      // Medium zoom: every 100px with labels
+      return { major: 100, minor: 50 };
+    } else if (currentZoom >= 0.35) {
+      // Low zoom: every 200px with labels
+      return { major: 200, minor: 100 };
+    } else {
+      // Very low zoom (mobile): every 500px with labels
+      return { major: 500, minor: 100 };
+    }
+  };
+
+  const { major: MAJOR_TICK_INTERVAL, minor: MINOR_TICK_INTERVAL } = getTickIntervals(zoom);
 
   const handleHorizontalRulerClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {

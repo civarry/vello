@@ -42,3 +42,16 @@ export function useIsDesktop(): boolean {
 export function useIsLargeDesktop(): boolean {
   return useMediaQuery("(min-width: 1280px)");
 }
+
+// Returns the appropriate default zoom level based on screen size
+// Mobile: 25%, Large phone: 30%, Tablet: 50%, Desktop: 100%
+export function useDefaultZoom(): number {
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const isTablet = useMediaQuery("(min-width: 768px)");
+  const isLargePhone = useMediaQuery("(min-width: 480px)");
+
+  if (isDesktop) return 1; // 100%
+  if (isTablet) return 0.5; // 50%
+  if (isLargePhone) return 0.3; // 30%
+  return 0.25; // 25% for small mobile
+}

@@ -47,6 +47,7 @@ import {
   PaperSize,
   Orientation,
 } from "@/stores/template-builder-store";
+import { useDefaultZoom } from "@/hooks/use-media-query";
 
 interface MobileBottomToolbarProps {
   onPreview: () => void;
@@ -73,7 +74,7 @@ export function MobileBottomToolbar({
     zoom,
     zoomIn,
     zoomOut,
-    resetZoom,
+    setZoom,
     showRulers,
     setShowRulers,
     showGrid,
@@ -83,6 +84,9 @@ export function MobileBottomToolbar({
     snapToGrid,
     setSnapToGrid,
   } = useTemplateBuilderStore();
+
+  const defaultZoom = useDefaultZoom();
+  const resetToDefaultZoom = () => setZoom(defaultZoom);
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
@@ -187,11 +191,11 @@ export function MobileBottomToolbar({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={resetZoom}
+                onClick={resetToDefaultZoom}
                 className="w-full h-9"
               >
                 <Maximize2 className="h-4 w-4 mr-2" />
-                Reset to 100%
+                Fit to Screen
               </Button>
             </div>
           </PopoverContent>
