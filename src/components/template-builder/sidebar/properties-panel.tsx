@@ -212,86 +212,102 @@ export function PropertiesPanel() {
             </h3>
           </div>
         </div>
-        <div className="p-4 space-y-6 overflow-y-auto flex-1">
-          <div className="space-y-2">
-            <Label className="text-[10px] uppercase text-muted-foreground font-bold">Organization</Label>
-            <Button onClick={groupSelectedBlocks} className="w-full gap-2 h-9">
-              <Group className="h-4 w-4" />
-              Group Selection
-            </Button>
-          </div>
+        <Tabs defaultValue="layout" className="flex-1 flex flex-col min-h-0">
+          <TabsList className="mx-4 mt-2 grid w-auto grid-cols-2 shrink-0">
+            <TabsTrigger value="layout">Layout</TabsTrigger>
+            <TabsTrigger value="style">Style</TabsTrigger>
+          </TabsList>
 
-          <Separator />
-
-          <div className="space-y-3">
-            <Label className="text-[10px] uppercase text-muted-foreground font-bold">Alignment</Label>
-            <div className="grid grid-cols-3 gap-1">
-              <Button variant="outline" size="icon" onClick={() => alignBlock("", "left")} title="Align Left">
-                <AlignLeft className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={() => alignBlock("", "center")} title="Align Center">
-                <AlignCenter className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={() => alignBlock("", "right")} title="Align Right">
-                <AlignRight className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={() => alignBlock("", "top")} title="Align Top">
-                <ArrowUpToLine className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={() => alignBlock("", "middle")} title="Align Middle">
-                <AlignCenterVertical className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={() => alignBlock("", "bottom")} title="Align Bottom">
-                <ArrowDownToLine className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={centerSelectionOnPage} title="Center selection on page">
-                <Maximize className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <Label className="text-[10px] uppercase text-muted-foreground font-bold">Distribution</Label>
+          <TabsContent value="layout" className="flex-1 overflow-y-auto p-4 pt-2 space-y-6">
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Button variant="outline" className="gap-2 text-xs flex-1" onClick={() => distributeBlocks("horizontal", horizontalGap)}>
-                  <BetweenHorizontalEnd className="h-4 w-4" />
-                  Distribute H
+              <Label className="text-[10px] uppercase text-muted-foreground font-bold">Organization</Label>
+              <Button onClick={groupSelectedBlocks} className="w-full gap-2 h-9">
+                <Group className="h-4 w-4" />
+                Group Selection
+              </Button>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-3">
+              <Label className="text-[10px] uppercase text-muted-foreground font-bold">Alignment</Label>
+              <div className="grid grid-cols-3 gap-1">
+                <Button variant="outline" size="icon" onClick={() => alignBlock("", "left")} title="Align Left">
+                  <AlignLeft className="h-4 w-4" />
                 </Button>
-                <div className="flex items-center gap-1">
-                  <Input
-                    type="number"
-                    value={horizontalGap}
-                    onChange={(e) => setHorizontalGap(Number(e.target.value))}
-                    className="w-16 h-8 text-xs"
-                    min={0}
-                  />
-                  <span className="text-[10px] text-muted-foreground">px</span>
-                </div>
+                <Button variant="outline" size="icon" onClick={() => alignBlock("", "center")} title="Align Center">
+                  <AlignCenter className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" onClick={() => alignBlock("", "right")} title="Align Right">
+                  <AlignRight className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" onClick={() => alignBlock("", "top")} title="Align Top">
+                  <ArrowUpToLine className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" onClick={() => alignBlock("", "middle")} title="Align Middle">
+                  <AlignCenterVertical className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" onClick={() => alignBlock("", "bottom")} title="Align Bottom">
+                  <ArrowDownToLine className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" onClick={centerSelectionOnPage} title="Center selection on page">
+                  <Maximize className="h-4 w-4" />
+                </Button>
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" className="gap-2 text-xs flex-1" onClick={() => distributeBlocks("vertical", verticalGap)}>
-                  <BetweenVerticalEnd className="h-4 w-4" />
-                  Distribute V
-                </Button>
-                <div className="flex items-center gap-1">
-                  <Input
-                    type="number"
-                    value={verticalGap}
-                    onChange={(e) => setVerticalGap(Number(e.target.value))}
-                    className="w-16 h-8 text-xs"
-                    min={0}
-                  />
-                  <span className="text-[10px] text-muted-foreground">px</span>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-[10px] uppercase text-muted-foreground font-bold">Distribution</Label>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" className="gap-2 text-xs flex-1" onClick={() => distributeBlocks("horizontal", horizontalGap)}>
+                    <BetweenHorizontalEnd className="h-4 w-4" />
+                    Distribute H
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={horizontalGap}
+                      onChange={(e) => setHorizontalGap(Number(e.target.value))}
+                      className="w-16 h-8 text-xs"
+                      min={0}
+                    />
+                    <span className="text-[10px] text-muted-foreground">px</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" className="gap-2 text-xs flex-1" onClick={() => distributeBlocks("vertical", verticalGap)}>
+                    <BetweenVerticalEnd className="h-4 w-4" />
+                    Distribute V
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={verticalGap}
+                      onChange={(e) => setVerticalGap(Number(e.target.value))}
+                      className="w-16 h-8 text-xs"
+                      min={0}
+                    />
+                    <span className="text-[10px] text-muted-foreground">px</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <p className="text-[10px] text-muted-foreground mt-4 text-center">
-            Group items to move them together. Use alignment tools to organize selection.
-          </p>
-        </div>
+            <p className="text-[10px] text-muted-foreground mt-4 text-center">
+              Group items to move them together. Use alignment tools to organize selection.
+            </p>
+          </TabsContent>
+
+          <TabsContent value="style" className="flex-1 overflow-y-auto p-4 pt-2">
+            <StyleProperties
+              style={firstBlock.style}
+              onUpdate={(style) => {
+                selectedBlockIds.forEach(id => updateBlockStyle(id, style));
+              }}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     );
   }
@@ -831,7 +847,7 @@ function StyleProperties({ style, onUpdate }: StylePropertiesProps) {
                 type="number"
                 min={0}
                 placeholder="T"
-                value={style.paddingTop ?? 8}
+                value={style.paddingTop ?? 0}
                 onChange={(e) => onUpdate({ paddingTop: parseInt(e.target.value) || 0 })}
                 className="text-center"
               />
@@ -839,7 +855,7 @@ function StyleProperties({ style, onUpdate }: StylePropertiesProps) {
                 type="number"
                 min={0}
                 placeholder="R"
-                value={style.paddingRight ?? 8}
+                value={style.paddingRight ?? 0}
                 onChange={(e) => onUpdate({ paddingRight: parseInt(e.target.value) || 0 })}
                 className="text-center"
               />
@@ -847,7 +863,7 @@ function StyleProperties({ style, onUpdate }: StylePropertiesProps) {
                 type="number"
                 min={0}
                 placeholder="B"
-                value={style.paddingBottom ?? 8}
+                value={style.paddingBottom ?? 0}
                 onChange={(e) => onUpdate({ paddingBottom: parseInt(e.target.value) || 0 })}
                 className="text-center"
               />
@@ -855,7 +871,7 @@ function StyleProperties({ style, onUpdate }: StylePropertiesProps) {
                 type="number"
                 min={0}
                 placeholder="L"
-                value={style.paddingLeft ?? 8}
+                value={style.paddingLeft ?? 0}
                 onChange={(e) => onUpdate({ paddingLeft: parseInt(e.target.value) || 0 })}
                 className="text-center"
               />
