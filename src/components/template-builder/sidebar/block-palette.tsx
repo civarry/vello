@@ -79,7 +79,7 @@ function DraggableBlock({ item }: { item: BlockItem }) {
 
 export function BlockPalette() {
   return (
-    <div className="w-64 min-w-64 border-r bg-muted/30 overflow-y-auto flex flex-col h-full">
+    <div className="w-full bg-muted/30 overflow-y-auto flex flex-col h-full">
       <div className="p-4 border-b">
         <h3 className="text-sm font-semibold">Elements</h3>
         <p className="text-xs text-muted-foreground mt-1">

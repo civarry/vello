@@ -46,9 +46,7 @@ import {
   useTemplateBuilderStore,
   PaperSize,
   Orientation,
-  GridSize,
 } from "@/stores/template-builder-store";
-import { toast } from "sonner";
 
 interface MobileBottomToolbarProps {
   onPreview: () => void;
@@ -87,7 +85,7 @@ export function MobileBottomToolbar({
   } = useTemplateBuilderStore();
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background px-2 py-2 safe-area-bottom">
+    <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
       <div className="flex items-center justify-around gap-1">
         {/* Undo/Redo */}
         <div className="flex items-center gap-0.5">
@@ -97,6 +95,7 @@ export function MobileBottomToolbar({
             onClick={undo}
             disabled={!canUndo()}
             className="h-10 w-10"
+            aria-label="Undo"
           >
             <RotateCcw className="h-5 w-5" />
           </Button>
@@ -106,6 +105,7 @@ export function MobileBottomToolbar({
             onClick={redo}
             disabled={!canRedo()}
             className="h-10 w-10"
+            aria-label="Redo"
           >
             <RotateCw className="h-5 w-5" />
           </Button>
@@ -114,7 +114,7 @@ export function MobileBottomToolbar({
         {/* Page Setup */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-10 w-10">
+            <Button variant="ghost" size="icon" className="h-10 w-10" aria-label="Page setup">
               <FileText className="h-5 w-5" />
             </Button>
           </PopoverTrigger>
@@ -153,7 +153,7 @@ export function MobileBottomToolbar({
         {/* Zoom */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-10 px-2 tabular-nums gap-1">
+            <Button variant="ghost" size="sm" className="h-10 px-2 tabular-nums gap-1" aria-label={`Zoom: ${Math.round(zoom * 100)}%`}>
               <ZoomIn className="h-5 w-5" />
               <span className="text-xs">{Math.round(zoom * 100)}%</span>
             </Button>
@@ -204,6 +204,7 @@ export function MobileBottomToolbar({
               variant={(showRulers || showGrid) ? "secondary" : "ghost"}
               size="icon"
               className="h-10 w-10"
+              aria-label="View options"
             >
               <LayoutGrid className="h-5 w-5" />
             </Button>
@@ -254,7 +255,7 @@ export function MobileBottomToolbar({
         {/* More Actions */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-10 w-10">
+            <Button variant="ghost" size="icon" className="h-10 w-10" aria-label="More actions">
               <MoreHorizontal className="h-5 w-5" />
             </Button>
           </DropdownMenuTrigger>
