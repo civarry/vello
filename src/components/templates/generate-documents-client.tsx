@@ -367,14 +367,14 @@ export function GenerateDocumentsClient({
                 This template has no variable fields - ready to export as-is
               </span>
             </div>
-            <div className="flex-1 overflow-hidden bg-gray-50/50 relative">
+            <div className="flex-1 overflow-hidden bg-gray-50/50 relative pb-16 md:pb-0">
               <LivePdfPreview template={template} data={{}} />
             </div>
           </div>
         </div>
 
-        {/* Mobile Bottom Action Bar */}
-        <div className="md:hidden border-t bg-background p-3 flex gap-2">
+        {/* Mobile Bottom Action Bar - Fixed */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-background p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex gap-2 z-50">
           {hasSmtpConfig && (
             <Button variant="outline" className="flex-1" onClick={() => setShowSendDialog(true)}>
               <Mail className="mr-2 h-4 w-4" />
@@ -471,7 +471,7 @@ export function GenerateDocumentsClient({
       </div>
 
       {/* Data Grid - Full Width */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-background">
+      <div className="flex-1 flex flex-col overflow-hidden bg-background pb-16 md:pb-0">
         {/* Toolbar */}
         <div className="p-2 border-b flex items-center gap-2 bg-muted/20">
           <input
@@ -568,8 +568,8 @@ export function GenerateDocumentsClient({
         </div>
       </div>
 
-      {/* Mobile Bottom Action Bar */}
-      <div className="md:hidden border-t bg-background p-3 flex gap-2">
+      {/* Mobile Bottom Action Bar - Fixed */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-background p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex gap-2 z-50">
         <Button variant="outline" className="flex-1" onClick={() => setIsPreviewOpen(true)}>
           <Eye className="mr-2 h-4 w-4" />
           Preview

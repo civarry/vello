@@ -158,7 +158,7 @@ export function MobileNav({
 
     return (
         <>
-            <div className="md:hidden flex items-center justify-between h-14 px-4 border-b bg-background">
+            <div className="md:hidden sticky top-0 z-50 flex items-center justify-between h-14 px-4 border-b bg-background">
                 {/* Logo */}
                 <Link href="/templates" className="flex items-center gap-2">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
