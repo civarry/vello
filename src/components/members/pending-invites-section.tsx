@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Loader2, X, Copy, Check } from "lucide-react";
-import { useInvites, useCancelInvite, type Invite } from "@/hooks/use-queries";
+import { useInvites, useCancelInvite, useGetInviteLink, type Invite } from "@/hooks/use-queries";
 
 interface PendingInvitesSectionProps {
   canManageInvites: boolean;
@@ -32,9 +32,11 @@ interface PendingInvitesSectionProps {
 export function PendingInvitesSection({ canManageInvites }: PendingInvitesSectionProps) {
   const { data: invites = [], isLoading } = useInvites();
   const cancelInvite = useCancelInvite();
+  const getInviteLink = useGetInviteLink();
 
   const [cancelingInvite, setCancelingInvite] = useState<Invite | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [loadingInviteId, setLoadingInviteId] = useState<string | null>(null);
 
   const handleCancelInvite = async () => {
     if (!cancelingInvite) return;
@@ -49,15 +51,20 @@ export function PendingInvitesSection({ canManageInvites }: PendingInvitesSectio
     }
   };
 
-  const handleCopyLink = async (token: string) => {
-    const link = `${window.location.origin}/invite/${token}`;
+  const handleCopyLink = async (inviteId: string) => {
+    setLoadingInviteId(inviteId);
     try {
+      // Fetch token on-demand for security
+      const result = await getInviteLink.mutateAsync(inviteId);
+      const link = `${window.location.origin}/invite/${result.token}`;
       await navigator.clipboard.writeText(link);
-      setCopiedToken(token);
+      setCopiedToken(inviteId);
       toast.success("Invite link copied to clipboard");
       setTimeout(() => setCopiedToken(null), 2000);
-    } catch {
-      toast.error("Failed to copy link");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to copy link");
+    } finally {
+      setLoadingInviteId(null);
     }
   };
 
@@ -122,9 +129,12 @@ export function PendingInvitesSection({ canManageInvites }: PendingInvitesSectio
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8"
-                    onClick={() => handleCopyLink(invite.token)}
+                    onClick={() => handleCopyLink(invite.id)}
+                    disabled={loadingInviteId === invite.id}
                   >
-                    {copiedToken === invite.token ? (
+                    {loadingInviteId === invite.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : copiedToken === invite.id ? (
                       <Check className="h-4 w-4 text-green-600" />
                     ) : (
                       <Copy className="h-4 w-4" />
@@ -175,10 +185,13 @@ export function PendingInvitesSection({ canManageInvites }: PendingInvitesSectio
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
-                        onClick={() => handleCopyLink(invite.token)}
+                        onClick={() => handleCopyLink(invite.id)}
                         title="Copy invite link"
+                        disabled={loadingInviteId === invite.id}
                       >
-                        {copiedToken === invite.token ? (
+                        {loadingInviteId === invite.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : copiedToken === invite.id ? (
                           <Check className="h-4 w-4 text-green-600" />
                         ) : (
                           <Copy className="h-4 w-4" />

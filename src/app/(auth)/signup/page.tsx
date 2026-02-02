@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,10 +10,13 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
-export default function SignupPage() {
+function SignupForm() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const inviteToken = searchParams.get("invite_token");
+    const prefillEmail = searchParams.get("email") ?? "";
 
-    const [email, setEmail] = useState("");
+    const [email, setEmail] = useState(prefillEmail);
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -35,11 +38,16 @@ export default function SignupPage() {
 
         const supabase = createClient();
 
+        // If coming from invite flow, redirect back to invite page after email confirmation
+        const redirectPath = inviteToken
+            ? `/auth/callback?next=/invite/${inviteToken}`
+            : `/auth/callback?next=/onboarding`;
+
         const { error } = await supabase.auth.signUp({
             email,
             password,
             options: {
-                emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
+                emailRedirectTo: `${window.location.origin}${redirectPath}`,
             },
         });
 
@@ -56,7 +64,7 @@ export default function SignupPage() {
 
         // For development with email confirmation disabled, redirect immediately
         // In production, the user will need to confirm their email first
-        router.push("/onboarding");
+        router.push(inviteToken ? `/invite/${inviteToken}` : "/onboarding");
         router.refresh();
     };
 
@@ -65,7 +73,9 @@ export default function SignupPage() {
             <div className="text-center mb-6">
                 <h1 className="text-2xl font-bold">Create your account</h1>
                 <p className="text-muted-foreground mt-1">
-                    Get started with Vello for free
+                    {inviteToken
+                        ? "Create an account to accept your invitation"
+                        : "Get started with Vello for free"}
                 </p>
             </div>
 
@@ -128,5 +138,20 @@ export default function SignupPage() {
                 </Link>
             </p>
         </>
+    );
+}
+
+export default function SignupPage() {
+    return (
+        <Suspense
+            fallback={
+                <div className="text-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+                    <p className="text-muted-foreground mt-2">Loading...</p>
+                </div>
+            }
+        >
+            <SignupForm />
+        </Suspense>
     );
 }

@@ -46,7 +46,7 @@ export interface Invite {
   id: string;
   email: string;
   role: "ADMIN" | "MEMBER";
-  token: string;
+  token?: string; // Only returned when creating new invite, not in list
   expiresAt: string;
   createdAt: string;
   invitedBy: {
@@ -242,6 +242,17 @@ export function useCreateInvite() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.invites });
+    },
+  });
+}
+
+export function useGetInviteLink() {
+  return useMutation({
+    mutationFn: async (inviteId: string): Promise<{ token: string }> => {
+      const response = await fetch(`/api/invites/${inviteId}/link`);
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Failed to get invite link");
+      return result.data;
     },
   });
 }

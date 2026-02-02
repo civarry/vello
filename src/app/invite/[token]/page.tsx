@@ -113,7 +113,8 @@ export default function InviteAcceptPage() {
   const handleSignUp = () => {
     // Store the invite URL to redirect back after sign up
     sessionStorage.setItem("inviteRedirect", window.location.pathname);
-    router.push(`/signup?email=${encodeURIComponent(invite?.email || "")}`);
+    // Pass the token in the URL so it persists through email confirmation flow
+    router.push(`/signup?email=${encodeURIComponent(invite?.email || "")}&invite_token=${token}`);
   };
 
   if (isLoading) {
@@ -137,15 +138,15 @@ export default function InviteAcceptPage() {
               {isExpired
                 ? "Invite Expired"
                 : isUsed
-                ? "Invite Already Used"
-                : "Invalid Invite"}
+                  ? "Invite Already Used"
+                  : "Invalid Invite"}
             </CardTitle>
             <CardDescription>
               {isExpired
                 ? "This invite link has expired. Please ask for a new invitation."
                 : isUsed
-                ? "This invite has already been accepted."
-                : error || "This invite link is invalid."}
+                  ? "This invite has already been accepted."
+                  : error || "This invite link is invalid."}
             </CardDescription>
           </CardHeader>
           <CardFooter className="justify-center">
