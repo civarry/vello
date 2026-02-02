@@ -222,3 +222,79 @@
     box-shadow: 0 0 20px -5px oklch(0.80 0.12 85 / 0.4);
   }
 }
+
+/* Toast notification styles */
+@layer components {
+  /* Sonner toast container positioning */
+  [data-sonner-toaster] {
+    --width: 380px;
+    font-family: inherit;
+  }
+
+  /* Toast entrance animation enhancement */
+  [data-sonner-toast] {
+    --normal-bg: var(--popover);
+    --normal-text: var(--popover-foreground);
+    --normal-border: var(--border);
+  }
+
+  /* Toast icon container */
+  [data-sonner-toast] [data-icon] {
+    @apply flex items-center justify-center shrink-0;
+  }
+
+  /* Toast content area */
+  [data-sonner-toast] [data-content] {
+    @apply flex flex-col gap-0.5;
+  }
+
+  /* Toast title */
+  [data-sonner-toast] [data-title] {
+    @apply font-semibold text-sm leading-tight;
+  }
+
+  /* Toast description */
+  [data-sonner-toast] [data-description] {
+    @apply text-sm leading-relaxed opacity-90;
+  }
+
+  /* Toast close button */
+  [data-sonner-toast] [data-close-button] {
+    @apply absolute top-2 right-2 p-1 rounded-md transition-colors;
+    @apply hover:bg-foreground/10;
+  }
+
+  /* Success toast styling */
+  [data-sonner-toast][data-type="success"] {
+    @apply border-l-4 border-l-green-500;
+  }
+
+  /* Error toast styling */
+  [data-sonner-toast][data-type="error"] {
+    @apply border-l-4 border-l-red-500;
+  }
+
+  /* Warning toast styling */
+  [data-sonner-toast][data-type="warning"] {
+    @apply border-l-4 border-l-yellow-500;
+  }
+
+  /* Info toast styling */
+  [data-sonner-toast][data-type="info"] {
+    @apply border-l-4 border-l-blue-500;
+  }
+
+  /* Loading toast styling */
+  [data-sonner-toast][data-type="loading"] {
+    @apply border-l-4 border-l-muted-foreground/50;
+  }
+
+  /* Progress bar for loading toasts */
+  [data-sonner-toast] [data-progress] {
+    @apply bg-primary/20 rounded-full overflow-hidden h-1;
+  }
+
+  [data-sonner-toast] [data-progress] > div {
+    @apply bg-primary h-full transition-all duration-300;
+  }
+}

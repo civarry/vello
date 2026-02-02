@@ -33,7 +33,16 @@ export default function RootLayout({
       >
         <Providers>
           {children}
-          <Toaster position="top-right" richColors />
+          <Toaster
+            position="top-right"
+            richColors
+            // Offset below navbar (h-14 = 56px + 16px padding)
+            offset={72}
+            // Visual stacking distance between toasts
+            visibleToasts={4}
+            // Expand toasts on hover for easier interaction
+            expand
+          />
         </Providers>
         <SpeedInsights />
       </body>
