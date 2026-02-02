@@ -277,18 +277,25 @@ export function TableBlock({ block, isPreview, data }: TableBlockProps) {
     return cell.content;
   };
 
+  // Calculate row height for even distribution (matches PDF rendering)
+  const rowCount = props.rows.length;
+
   return (
     <>
-      <div className="relative group h-full">
+      <div className="relative group h-full flex flex-col">
         {/* ... table ... */}
         <table
           className={cn(
-            "w-full h-full border-collapse",
+            "w-full h-full",
             props.showBorders && "border"
           )}
-          style={{ borderColor: "#e5e7eb" }}
+          style={{
+            borderColor: "#e5e7eb",
+            borderCollapse: "collapse",
+            tableLayout: "fixed",
+          }}
         >
-          <tbody>
+          <tbody className="h-full">
             {props.rows.map((row, rowIndex) => (
               <tr
                 key={rowIndex}
@@ -296,7 +303,10 @@ export function TableBlock({ block, isPreview, data }: TableBlockProps) {
                   props.stripedRows && rowIndex % 2 === 1 && "bg-muted/50",
                   row.isHeader && "font-semibold"
                 )}
-                style={row.isHeader ? { backgroundColor: props.headerBackground } : undefined}
+                style={{
+                  height: `${100 / rowCount}%`,
+                  ...(row.isHeader ? { backgroundColor: props.headerBackground } : {})
+                }}
               >
                 {row.cells.map((cell, colIndex) => {
                   const isEditing = editingCell?.row === rowIndex && editingCell?.col === colIndex;
@@ -310,14 +320,17 @@ export function TableBlock({ block, isPreview, data }: TableBlockProps) {
                       key={colIndex}
                       className={cn(
                         props.compact ? "px-1 py-0.5" : "px-3 py-2",
-                        "text-left relative",
+                        "text-left relative align-middle",
                         props.showBorders && "border",
                         !isPreview && "cursor-text hover:bg-muted/30",
                         hasVariable && !isPreview && "bg-primary/5",
                         hasLabelId && !isPreview && "bg-orange-50",
                         cell.isLabel && "font-medium"
                       )}
-                      style={{ borderColor: "#e5e7eb" }}
+                      style={{
+                        borderColor: "#e5e7eb",
+                        verticalAlign: "middle",
+                      }}
                       colSpan={cell.colSpan}
                       rowSpan={cell.rowSpan}
                       onClick={() => startEditing(rowIndex, colIndex, cell)}

@@ -381,11 +381,20 @@ interface ContentPropertiesProps {
 }
 
 function ContentProperties({ block, onUpdate }: ContentPropertiesProps) {
+  const { updateBlockStyle } = useTemplateBuilderStore();
+
   switch (block.type) {
     case "text":
       return <TextContentProps properties={block.properties as TextBlockProperties} onUpdate={onUpdate} />;
     case "table":
-      return <TableContentProps properties={block.properties as TableBlockProperties} onUpdate={onUpdate} />;
+      return (
+        <TableContentProps
+          block={block}
+          properties={block.properties as TableBlockProperties}
+          onUpdate={onUpdate}
+          onStyleUpdate={(style) => updateBlockStyle(block.id, style)}
+        />
+      );
     case "image":
       return <ImageContentProps properties={block.properties as ImageBlockProperties} onUpdate={onUpdate} />;
     case "divider":
@@ -421,11 +430,15 @@ function TextContentProps({
 }
 
 function TableContentProps({
+  block,
   properties,
   onUpdate,
+  onStyleUpdate,
 }: {
+  block: Block;
   properties: TableBlockProperties;
   onUpdate: (props: Partial<TableBlockProperties>) => void;
+  onStyleUpdate: (style: Partial<BlockStyle>) => void;
 }) {
   return (
     <div className="space-y-4">
@@ -447,7 +460,18 @@ function TableContentProps({
         <Label>Compact Layout</Label>
         <Switch
           checked={properties.compact}
-          onCheckedChange={(checked) => onUpdate({ compact: checked })}
+          onCheckedChange={(checked) => {
+            onUpdate({ compact: checked });
+            // Adjust block height when toggling compact
+            // Row height: compact = 20px, non-compact = 35px
+            const rowCount = properties.rows.length;
+            const heightDiff = (35 - 20) * rowCount;
+            const currentHeight = block.style.height;
+            const newHeight = checked
+              ? Math.max(60, currentHeight - heightDiff)  // Switching to compact: reduce height
+              : currentHeight + heightDiff;               // Switching to non-compact: increase height
+            onStyleUpdate({ height: newHeight });
+          }}
         />
       </div>
       <div>
