@@ -2,8 +2,10 @@
 
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { Template } from "@/types/template";
-import { Loader2 } from "lucide-react";
+import { Loader2, Download, CheckCircle2 } from "lucide-react";
 import { applyDataToBlocks } from "@/lib/template-utils";
+import { useIsMobile } from "@/hooks/use-media-query";
+import { Button } from "@/components/ui/button";
 
 interface LivePdfPreviewProps {
   template: Template;
@@ -15,8 +17,11 @@ export function LivePdfPreview({ template, data, debouncedDelay = 500 }: LivePdf
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadComplete, setDownloadComplete] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
+  const isMobile = useIsMobile();
 
   // Apply data substitution to blocks
   const substitutedBlocks = useMemo(
@@ -66,8 +71,49 @@ export function LivePdfPreview({ template, data, debouncedDelay = 500 }: LivePdf
     });
   }, []);
 
-  // Debounced PDF generation
+  // Mobile download handler
+  const handleDownload = useCallback(async () => {
+    setIsDownloading(true);
+    setDownloadComplete(false);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/templates/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: requestPayload,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to generate PDF");
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${template.name || "template-preview"}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setDownloadComplete(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Download failed");
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [requestPayload, template.name]);
+
+  // Debounced PDF generation (desktop only)
   useEffect(() => {
+    // Skip auto-generation on mobile - use download button instead
+    if (isMobile) {
+      setLoading(false);
+      return;
+    }
+
     isMountedRef.current = true;
 
     const timeoutId = setTimeout(async () => {
@@ -110,7 +156,7 @@ export function LivePdfPreview({ template, data, debouncedDelay = 500 }: LivePdf
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [requestPayload, debouncedDelay, generatePdf]);
+  }, [requestPayload, debouncedDelay, generatePdf, isMobile]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -122,6 +168,47 @@ export function LivePdfPreview({ template, data, debouncedDelay = 500 }: LivePdf
     };
   }, []);
 
+  // Mobile: Show download button instead of iframe
+  if (isMobile) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-4 p-6 text-center">
+        {downloadComplete ? (
+          <>
+            <CheckCircle2 className="h-12 w-12 text-green-500" />
+            <p className="text-sm text-muted-foreground">PDF downloaded successfully</p>
+            <Button variant="outline" onClick={handleDownload} disabled={isDownloading}>
+              Download Again
+            </Button>
+          </>
+        ) : (
+          <>
+            <Download className="h-12 w-12 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              PDF preview is not available on mobile.
+              <br />
+              Tap below to download and view the file.
+            </p>
+            <Button onClick={handleDownload} disabled={isDownloading}>
+              {isDownloading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Generating PDF...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Download PDF
+                </>
+              )}
+            </Button>
+          </>
+        )}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+      </div>
+    );
+  }
+
+  // Desktop: Loading state
   if (loading && !pdfUrl) {
     return (
       <div className="flex h-full w-full items-center justify-center text-muted-foreground p-4">
@@ -131,6 +218,7 @@ export function LivePdfPreview({ template, data, debouncedDelay = 500 }: LivePdf
     );
   }
 
+  // Desktop: Error state
   if (error && !pdfUrl) {
     return (
       <div className="flex h-full w-full items-center justify-center text-destructive p-4">
@@ -139,6 +227,7 @@ export function LivePdfPreview({ template, data, debouncedDelay = 500 }: LivePdf
     );
   }
 
+  // Desktop: PDF iframe preview
   return (
     <div className="relative h-full w-full">
       {loading && (

@@ -3,10 +3,10 @@
 import { useEffect, useCallback, useState } from "react";
 import { useTemplateBuilderStore } from "@/stores/template-builder-store";
 import { Block, DEFAULT_BLOCK_STYLE, DEFAULT_BLOCK_SIZES } from "@/types/template";
+import { compressImage } from "@/lib/image-utils";
 
 // Supported image types for PDF rendering
 const SUPPORTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg"];
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 interface UseExternalPasteOptions {
   enabled?: boolean;
@@ -37,11 +37,6 @@ export function useExternalPaste(options: UseExternalPasteOptions = {}) {
       throw new Error("Only PNG and JPG images are supported for PDF generation");
     }
 
-    // Validate file size
-    if (file.size > MAX_FILE_SIZE) {
-      throw new Error("Image must be less than 5MB");
-    }
-
     const formData = new FormData();
     formData.append("file", file);
 
@@ -62,23 +57,25 @@ export function useExternalPaste(options: UseExternalPasteOptions = {}) {
   // Create an image block from a pasted image
   const createImageBlock = useCallback(
     async (file: File): Promise<Block | null> => {
-      // Get image dimensions first using a temporary object URL
-      // This allows us to set the correct block size before the upload completes
-      const dimensions = await new Promise<{ width: number; height: number }>((resolve) => {
-        const img = new Image();
-        const objectUrl = URL.createObjectURL(file);
-        img.onload = () => {
-          resolve({ width: img.naturalWidth, height: img.naturalHeight });
-          URL.revokeObjectURL(objectUrl);
-        };
-        img.onerror = () => {
-          resolve(DEFAULT_BLOCK_SIZES.image);
-          URL.revokeObjectURL(objectUrl);
-        };
-        img.src = objectUrl;
+      // Compress image if needed (handles large clipboard images)
+      const compressionResult = await compressImage(file, {
+        maxDimension: 2000,
+        quality: 0.85,
+        maxSizeBeforeCompress: 2 * 1024 * 1024, // Compress if over 2MB
       });
+      const processedFile = compressionResult.file;
 
-      const url = await uploadImage(file);
+      // Use dimensions from compression result (already calculated)
+      const dimensions = compressionResult.wasCompressed
+        ? compressionResult.newDimensions
+        : compressionResult.originalDimensions;
+
+      // Fallback if dimensions couldn't be determined
+      const finalDimensions = dimensions.width > 0 && dimensions.height > 0
+        ? dimensions
+        : DEFAULT_BLOCK_SIZES.image;
+
+      const url = await uploadImage(processedFile);
       if (!url) return null;
 
       // Calculate center position based on paper size
@@ -93,20 +90,20 @@ export function useExternalPaste(options: UseExternalPasteOptions = {}) {
       const pxPerMm = 3.78;
       const canvasWidthPx = canvasWidth * pxPerMm;
 
-      // Calculate final dimensions, scaling down if the image is too wide
+      // Calculate block dimensions, scaling down if the image is too wide
       // Max width is canvas width minus some padding (e.g. 40px on each side)
       const maxWidth = canvasWidthPx - 80;
-      let finalWidth = dimensions.width;
-      let finalHeight = dimensions.height;
+      let blockWidth = finalDimensions.width;
+      let blockHeight = finalDimensions.height;
 
-      if (finalWidth > maxWidth) {
-        const ratio = maxWidth / finalWidth;
-        finalWidth = maxWidth;
-        finalHeight = dimensions.height * ratio;
+      if (blockWidth > maxWidth) {
+        const ratio = maxWidth / blockWidth;
+        blockWidth = maxWidth;
+        blockHeight = finalDimensions.height * ratio;
       }
 
       // Center horizontally, place near top
-      const x = (canvasWidthPx - finalWidth) / 2;
+      const x = (canvasWidthPx - blockWidth) / 2;
       const y = 50;
 
       return {
@@ -123,8 +120,8 @@ export function useExternalPaste(options: UseExternalPasteOptions = {}) {
           ...DEFAULT_BLOCK_STYLE,
           x,
           y,
-          width: finalWidth,
-          height: finalHeight,
+          width: blockWidth,
+          height: blockHeight,
         },
       };
     },
