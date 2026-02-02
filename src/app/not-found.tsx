@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { FileText, Home, LogIn, UserPlus } from "lucide-react";
+import Image from "next/image";
+import { Home, LogIn, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function NotFound() {
@@ -16,9 +17,13 @@ export default function NotFound() {
       <div className="relative z-10 flex flex-col items-center text-center">
         {/* Logo */}
         <div className="flex items-center gap-3 mb-8">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/25">
-            <FileText className="h-6 w-6" />
-          </div>
+          <Image
+            src="/icon.png"
+            alt="Vello"
+            width={44}
+            height={44}
+            className="rounded-xl shadow-lg shadow-primary/25"
+          />
           <span className="text-3xl font-bold tracking-tight text-foreground">
             Vello
           </span>

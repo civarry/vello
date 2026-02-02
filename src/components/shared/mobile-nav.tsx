@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import {
     LayoutTemplate,
-    FileText,
     Menu,
     LogOut,
     Settings,
@@ -87,10 +87,16 @@ export function MobileNav({
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [isSwitching, setIsSwitching] = useState(false);
     const [showInviteDialog, setShowInviteDialog] = useState(false);
+    const [isHydrated, setIsHydrated] = useState(false);
 
     // Auto-expand settings when on settings page
     const isOnSettingsPage = pathname.startsWith("/settings");
     const [settingsOpen, setSettingsOpen] = useState(isOnSettingsPage);
+
+    // Handle hydration
+    useEffect(() => {
+        setIsHydrated(true);
+    }, []);
 
     // Get display name
     const displayName = user.name || user.email.split("@")[0];
@@ -156,14 +162,40 @@ export function MobileNav({
         }
     };
 
+    // Don't render interactive components until hydrated to prevent ID mismatch
+    if (!isHydrated) {
+        return (
+            <div className="md:hidden sticky top-0 z-50 flex items-center justify-between h-14 px-4 border-b bg-background">
+                <Link href="/templates" className="flex items-center gap-2">
+                    <Image
+                        src="/icon.png"
+                        alt="Vello"
+                        width={32}
+                        height={32}
+                        className="rounded-lg"
+                    />
+                    <span className="font-semibold text-lg">Vello</span>
+                </Link>
+                <Button variant="ghost" size="icon">
+                    <Menu className="h-5 w-5" />
+                    <span className="sr-only">Open menu</span>
+                </Button>
+            </div>
+        );
+    }
+
     return (
         <>
             <div className="md:hidden sticky top-0 z-50 flex items-center justify-between h-14 px-4 border-b bg-background">
                 {/* Logo */}
                 <Link href="/templates" className="flex items-center gap-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                        <FileText className="h-4 w-4" />
-                    </div>
+                    <Image
+                        src="/icon.png"
+                        alt="Vello"
+                        width={32}
+                        height={32}
+                        className="rounded-lg"
+                    />
                     <span className="font-semibold text-lg">Vello</span>
                 </Link>
 

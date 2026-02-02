@@ -10,6 +10,8 @@ export const size = {
 export const contentType = "image/png";
 
 export default async function Image() {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://vello-mauve.vercel.app";
+
   return new ImageResponse(
     (
       <div
@@ -49,28 +51,17 @@ export default async function Image() {
         />
 
         {/* Logo */}
-        <div
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`${baseUrl}/icon.png`}
+          alt="Vello Logo"
+          width={120}
+          height={120}
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 80,
-            height: 80,
-            borderRadius: 16,
-            backgroundColor: "white",
+            borderRadius: 24,
             marginBottom: 24,
           }}
-        >
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-              fill="#0d9488"
-            />
-            <path d="M14 2v6h6" fill="#0d9488" />
-            <line x1="8" y1="13" x2="16" y2="13" stroke="white" strokeWidth="2" />
-            <line x1="8" y1="17" x2="14" y2="17" stroke="white" strokeWidth="2" />
-          </svg>
-        </div>
+        />
 
         {/* Brand name */}
         <div

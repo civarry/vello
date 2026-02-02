@@ -2,18 +2,17 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import {
   LayoutTemplate,
-  FileText,
   Users,
   Settings,
   ChevronsLeft,
   ChevronsRight,
   LogOut,
-  User,
   ChevronDown,
   ChevronRight,
   Check,
@@ -223,6 +222,32 @@ export function Sidebar({
   // Prevent hydration mismatch by rendering expanded state initially
   const collapsed = isHydrated ? isCollapsed : false;
 
+  // Don't render interactive components until hydrated to prevent ID mismatch
+  if (!isHydrated) {
+    return (
+      <div
+        className={cn(
+          "hidden md:flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out",
+          "w-64"
+        )}
+      >
+        <div className="flex h-14 items-center border-b border-sidebar-border px-3">
+          <div className="flex items-center gap-2.5">
+            <Image
+              src="/icon.png"
+              alt="Vello"
+              width={32}
+              height={32}
+              className="rounded-lg shrink-0"
+            />
+            <span className="font-semibold text-lg tracking-tight">Vello</span>
+          </div>
+        </div>
+        <div className="flex-1" />
+      </div>
+    );
+  }
+
   // Get display name
   const displayName = user.name || user.email.split("@")[0];
   const initials = displayName
@@ -260,9 +285,13 @@ export function Sidebar({
             collapsed ? "justify-center w-full" : "gap-2.5"
           )}
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shrink-0">
-            <FileText className="h-4 w-4" />
-          </div>
+          <Image
+            src="/icon.png"
+            alt="Vello"
+            width={32}
+            height={32}
+            className="rounded-lg shrink-0"
+          />
           <span
             className={cn(
               "font-semibold text-lg tracking-tight whitespace-nowrap transition-all duration-300",
