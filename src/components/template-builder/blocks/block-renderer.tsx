@@ -16,6 +16,7 @@ interface BlockRendererProps {
 
 export function BlockRenderer({ block, isPreview = false, data }: BlockRendererProps) {
   // Style for the block content (excluding position/size which is handled by canvas)
+  // Table blocks need overflow:visible for add row/column buttons to extend outside
   const style: React.CSSProperties = {
     width: "100%",
     height: "100%",
@@ -33,7 +34,7 @@ export function BlockRenderer({ block, isPreview = false, data }: BlockRendererP
     borderStyle: block.style.borderStyle,
     borderRadius: block.style.borderRadius,
     lineHeight: block.style.lineHeight,
-    overflow: "hidden",
+    overflow: block.type === "table" ? "visible" : "hidden",
   };
 
   const props = { block, isPreview, data };

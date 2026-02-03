@@ -283,7 +283,7 @@ export function TableBlock({ block, isPreview, data }: TableBlockProps) {
   return (
     <>
       <div className="relative group h-full flex flex-col">
-        {/* ... table ... */}
+        {/* Table */}
         <table
           className={cn(
             "w-full h-full",
@@ -335,7 +335,6 @@ export function TableBlock({ block, isPreview, data }: TableBlockProps) {
                       rowSpan={cell.rowSpan}
                       onClick={() => startEditing(rowIndex, colIndex, cell)}
                     >
-                      {/* ... content ... */}
                       {isEditing ? (
                         <input
                           ref={inputRef}
@@ -396,7 +395,7 @@ export function TableBlock({ block, isPreview, data }: TableBlockProps) {
                           </ContextMenuSubTrigger>
                           <ContextMenuSubContent className="w-72 max-h-80 overflow-y-auto">
 
-                            {/* NEW: Custom Variable Option */}
+                            {/* Custom Variable Option */}
                             <ContextMenuItem onClick={() => handleOpenCustomVarDialog(rowIndex, colIndex)}>
                               <Plus className="h-4 w-4 mr-2" />
                               Custom Dictionary Key...
@@ -428,7 +427,6 @@ export function TableBlock({ block, isPreview, data }: TableBlockProps) {
 
                             {/* All variables by category */}
                             {Object.entries(variablesByCategory).map(([category, variables]) => (
-                              /* ... existing category map ... */
                               <div key={category}>
                                 <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">
                                   {categoryLabels[category] || category}
@@ -459,7 +457,6 @@ export function TableBlock({ block, isPreview, data }: TableBlockProps) {
                           </ContextMenuSubContent>
                         </ContextMenuSub>
 
-                        {/* ... rest of menu ... */}
                         {hasVariable && (
                           <ContextMenuItem onClick={() => handleClearVariable(rowIndex, colIndex)}>
                             <Trash2 className="h-4 w-4 mr-2 text-destructive" />
@@ -475,7 +472,6 @@ export function TableBlock({ block, isPreview, data }: TableBlockProps) {
                           {hasLabelId ? "Edit label ID" : "Set as label with ID"}
                         </ContextMenuItem>
 
-                        {/* ... rest ... */}
                         {hasLabelId && (
                           <ContextMenuItem onClick={() => handleRemoveLabel(rowIndex, colIndex)}>
                             <Trash2 className="h-4 w-4 mr-2 text-destructive" />
@@ -516,7 +512,7 @@ export function TableBlock({ block, isPreview, data }: TableBlockProps) {
                     </ContextMenu>
                   );
                 })}
-                {/* ... row actions ... */}
+                {/* Row delete button */}
                 {!isPreview && isSelected && (
                   <td className="w-8 p-0 border-none">
                     <Button
@@ -534,19 +530,44 @@ export function TableBlock({ block, isPreview, data }: TableBlockProps) {
             ))}
           </tbody>
         </table>
-
       </div>
 
-      {/* Add row/column buttons - positioned relative to block container */}
+      {/* Add row/column buttons - positioned relative to the DraggableBlock wrapper (outside overflow:hidden) */}
       {!isPreview && isSelected && (
         <>
-          <div className="absolute -bottom-10 left-1/2 -translate-x-1 /2 opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-auto">
-            <Button variant="outline" size="sm" className="h-7 text-xs shadow-lg bg-background" onClick={() => addTableRow(block.id)}>
+          {/* Add Row button - below the block */}
+          <div
+            className={cn(
+              "absolute left-1/2 -translate-x-1/2 z-20 pointer-events-auto transition-opacity",
+              // On desktop: show on hover. On mobile/touch: always visible when selected
+              "opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+            )}
+            style={{ top: "calc(100% + 8px)" }}
+          >
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs shadow-lg bg-background border-primary/20 hover:border-primary hover:bg-primary/5"
+              onClick={() => addTableRow(block.id)}
+            >
               <Plus className="h-3 w-3 mr-1" /> Row
             </Button>
           </div>
-          <div className="absolute -right-10 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-auto">
-            <Button variant="outline" size="sm" className="h-7 text-xs shadow-lg bg-background" onClick={() => addTableColumn(block.id)}>
+          {/* Add Column button - to the right of the block, clearing the row delete buttons */}
+          <div
+            className={cn(
+              "absolute top-1/2 -translate-y-1/2 z-20 pointer-events-auto transition-opacity",
+              // On desktop: show on hover. On mobile/touch: always visible when selected
+              "opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+            )}
+            style={{ left: "calc(100% + 12px)" }}
+          >
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs shadow-lg bg-background border-primary/20 hover:border-primary hover:bg-primary/5"
+              onClick={() => addTableColumn(block.id)}
+            >
               <Plus className="h-3 w-3 mr-1" /> Col
             </Button>
           </div>
