@@ -8,6 +8,7 @@ import { inviteRoleSchema, emailSchema } from "@/lib/validation";
 import { createErrorResponse, createValidationErrorResponse, createUnauthorizedResponse, createForbiddenResponse } from "@/lib/errors";
 import { checkRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { logInfo, logError, logWarn } from "@/lib/logging";
+import { logAuditEvent, createAuditUserContext } from "@/lib/audit";
 
 const createInviteSchema = z.object({
     email: emailSchema,
@@ -271,6 +272,22 @@ export async function POST(request: NextRequest) {
             emailSent,
             smtpConfigured,
             action: "create_invite",
+        });
+
+        // Log audit event
+        await logAuditEvent({
+            action: "MEMBER_INVITED",
+            user: createAuditUserContext(context),
+            resource: {
+                type: "invite",
+                id: invite.id,
+                name: email,
+            },
+            metadata: {
+                invitedEmail: email,
+                invitedRole: role,
+                emailSent,
+            },
         });
 
         const headers = getRateLimitHeaders(

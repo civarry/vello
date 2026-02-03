@@ -3,6 +3,9 @@ import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { updateTemplateSchema } from "@/lib/validations/template";
 import { ZodError } from "zod";
+import { hasPermission } from "@/lib/permissions";
+import { createForbiddenResponse } from "@/lib/errors";
+import { logAuditEvent, createAuditUserContext } from "@/lib/audit";
 
 export async function GET(
   request: NextRequest,
@@ -86,6 +89,25 @@ export async function PUT(
       },
     });
 
+    // Check if isDefault was set to true
+    const isSettingDefault = validated.isDefault === true && !existing.isDefault;
+
+    // Log audit event
+    await logAuditEvent({
+      action: isSettingDefault ? "TEMPLATE_SET_DEFAULT" : "TEMPLATE_EDITED",
+      user: createAuditUserContext(context),
+      resource: {
+        type: "template",
+        id: template.id,
+        name: template.name,
+      },
+      metadata: {
+        changes: Object.keys(validated).filter(
+          (key) => validated[key as keyof typeof validated] !== undefined
+        ),
+      },
+    });
+
     return NextResponse.json({ data: template });
   } catch (error) {
     if (error instanceof ZodError) {
@@ -114,6 +136,11 @@ export async function DELETE(
       return NextResponse.json({ error }, { status: 401 });
     }
 
+    // Check permission - only OWNER and ADMIN can delete templates
+    if (!hasPermission(context.currentMembership.role, "templates:delete")) {
+      return createForbiddenResponse("You don't have permission to delete templates");
+    }
+
     const { id } = await params;
 
     // Check if template exists and belongs to user's org
@@ -133,6 +160,17 @@ export async function DELETE(
 
     await prisma.template.delete({
       where: { id },
+    });
+
+    // Log audit event
+    await logAuditEvent({
+      action: "TEMPLATE_DELETED",
+      user: createAuditUserContext(context),
+      resource: {
+        type: "template",
+        id: existing.id,
+        name: existing.name,
+      },
     });
 
     return NextResponse.json({ message: "Template deleted" });

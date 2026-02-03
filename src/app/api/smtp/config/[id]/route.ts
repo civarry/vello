@@ -10,6 +10,7 @@ import {
 } from "@/lib/errors";
 import { logInfo, logError, logWarn } from "@/lib/logging";
 import { z } from "zod";
+import { logAuditEvent, createAuditUserContext } from "@/lib/audit";
 
 const updateConfigSchema = z.object({
     name: z.string().min(1).optional(),
@@ -193,6 +194,20 @@ export async function PUT(
             action: "update_smtp_config",
         });
 
+        // Log audit event
+        await logAuditEvent({
+            action: "SMTP_CONFIG_UPDATED",
+            user: createAuditUserContext(context),
+            resource: {
+                type: "smtp_config",
+                id: config.id,
+                name: config.name,
+            },
+            metadata: {
+                updatedFields: Object.keys(updateData).filter(k => k !== "updatedAt"),
+            },
+        });
+
         return NextResponse.json({ data: safeConfig });
     } catch (error) {
         if (error instanceof z.ZodError) {
@@ -271,6 +286,17 @@ export async function DELETE(
             organizationId: context.currentMembership.organization.id,
             configId: id,
             action: "delete_smtp_config",
+        });
+
+        // Log audit event
+        await logAuditEvent({
+            action: "SMTP_CONFIG_DELETED",
+            user: createAuditUserContext(context),
+            resource: {
+                type: "smtp_config",
+                id: config.id,
+                name: config.name,
+            },
         });
 
         return NextResponse.json({ success: true });

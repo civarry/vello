@@ -463,73 +463,75 @@ export function Sidebar({
           return <div key={item.name}>{linkContent}</div>;
         })}
 
-        {/* Settings with collapsible sub-nav */}
-        <div className="lg:hidden">
-          {collapsed ? (
-            <Tooltip delayDuration={0}>
-              <TooltipTrigger asChild>
-                <Link
-                  href="/settings/general"
-                  className={cn(
-                    "flex items-center justify-center rounded-lg px-2 py-2.5 text-sm font-medium transition-all duration-200",
-                    isOnSettingsPage
-                      ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                  )}
-                >
-                  <Settings className="h-4 w-4" />
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={10}>
-                Settings
-              </TooltipContent>
-            </Tooltip>
-          ) : (
-            <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen}>
-              <CollapsibleTrigger asChild>
-                <button
-                  className={cn(
-                    "flex items-center justify-between w-full rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                    isOnSettingsPage
-                      ? "bg-sidebar-accent text-sidebar-foreground"
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <Settings className="h-4 w-4" />
-                    Settings
-                  </div>
-                  <ChevronRight
+        {/* Settings with collapsible sub-nav - Only show for OWNER and ADMIN */}
+        {(currentRole === "OWNER" || currentRole === "ADMIN") && (
+          <div className="lg:hidden">
+            {collapsed ? (
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <Link
+                    href="/settings/general"
                     className={cn(
-                      "h-4 w-4 transition-transform",
-                      settingsOpen && "rotate-90"
+                      "flex items-center justify-center rounded-lg px-2 py-2.5 text-sm font-medium transition-all duration-200",
+                      isOnSettingsPage
+                        ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                     )}
-                  />
-                </button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pl-4 pt-1 space-y-1" forceMount>
-                {settingsNavigation.map((item) => {
-                  const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-                  return (
-                    <Link
-                      key={item.name}
-                      href={item.href}
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={10}>
+                  Settings
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen}>
+                <CollapsibleTrigger asChild>
+                  <button
+                    className={cn(
+                      "flex items-center justify-between w-full rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                      isOnSettingsPage
+                        ? "bg-sidebar-accent text-sidebar-foreground"
+                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Settings className="h-4 w-4" />
+                      Settings
+                    </div>
+                    <ChevronRight
                       className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
-                        isActive
-                          ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
-                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                        "h-4 w-4 transition-transform",
+                        settingsOpen && "rotate-90"
                       )}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      {item.name}
-                    </Link>
-                  );
-                })}
-              </CollapsibleContent>
-            </Collapsible>
-          )}
-        </div>
+                    />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pl-4 pt-1 space-y-1" forceMount>
+                  {settingsNavigation.map((item) => {
+                    const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
+                          isActive
+                            ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+                            : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                        )}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        {item.name}
+                      </Link>
+                    );
+                  })}
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+          </div>
+        )}
       </nav>
 
       {/* User Menu */}
@@ -571,13 +573,17 @@ export function Sidebar({
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/settings">
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            {(currentRole === "OWNER" || currentRole === "ADMIN") && (
+              <>
+                <DropdownMenuItem asChild>
+                  <Link href="/settings">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuItem
               onClick={handleLogout}
               disabled={isLoggingOut}

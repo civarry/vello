@@ -63,6 +63,7 @@ interface GenerateDocumentsClientProps {
   hasSmtpConfig: boolean;
   smtpConfig: SmtpConfig | null;
   organizationName: string;
+  canSendEmails?: boolean;
 }
 
 export function GenerateDocumentsClient({
@@ -71,6 +72,7 @@ export function GenerateDocumentsClient({
   hasSmtpConfig,
   smtpConfig,
   organizationName,
+  canSendEmails = true,
 }: GenerateDocumentsClientProps) {
   const router = useRouter();
   const [template] = useState<Template>(initialTemplate);
@@ -328,7 +330,7 @@ export function GenerateDocumentsClient({
           </div>
 
           <div className="flex items-center gap-2">
-            {hasSmtpConfig && (
+            {canSendEmails && hasSmtpConfig && (
               <Button variant="outline" size="sm" onClick={() => setShowSendDialog(true)}>
                 <Mail className="mr-2 h-4 w-4" />
                 Send via Email
@@ -375,7 +377,7 @@ export function GenerateDocumentsClient({
 
         {/* Mobile Bottom Action Bar - Fixed */}
         <div className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-background p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex gap-2 z-50">
-          {hasSmtpConfig && (
+          {canSendEmails && hasSmtpConfig && (
             <Button variant="outline" className="flex-1" onClick={() => setShowSendDialog(true)}>
               <Mail className="mr-2 h-4 w-4" />
               Send
@@ -428,7 +430,7 @@ export function GenerateDocumentsClient({
             <Eye className="mr-2 h-4 w-4" />
             Preview
           </Button>
-          {hasSmtpConfig && (
+          {canSendEmails && hasSmtpConfig && (
             <Button variant="outline" size="sm" onClick={() => setShowSendDialog(true)}>
               <Mail className="mr-2 h-4 w-4" />
               Send via Email
@@ -574,7 +576,7 @@ export function GenerateDocumentsClient({
           <Eye className="mr-2 h-4 w-4" />
           Preview
         </Button>
-        {hasSmtpConfig && (
+        {canSendEmails && hasSmtpConfig && (
           <Button variant="outline" className="flex-1" onClick={() => setShowSendDialog(true)}>
             <Mail className="mr-2 h-4 w-4" />
             Send

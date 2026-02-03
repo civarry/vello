@@ -10,6 +10,7 @@ import {
 } from "@/lib/errors";
 import { logInfo, logError, logWarn } from "@/lib/logging";
 import { transferOwnershipSchema } from "@/lib/validations/member";
+import { logAuditEvent, createAuditUserContext } from "@/lib/audit";
 
 /**
  * POST /api/members/transfer-ownership
@@ -103,6 +104,22 @@ export async function POST(request: NextRequest) {
       previousOwnerNewRole: updatedCurrentOwner.role,
       newOwnerRole: updatedNewOwner.role,
       action: "transfer_ownership",
+    });
+
+    // Log audit event
+    await logAuditEvent({
+      action: "OWNERSHIP_TRANSFERRED",
+      user: createAuditUserContext(context),
+      resource: {
+        type: "organization",
+        id: orgId,
+        name: context.currentMembership.organization.name,
+      },
+      metadata: {
+        previousOwnerEmail: context.user.email,
+        newOwnerEmail: newOwnerMember.user.email,
+        newOwnerName: newOwnerMember.user.name,
+      },
     });
 
     return NextResponse.json({

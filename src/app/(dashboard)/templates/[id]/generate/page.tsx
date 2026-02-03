@@ -29,11 +29,14 @@ export default async function GenerateDocumentsPage({ params }: GenerateDocument
     notFound();
   }
 
-  // Check for SMTP config if user has permission
+  // Check if user can send emails (OWNER and ADMIN only)
+  const canSendEmails = hasPermission(context.currentMembership.role, "templates:send");
+
+  // Check for SMTP config if user has send permission
   let hasSmtpConfig = false;
   let smtpConfig: { emailSubject?: string; emailBody?: string; senderName?: string } | null = null;
 
-  if (hasPermission(context.currentMembership.role, "settings:manage")) {
+  if (canSendEmails) {
     const config = await prisma.sMTPConfiguration.findFirst({
       where: {
         organizationId: context.currentMembership.organization.id,
@@ -75,6 +78,7 @@ export default async function GenerateDocumentsPage({ params }: GenerateDocument
       hasSmtpConfig={hasSmtpConfig}
       smtpConfig={smtpConfig}
       organizationName={context.currentMembership.organization.name}
+      canSendEmails={canSendEmails}
     />
   );
 }

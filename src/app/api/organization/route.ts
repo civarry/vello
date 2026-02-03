@@ -10,6 +10,7 @@ import {
 } from "@/lib/errors";
 import { logInfo, logError, logWarn } from "@/lib/logging";
 import { z } from "zod";
+import { logAuditEvent, createAuditUserContext } from "@/lib/audit";
 
 const updateOrganizationSchema = z.object({
     name: z.string().min(1, "Organization name is required").max(100, "Name must be 100 characters or less").optional(),
@@ -132,6 +133,20 @@ export async function PUT(request: NextRequest) {
             organizationId: organization.id,
             updatedFields: Object.keys(updateData),
             action: "update_organization",
+        });
+
+        // Log audit event
+        await logAuditEvent({
+            action: "ORG_UPDATED",
+            user: createAuditUserContext(context),
+            resource: {
+                type: "organization",
+                id: organization.id,
+                name: organization.name,
+            },
+            metadata: {
+                updatedFields: Object.keys(updateData),
+            },
         });
 
         return NextResponse.json({ data: organization });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { logAuditEvent, createAuditUserContext } from "@/lib/audit";
 
 async function generateUniqueCopyName(baseName: string, orgId: string): Promise<string> {
   // Find all templates that match the pattern "baseName (Copy)" or "baseName (Copy N)"
@@ -74,6 +75,21 @@ export async function POST(
         orientation: existing.orientation,
         isDefault: false, // Duplicates should not be default
         organizationId: orgId,
+      },
+    });
+
+    // Log audit event
+    await logAuditEvent({
+      action: "TEMPLATE_DUPLICATED",
+      user: createAuditUserContext(context),
+      resource: {
+        type: "template",
+        id: duplicate.id,
+        name: duplicate.name,
+      },
+      metadata: {
+        sourceTemplateId: existing.id,
+        sourceTemplateName: existing.name,
       },
     });
 

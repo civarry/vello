@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
+import { hasPermission } from "@/lib/permissions";
 import { TemplatesList } from "@/components/templates/templates-list";
 
 export default async function TemplatesPage() {
@@ -32,5 +33,8 @@ export default async function TemplatesPage() {
     updatedAt: t.updatedAt.toISOString(),
   }));
 
-  return <TemplatesList initialTemplates={serializedTemplates} />;
+  // Check if user can delete templates (OWNER and ADMIN only)
+  const canDeleteTemplates = hasPermission(context.currentMembership.role, "templates:delete");
+
+  return <TemplatesList initialTemplates={serializedTemplates} canDelete={canDeleteTemplates} />;
 }

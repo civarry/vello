@@ -13,6 +13,7 @@ export type Permission =
   | "templates:read"
   | "templates:write"
   | "templates:delete"
+  | "templates:send"
   // Member permissions
   | "members:read"
   | "members:invite"
@@ -23,13 +24,16 @@ export type Permission =
   | "org:update"
   | "org:delete"
   // Settings permissions
-  | "settings:manage";
+  | "settings:manage"
+  // Audit permissions
+  | "audit:read";
 
 const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   OWNER: [
     "templates:read",
     "templates:write",
     "templates:delete",
+    "templates:send",
     "members:read",
     "members:invite",
     "members:remove",
@@ -38,16 +42,19 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "org:update",
     "org:delete",
     "settings:manage",
+    "audit:read",
   ],
   ADMIN: [
     "templates:read",
     "templates:write",
     "templates:delete",
+    "templates:send",
     "members:read",
     "members:invite",
     "org:read",
     "org:update",
     "settings:manage",
+    "audit:read",
   ],
   MEMBER: [
     "templates:read",

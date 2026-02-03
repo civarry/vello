@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Users, Mail, Settings, Menu, X } from "lucide-react";
+import { Users, Mail, Settings, Menu, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Sheet,
@@ -12,9 +12,13 @@ import {
     SheetTitle,
     SheetTrigger,
 } from "@/components/ui/sheet";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
-const items = [
+interface SettingsSidebarProps {
+    canViewAuditLogs?: boolean;
+}
+
+const baseItems = [
     {
         title: "General",
         href: "/settings/general",
@@ -35,7 +39,14 @@ const items = [
     },
 ];
 
-function NavItems({ onItemClick }: { onItemClick?: () => void }) {
+const auditLogItem = {
+    title: "Audit Log",
+    href: "/settings/audit-log",
+    icon: ClipboardList,
+    description: "View activity history and security events",
+};
+
+function NavItems({ onItemClick, items }: { onItemClick?: () => void; items: typeof baseItems }) {
     const pathname = usePathname();
 
     return (
@@ -65,18 +76,26 @@ function NavItems({ onItemClick }: { onItemClick?: () => void }) {
     );
 }
 
-export function SettingsSidebar() {
+export function SettingsSidebar({ canViewAuditLogs = false }: SettingsSidebarProps) {
+    const items = useMemo(() => {
+        return canViewAuditLogs ? [...baseItems, auditLogItem] : baseItems;
+    }, [canViewAuditLogs]);
+
     return (
         <nav className="hidden lg:flex flex-col space-y-1 w-64 pr-6 shrink-0 h-[calc(100vh-4rem)] overflow-y-auto pt-6">
             <h3 className="font-semibold text-lg px-2 mb-4">Settings</h3>
-            <NavItems />
+            <NavItems items={items} />
         </nav>
     );
 }
 
-export function MobileSettingsNav() {
+export function MobileSettingsNav({ canViewAuditLogs = false }: SettingsSidebarProps) {
     const [open, setOpen] = useState(false);
     const pathname = usePathname();
+
+    const items = useMemo(() => {
+        return canViewAuditLogs ? [...baseItems, auditLogItem] : baseItems;
+    }, [canViewAuditLogs]);
 
     // Get current page title
     const currentItem = items.find(item =>
@@ -97,7 +116,7 @@ export function MobileSettingsNav() {
                         <SheetTitle>Settings</SheetTitle>
                     </SheetHeader>
                     <nav className="flex flex-col space-y-1 p-4">
-                        <NavItems onItemClick={() => setOpen(false)} />
+                        <NavItems onItemClick={() => setOpen(false)} items={items} />
                     </nav>
                 </SheetContent>
             </Sheet>

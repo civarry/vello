@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { createTemplateSchema } from "@/lib/validations/template";
 import { ZodError } from "zod";
+import { logAuditEvent, createAuditUserContext } from "@/lib/audit";
 
 export async function GET() {
   try {
@@ -57,6 +58,17 @@ export async function POST(request: NextRequest) {
         orientation: validated.orientation,
         isDefault: validated.isDefault ?? false,
         organizationId: context.currentMembership.organization.id,
+      },
+    });
+
+    // Log audit event
+    await logAuditEvent({
+      action: "TEMPLATE_CREATED",
+      user: createAuditUserContext(context),
+      resource: {
+        type: "template",
+        id: template.id,
+        name: template.name,
       },
     });
 

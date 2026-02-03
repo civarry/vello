@@ -8,6 +8,7 @@ import {
 } from "@/lib/errors";
 import { logInfo, logError, logWarn } from "@/lib/logging";
 import { LeaveOrganizationResponse } from "@/lib/validations/member";
+import { logAuditEvent, createAuditUserContext } from "@/lib/audit";
 
 /**
  * POST /api/members/leave
@@ -89,6 +90,17 @@ export async function POST() {
       organizationId: orgId,
       newOrganizationId: otherMembership?.organizationId || null,
       action: "leave_organization",
+    });
+
+    // Log audit event
+    await logAuditEvent({
+      action: "MEMBER_LEFT",
+      user: createAuditUserContext(context),
+      resource: {
+        type: "organization",
+        id: orgId,
+        name: context.currentMembership.organization.name,
+      },
     });
 
     const response: LeaveOrganizationResponse = {

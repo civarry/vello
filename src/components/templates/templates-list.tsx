@@ -41,13 +41,15 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { useTemplates, useDeleteTemplate, useDuplicateTemplate, type Template } from "@/hooks/use-queries";
 
 interface TemplatesListProps {
   initialTemplates: Template[];
+  canDelete?: boolean;
 }
 
-export function TemplatesList({ initialTemplates }: TemplatesListProps) {
+export function TemplatesList({ initialTemplates, canDelete = true }: TemplatesListProps) {
   const router = useRouter();
   const { data: templates = initialTemplates } = useTemplates();
   const deleteTemplate = useDeleteTemplate();
@@ -209,10 +211,13 @@ export function TemplatesList({ initialTemplates }: TemplatesListProps) {
                       <Copy className="mr-2 h-4 w-4" />
                       Duplicate
                     </DropdownMenuItem>
-                    <DropdownMenuSeparator />
+                    <DropdownMenuSeparator className={cn(!canDelete && "hidden")} />
                     <DropdownMenuItem
-                      onClick={() => setDeleteId(template.id)}
-                      className="text-destructive focus:text-destructive"
+                      onClick={() => canDelete && setDeleteId(template.id)}
+                      className={cn(
+                        "text-destructive focus:text-destructive",
+                        !canDelete && "hidden"
+                      )}
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
                       Delete

@@ -11,6 +11,7 @@ import {
 } from "@/lib/errors";
 import { logInfo, logError, logWarn } from "@/lib/logging";
 import { changeRoleSchema } from "@/lib/validations/member";
+import { logAuditEvent, createAuditUserContext } from "@/lib/audit";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -131,6 +132,21 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       organizationId: orgId,
       targetMemberId: memberId,
       action: "remove_member",
+    });
+
+    // Log audit event
+    await logAuditEvent({
+      action: "MEMBER_REMOVED",
+      user: createAuditUserContext(authContext),
+      resource: {
+        type: "member",
+        id: targetMember.userId,
+        name: targetMember.user.name || targetMember.user.email,
+      },
+      metadata: {
+        removedEmail: targetMember.user.email,
+        removedRole: targetMember.role,
+      },
     });
 
     return NextResponse.json({
@@ -254,6 +270,22 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       targetMemberId: memberId,
       newRole,
       action: "change_role",
+    });
+
+    // Log audit event
+    await logAuditEvent({
+      action: "MEMBER_ROLE_CHANGED",
+      user: createAuditUserContext(authContext),
+      resource: {
+        type: "member",
+        id: targetMember.userId,
+        name: updatedMember.user.name || updatedMember.user.email,
+      },
+      metadata: {
+        memberEmail: updatedMember.user.email,
+        previousRole: targetMember.role,
+        newRole,
+      },
     });
 
     return NextResponse.json({

@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { createErrorResponse, createUnauthorizedResponse, createForbiddenResponse, createNotFoundResponse, createValidationErrorResponse } from "@/lib/errors";
 import { logInfo, logError, logWarn } from "@/lib/logging";
+import { logAuditEvent, createAuditUserContext } from "@/lib/audit";
 
 /**
  * DELETE /api/invites/[id]
@@ -90,6 +91,21 @@ export async function DELETE(
             organizationId: context.currentMembership.organization.id,
             inviteId: id,
             action: "cancel_invite",
+        });
+
+        // Log audit event
+        await logAuditEvent({
+            action: "INVITE_REVOKED",
+            user: createAuditUserContext(context),
+            resource: {
+                type: "invite",
+                id: invite.id,
+                name: invite.email,
+            },
+            metadata: {
+                revokedEmail: invite.email,
+                revokedRole: invite.role,
+            },
         });
 
         return NextResponse.json({

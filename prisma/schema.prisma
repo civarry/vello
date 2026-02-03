@@ -22,6 +22,7 @@ model Organization {
   employees     Employee[]
   payslips      Payslip[]
   smtpConfigs   SMTPConfiguration[]
+  auditLogs     AuditLog[]
   currentUsers  User[] @relation("CurrentOrganization") // Users who have this as their current org
 }
 
@@ -201,4 +202,38 @@ model Payslip {
   @@index([organizationId])
   @@index([employeeId])
   @@index([templateId])
+}
+
+model AuditLog {
+  id                String   @id @default(cuid())
+  timestamp         DateTime @default(now())
+
+  // Who performed the action
+  userId            String
+  userName          String
+  userEmail         String
+  userRole          UserRole
+
+  // What action was performed
+  action            String   // e.g., "TEMPLATE_CREATED", "MEMBER_INVITED"
+  actionDescription String   // Human-readable description
+
+  // Target resource
+  resourceType      String?  // e.g., "template", "member", "organization"
+  resourceId        String?  // ID of the affected resource
+  resourceName      String?  // Name/label of the resource for display
+
+  // Additional context
+  metadata          Json?    // Extra details specific to the action
+  ipAddress         String?  // Client IP address if available
+
+  // Organization scope
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([action])
+  @@index([timestamp])
+  @@map("audit_logs")
 }

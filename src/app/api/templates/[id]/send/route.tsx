@@ -3,12 +3,14 @@ import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { SMTPClient } from "@/lib/email/smtp-client";
 import { generateEmailContent, textToHtml } from "@/lib/email/email-templates";
-import { createErrorResponse, createUnauthorizedResponse } from "@/lib/errors";
+import { createErrorResponse, createUnauthorizedResponse, createForbiddenResponse } from "@/lib/errors";
 import { logInfo, logError, logWarn } from "@/lib/logging";
 import { z } from "zod";
 import { applyDataToBlocks } from "@/lib/template-utils";
 import { pdf } from "@react-pdf/renderer";
 import { TemplatePDF, preprocessBlocksForPdf } from "@/lib/pdf/template-pdf";
+import { hasPermission } from "@/lib/permissions";
+import { logAuditEvent, createAuditUserContext } from "@/lib/audit";
 
 const sendSchema = z.object({
     data: z.record(z.string(), z.any()),
@@ -31,6 +33,17 @@ export async function POST(
                 action: "send_email",
             });
             return createUnauthorizedResponse(error || "Unauthorized");
+        }
+
+        // Check permission - only OWNER and ADMIN can send emails
+        if (!hasPermission(context.currentMembership.role, "templates:send")) {
+            logWarn("Failed to send email: insufficient permissions", {
+                userId: context.user.id,
+                organizationId: context.currentMembership.organization.id,
+                role: context.currentMembership.role,
+                action: "send_email",
+            });
+            return createForbiddenResponse("You don't have permission to send emails");
         }
 
         // Parse and validate request body
@@ -174,6 +187,23 @@ export async function POST(
             templateId,
             recipientEmail: validated.recipientEmail,
             action: "send_email",
+        });
+
+        // Log audit event
+        await logAuditEvent({
+            action: "PAYSLIP_SENT",
+            user: createAuditUserContext(context),
+            resource: {
+                type: "template",
+                id: templateId,
+                name: template.name,
+            },
+            metadata: {
+                recipientEmail: validated.recipientEmail,
+                recipientName: validated.recipientName,
+                documentType: validated.documentType,
+                period: validated.period,
+            },
         });
 
         return NextResponse.json({
