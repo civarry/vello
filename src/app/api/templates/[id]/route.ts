@@ -74,6 +74,15 @@ export async function PUT(
       );
     }
 
+    // Calculate changes for audit log
+    const changes: { field: string; old: any; new: any }[] = [];
+
+    if (validated.name && validated.name !== existing.name) {
+      changes.push({ field: "Name", old: existing.name, new: validated.name });
+    }
+    // Other fields (description, paperSize, etc) will result in "Edited a template" without details,
+    // as per user request to reduce verbosity.
+
     const template = await prisma.template.update({
       where: { id },
       data: {
@@ -102,9 +111,7 @@ export async function PUT(
         name: template.name,
       },
       metadata: {
-        changes: Object.keys(validated).filter(
-          (key) => validated[key as keyof typeof validated] !== undefined
-        ),
+        changes,
       },
     });
 

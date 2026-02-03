@@ -13,12 +13,12 @@ export type AuditAction =
   | "TEMPLATE_DUPLICATED"
   | "TEMPLATE_SET_DEFAULT"
   // Generate
-  | "PAYSLIP_GENERATED"
-  | "PAYSLIP_BATCH_GENERATED"
+  | "DOCUMENT_GENERATED"
+  | "DOCUMENT_BATCH_GENERATED"
   | "EXCEL_IMPORTED"
   // Send
-  | "PAYSLIP_SENT"
-  | "PAYSLIP_BATCH_SENT"
+  | "DOCUMENT_SENT"
+  | "DOCUMENT_BATCH_SENT"
   // Team
   | "MEMBER_INVITED"
   | "INVITE_REVOKED"
@@ -43,11 +43,11 @@ const ACTION_DESCRIPTIONS: Record<AuditAction, string> = {
   TEMPLATE_DELETED: "Deleted a template",
   TEMPLATE_DUPLICATED: "Duplicated a template",
   TEMPLATE_SET_DEFAULT: "Set a template as default",
-  PAYSLIP_GENERATED: "Generated a payslip",
-  PAYSLIP_BATCH_GENERATED: "Generated batch payslips",
+  DOCUMENT_GENERATED: "Generated a document",
+  DOCUMENT_BATCH_GENERATED: "Generated batch documents",
   EXCEL_IMPORTED: "Imported data from Excel",
-  PAYSLIP_SENT: "Sent a payslip via email",
-  PAYSLIP_BATCH_SENT: "Sent batch payslips via email",
+  DOCUMENT_SENT: "Sent a document via email",
+  DOCUMENT_BATCH_SENT: "Sent batch documents via email",
   MEMBER_INVITED: "Invited a member",
   INVITE_REVOKED: "Revoked an invite",
   MEMBER_REMOVED: "Removed a member",

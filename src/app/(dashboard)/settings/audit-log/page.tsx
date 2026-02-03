@@ -62,8 +62,10 @@ const ACTION_CATEGORIES = [
   { value: "TEMPLATE_EDITED", label: "Template Edited" },
   { value: "TEMPLATE_DELETED", label: "Template Deleted" },
   { value: "TEMPLATE_DUPLICATED", label: "Template Duplicated" },
-  { value: "PAYSLIP_SENT", label: "Payslip Sent" },
-  { value: "PAYSLIP_BATCH_SENT", label: "Batch Payslips Sent" },
+  { value: "DOCUMENT_GENERATED", label: "Document Generated" },
+  { value: "DOCUMENT_BATCH_GENERATED", label: "Batch Documents Generated" },
+  { value: "DOCUMENT_SENT", label: "Document Sent" },
+  { value: "DOCUMENT_BATCH_SENT", label: "Batch Documents Sent" },
   { value: "MEMBER_INVITED", label: "Member Invited" },
   { value: "MEMBER_REMOVED", label: "Member Removed" },
   { value: "MEMBER_ROLE_CHANGED", label: "Role Changed" },
@@ -95,6 +97,55 @@ function getActionColor(action: string): string {
     return "text-blue-600 dark:text-blue-400";
   }
   return "text-muted-foreground";
+}
+
+function renderMetadataDetails(log: AuditLog) {
+  if (!log.metadata) return null;
+
+  // Handle Role Changes
+  if (log.action === "MEMBER_ROLE_CHANGED") {
+    const { previousRole, newRole } = log.metadata;
+    if (previousRole && newRole) {
+      return (
+        <div className="mt-1.5 text-xs bg-muted/40 p-1.5 rounded border border-border/40 inline-block">
+          <span className="text-muted-foreground line-through mr-1">{String(previousRole)}</span>
+          <span className="text-muted-foreground mr-1">→</span>
+          <span className="font-medium text-foreground">{String(newRole)}</span>
+        </div>
+      );
+    }
+  }
+
+  // Handle "changes" array (Templates, Org, SMTP)
+  const changes = log.metadata.changes as Array<any> | undefined;
+  if (changes && Array.isArray(changes) && changes.length > 0) {
+    return (
+      <div className="mt-1.5 space-y-1">
+        {changes.map((change, i) => {
+          // Handle legacy format (array of strings)
+          if (typeof change === "string") {
+            return (
+              <div key={i} className="text-xs bg-muted/40 p-1.5 rounded border border-border/40">
+                <span className="text-muted-foreground">Changed field: </span>
+                <span className="font-medium text-foreground">{change}</span>
+              </div>
+            );
+          }
+          // Handle new format (array of objects)
+          return (
+            <div key={i} className="text-xs bg-muted/40 p-1.5 rounded border border-border/40">
+              <span className="font-medium text-foreground mr-1.5">{change.field}:</span>
+              <span className="text-muted-foreground line-through mr-1">{String(change.old)}</span>
+              <span className="text-muted-foreground mr-1">→</span>
+              <span className="font-medium text-foreground">{String(change.new)}</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  return null;
 }
 
 export default function AuditLogPage() {
@@ -368,6 +419,7 @@ export default function AuditLogPage() {
                               <div className="text-xs text-muted-foreground">
                                 {formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}
                               </div>
+                              {renderMetadataDetails(log)}
                             </div>
                           </TableCell>
                           <TableCell>

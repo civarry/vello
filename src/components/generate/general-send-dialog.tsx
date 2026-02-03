@@ -230,41 +230,73 @@ export function GeneralSendDialog({
         setStep("sending");
 
         try {
-            const batchData = validEmails.map(({ email }) => ({
-                Email: email,
-                Name: email.split("@")[0],
-            }));
+            // Use single-send endpoint for 1 recipient, batch-send for multiple
+            if (validEmails.length === 1) {
+                const { email } = validEmails[0];
+                const response = await fetch(`/api/templates/${templateId}/send`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        data: {},
+                        recipientEmail: email,
+                        recipientName: email.split("@")[0],
+                        documentType,
+                        period,
+                    }),
+                });
 
-            const response = await fetch(`/api/templates/${templateId}/batch-send`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    batchData,
-                    documentType,
-                    period,
-                    emailField: "Email",
-                    nameField: "Name",
-                    emailSubject,
-                    emailBody,
-                    providerId: selectedProviderId,
-                }),
-            });
+                const data = await response.json();
 
-            const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || "Failed to send email");
+                }
 
-            if (!response.ok) {
-                throw new Error(data.error || "Failed to send emails");
-            }
-
-            setResult(data);
-            setStep("complete");
-
-            if (data.failed === 0) {
-                toast.success(`Successfully sent ${data.sent} email(s)!`);
-            } else if (data.sent > 0) {
-                toast.warning(`Sent ${data.sent} email(s), ${data.failed} failed`);
+                setResult({
+                    sent: 1,
+                    failed: 0,
+                    total: 1,
+                    errors: [],
+                });
+                setStep("complete");
+                toast.success("Email sent successfully!");
             } else {
-                toast.error("Failed to send emails");
+                // Batch send for multiple recipients
+                const batchData = validEmails.map(({ email }) => ({
+                    Email: email,
+                    Name: email.split("@")[0],
+                }));
+
+                const response = await fetch(`/api/templates/${templateId}/batch-send`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        batchData,
+                        documentType,
+                        period,
+                        emailField: "Email",
+                        nameField: "Name",
+                        emailSubject,
+                        emailBody,
+                        providerId: selectedProviderId,
+                    }),
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Failed to send emails");
+                }
+
+                setResult(data);
+                setStep("complete");
+
+                if (data.failed === 0) {
+                    toast.success(`Successfully sent ${data.sent} email(s)!`);
+                } else if (data.sent > 0) {
+                    toast.warning(`Sent ${data.sent} email(s), ${data.failed} failed`);
+                } else {
+                    toast.error("Failed to send emails");
+                }
             }
         } catch (error) {
             console.error("Failed to send emails:", error);

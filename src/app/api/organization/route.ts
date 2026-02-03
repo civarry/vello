@@ -104,6 +104,15 @@ export async function PUT(request: NextRequest) {
 
         const { name } = validationResult.data;
 
+        // Fetch existing organization to compare
+        const existingOrg = await prisma.organization.findUnique({
+            where: { id: context.currentMembership.organization.id },
+        });
+
+        if (!existingOrg) {
+            return NextResponse.json({ error: "Organization not found" }, { status: 404 });
+        }
+
         // Build update data
         const updateData: { name?: string } = {};
         if (name !== undefined) {
@@ -112,6 +121,12 @@ export async function PUT(request: NextRequest) {
 
         if (Object.keys(updateData).length === 0) {
             return createValidationErrorResponse("No fields to update");
+        }
+
+        // Calculate changes for audit log
+        const changes: { field: string; old: any; new: any }[] = [];
+        if (name && name !== existingOrg.name) {
+            changes.push({ field: "Name", old: existingOrg.name, new: name });
         }
 
         const organization = await prisma.organization.update({
@@ -145,7 +160,7 @@ export async function PUT(request: NextRequest) {
                 name: organization.name,
             },
             metadata: {
-                updatedFields: Object.keys(updateData),
+                changes,
             },
         });
 

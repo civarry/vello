@@ -5,8 +5,12 @@ import { getCurrentUser } from "@/lib/auth";
 import { TemplatePDF, preprocessBlocksForPdf } from "@/lib/pdf/template-pdf";
 import { applyDataToBlocks } from "@/lib/template-utils";
 import { Block, GlobalStyles } from "@/types/template";
+import { logAuditEvent, createAuditUserContext } from "@/lib/audit";
 
-export async function POST(request: NextRequest) {
+export async function POST(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
     try {
         const { context, error } = await getCurrentUser();
 
@@ -79,6 +83,22 @@ export async function POST(request: NextRequest) {
 
         // Generate ZIP file
         const zipContent = await zip.generateAsync({ type: "nodebuffer" });
+
+        // Log audit event
+        await logAuditEvent({
+            action: "DOCUMENT_BATCH_GENERATED",
+            user: createAuditUserContext(context),
+            resource: {
+                type: "template",
+                id: (await params).id,
+                name: name,
+            },
+            metadata: {
+                recordCount: batchData.length,
+                paperSize,
+                orientation,
+            },
+        });
 
         // Return ZIP as response
         const zipFilename = `${name}-batch-export.zip`;

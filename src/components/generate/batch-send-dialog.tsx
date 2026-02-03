@@ -274,7 +274,6 @@ export function BatchSendDialog({
 
             if (isManualMode) {
                 // Cartesian Product: Each Record gets sent to Each Manual Recipient
-                // WARNING: This multiplies the volume. Use with care.
                 finalBatchData = [];
                 for (const record of records) {
                     for (const recipient of validManualRecipients) {
@@ -292,36 +291,72 @@ export function BatchSendDialog({
                 finalBatchData = validRecipients.map(r => r.data);
             }
 
-            const response = await fetch(`/api/templates/${templateId}/batch-send`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    batchData: finalBatchData,
-                    documentType,
-                    period,
-                    emailField: isManualMode ? "Email" : emailField, // Force "Email" key if manual
-                    nameField: isManualMode ? (nameField || "Name") : nameField,
-                    emailSubject,
-                    emailBody,
-                    providerId: selectedProviderId,
-                }),
-            });
+            // Check if we should use single send or batch send
+            if (finalBatchData.length === 1) {
+                const record = finalBatchData[0];
+                const email = record["Email"] || record[emailField || ""] || record["{{employee.email}}"];
+                const name = record["Name"] || record[nameField || ""] || record["{{employee.fullName}}"];
 
-            const data = await response.json();
+                const response = await fetch(`/api/templates/${templateId}/send`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        data: record,
+                        recipientEmail: email,
+                        recipientName: name,
+                        documentType,
+                        period,
+                    }),
+                });
 
-            if (!response.ok) {
-                throw new Error(data.error || "Failed to send emails");
-            }
+                const data = await response.json();
 
-            setResult(data);
-            setStep("complete");
+                if (!response.ok) {
+                    throw new Error(data.error || "Failed to send email");
+                }
 
-            if (data.failed === 0) {
-                toast.success(`Successfully sent ${data.sent} email(s)!`);
-            } else if (data.sent > 0) {
-                toast.warning(`Sent ${data.sent} email(s), ${data.failed} failed`);
+                setResult({
+                    sent: 1,
+                    failed: 0,
+                    total: 1,
+                    errors: [],
+                });
+                setStep("complete");
+                toast.success("Email sent successfully!");
+
             } else {
-                toast.error("Failed to send emails");
+                // Batch Send
+                const response = await fetch(`/api/templates/${templateId}/batch-send`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        batchData: finalBatchData,
+                        documentType,
+                        period,
+                        emailField: isManualMode ? "Email" : emailField, // Force "Email" key if manual
+                        nameField: isManualMode ? (nameField || "Name") : nameField,
+                        emailSubject,
+                        emailBody,
+                        providerId: selectedProviderId,
+                    }),
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Failed to send emails");
+                }
+
+                setResult(data);
+                setStep("complete");
+
+                if (data.failed === 0) {
+                    toast.success(`Successfully sent ${data.sent} email(s)!`);
+                } else if (data.sent > 0) {
+                    toast.warning(`Sent ${data.sent} email(s), ${data.failed} failed`);
+                } else {
+                    toast.error("Failed to send emails");
+                }
             }
         } catch (error) {
             console.error("Failed to send batch emails:", error);

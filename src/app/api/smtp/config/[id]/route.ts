@@ -134,6 +134,38 @@ export async function PUT(
             }
         }
 
+        const changes: { field: string; old: any; new: any }[] = [];
+
+        if (validated.name && validated.name !== existingConfig.name) {
+            changes.push({ field: "Config Name", old: existingConfig.name, new: validated.name });
+        }
+        if (validated.senderEmail && validated.senderEmail !== existingConfig.senderEmail) {
+            changes.push({ field: "Sender Email", old: existingConfig.senderEmail, new: validated.senderEmail });
+        }
+        if (validated.senderName !== undefined && validated.senderName !== existingConfig.senderName) {
+            changes.push({ field: "Sender Name", old: existingConfig.senderName || "(none)", new: validated.senderName || "(none)" });
+        }
+        if (validated.smtpUsername && validated.smtpUsername !== existingConfig.smtpUsername) {
+            changes.push({ field: "SMTP Username", old: existingConfig.smtpUsername, new: validated.smtpUsername });
+        }
+        // Don't show password values, just that it changed
+        if (validated.smtpPassword) {
+            changes.push({ field: "SMTP Password", old: "********", new: "********" });
+        }
+        if (validated.emailSubject !== undefined && validated.emailSubject !== existingConfig.emailSubject) {
+            changes.push({ field: "Default Subject", old: existingConfig.emailSubject || "(none)", new: validated.emailSubject || "(none)" });
+        }
+        if (validated.emailBody !== undefined && validated.emailBody !== existingConfig.emailBody) {
+            changes.push({ field: "Default Body", old: existingConfig.emailBody ? "(content)" : "(none)", new: validated.emailBody ? "(content)" : "(none)" });
+        }
+        if (validated.isDefault !== undefined && validated.isDefault !== existingConfig.isDefault) {
+            changes.push({ field: "Default Config", old: existingConfig.isDefault ? "Yes" : "No", new: validated.isDefault ? "Yes" : "No" });
+        }
+        if (validated.providerId && validated.providerId !== existingConfig.providerId) {
+            // We'd ideally look up provider names, but ID change is sufficient for audit
+            changes.push({ field: "Provider", old: existingConfig.providerId, new: validated.providerId });
+        }
+
         // Build update data
         const updateData: Record<string, unknown> = {
             ...(validated.name && { name: validated.name }),
@@ -204,7 +236,7 @@ export async function PUT(
                 name: config.name,
             },
             metadata: {
-                updatedFields: Object.keys(updateData).filter(k => k !== "updatedAt"),
+                changes,
             },
         });
 

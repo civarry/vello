@@ -261,7 +261,7 @@ export async function POST(
 
         // Log audit event
         await logAuditEvent({
-            action: "PAYSLIP_BATCH_SENT",
+            action: "DOCUMENT_BATCH_SENT",
             user: createAuditUserContext(context),
             resource: {
                 type: "template",

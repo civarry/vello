@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { getCurrentUser } from "@/lib/auth";
 import { TemplatePDF } from "@/lib/pdf/template-pdf";
+import { logAuditEvent, createAuditUserContext } from "@/lib/audit";
 import type { Block } from "@/types/template";
 
 // Helper to add timeout to a promise
@@ -126,6 +127,23 @@ export async function POST(request: NextRequest) {
     );
 
     console.log('[Export API] PDF generated successfully');
+
+    // Log audit event for PDF generation
+    await logAuditEvent({
+      action: "DOCUMENT_GENERATED",
+      user: createAuditUserContext(context),
+      resource: {
+        type: "document",
+        id: "export",
+        name: name || "Unnamed document",
+      },
+      metadata: {
+        templateName: name || "Unnamed",
+        paperSize: paperSize ?? "A4",
+        orientation: orientation ?? "PORTRAIT",
+        blockCount: blocks.length,
+      },
+    });
 
     // Return PDF as response
     const uint8Array = new Uint8Array(pdfBuffer);
