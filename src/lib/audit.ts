@@ -32,7 +32,9 @@ export type AuditAction =
   // Settings
   | "SMTP_CONFIG_ADDED"
   | "SMTP_CONFIG_UPDATED"
-  | "SMTP_CONFIG_DELETED";
+  | "SMTP_CONFIG_DELETED"
+  // Audit
+  | "AUDIT_LOGS_EXPORTED";
 
 /**
  * Human-readable descriptions for audit actions.
@@ -59,6 +61,7 @@ const ACTION_DESCRIPTIONS: Record<AuditAction, string> = {
   SMTP_CONFIG_ADDED: "Added email configuration",
   SMTP_CONFIG_UPDATED: "Updated email configuration",
   SMTP_CONFIG_DELETED: "Deleted email configuration",
+  AUDIT_LOGS_EXPORTED: "Exported audit logs",
 };
 
 /**
@@ -89,7 +92,6 @@ export interface LogAuditEventOptions {
   user: AuditUserContext;
   resource?: AuditResource;
   metadata?: Record<string, unknown>;
-  ipAddress?: string;
 }
 
 /**
@@ -97,7 +99,7 @@ export interface LogAuditEventOptions {
  * This function is designed to never throw - errors are logged but not propagated.
  */
 export async function logAuditEvent(options: LogAuditEventOptions): Promise<void> {
-  const { action, user, resource, metadata, ipAddress } = options;
+  const { action, user, resource, metadata } = options;
 
   try {
     await prisma.auditLog.create({
@@ -113,7 +115,6 @@ export async function logAuditEvent(options: LogAuditEventOptions): Promise<void
         resourceId: resource?.id,
         resourceName: resource?.name,
         metadata: metadata ? (metadata as object) : undefined,
-        ipAddress,
       },
     });
   } catch (error) {

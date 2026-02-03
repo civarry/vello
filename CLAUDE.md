@@ -40,27 +40,34 @@ Vello is a multi-tenant SaaS platform that enables companies to design custom pa
 vello/
 ├── src/
 │   ├── app/                    # Next.js App Router
-│   │   ├── (auth)/             # Auth routes (login, register, etc.)
+│   │   ├── (auth)/             # Auth routes (login, register, invite)
 │   │   ├── (dashboard)/        # Protected dashboard routes
 │   │   │   ├── templates/      # Template management
 │   │   │   ├── payslips/       # Payslip generation
 │   │   │   ├── employees/      # Employee management
-│   │   │   └── settings/       # Company settings
+│   │   │   └── settings/       # Company settings, members, audit-log
 │   │   ├── api/                # API Route Handlers
+│   │   │   ├── audit-logs/     # Audit log list & export
+│   │   │   ├── invites/        # Invite management
+│   │   │   ├── members/        # Team member CRUD
+│   │   │   ├── smtp/           # Email configuration
+│   │   │   ├── templates/      # Template CRUD & batch operations
+│   │   │   └── organization/   # Org settings
 │   │   └── layout.tsx
 │   ├── components/
 │   │   ├── ui/                 # shadcn/ui components
 │   │   ├── template-builder/   # Template designer components
-│   │   │   ├── canvas/         # Main canvas area
-│   │   │   ├── blocks/         # Draggable block components
-│   │   │   ├── sidebar/        # Block palette & properties panel
-│   │   │   └── toolbar/        # Top toolbar (save, preview, etc.)
+│   │   ├── audit-log/          # Audit log UI components
 │   │   ├── payslip/            # Payslip preview & generation
 │   │   └── shared/             # Shared components
 │   ├── lib/
 │   │   ├── db/                 # Prisma client & utilities
 │   │   ├── pdf/                # PDF generation logic
 │   │   ├── excel/              # Excel import/export (xlsx)
+│   │   ├── audit.ts            # Audit logging utilities
+│   │   ├── logging.ts          # Application logging
+│   │   ├── permissions.ts      # RBAC permission checks
+│   │   ├── errors.ts           # Error response helpers
 │   │   └── utils/              # General utilities
 │   ├── stores/                 # Zustand stores
 │   ├── types/                  # TypeScript type definitions
@@ -284,35 +291,149 @@ const STANDARD_VARIABLES = {
 
 ---
 
-## MVP Scope (Phase 1)
+## Design System
 
-### Must Have
-- [ ] User authentication (email/password)
-- [ ] Organization creation & setup
-- [ ] Basic template builder with core blocks:
-  - Header (logo, company name, address)
-  - Employee info section
-  - Earnings table (configurable rows)
-  - Deductions table (configurable rows)
-  - Summary (net pay)
-- [ ] Save/load templates
-- [ ] Manual payslip data entry form
-- [ ] PDF generation & download
-- [ ] Basic employee list
+### Brand Colors (OKLCH)
+- **Primary:** Rich teal (`oklch(0.45 0.12 175)`) — trust, reliability, financial
+- **Accent:** Warm amber (`oklch(0.88 0.12 85)`) — highlights, CTAs
+- **Destructive:** Red for delete/danger actions
+- **Success:** Green (`oklch(0.60 0.16 145)`)
 
-### Nice to Have (Phase 2)
-- [ ] Excel import for bulk payslip data
-- [ ] Excel export of payslip data
-- [ ] Batch PDF generation
-- [ ] Email payslips to employees
-- [ ] Template duplication
-- [ ] Payslip history & search
+### Typography
+- **Sans:** Geist Sans (via `next/font/google`)
+- **Mono:** Geist Mono (for IDs, emails, code)
 
-### Future (Phase 3+)
-- [ ] Team member invites & roles
+### Component Patterns
+- Use shadcn/ui components as base
+- Cards with `bg-muted/30` background for sections
+- `divide-y divide-border/50` for list items within cards
+- Badge variants: `default`, `secondary`, `outline`, `destructive`
+- Icons from `lucide-react`, size `h-4 w-4` standard
+
+### Sheet/Modal Patterns
+- Use `SheetContent` with `px-6 py-6` for content padding
+- Section headers: `text-sm font-medium flex items-center gap-2`
+- Detail rows: label on left (muted), value on right (font-medium)
+
+---
+
+## RBAC & Permissions
+
+### Roles
+- **OWNER:** Full access, can transfer ownership, delete org
+- **ADMIN:** Can manage members, templates, settings, view audit logs
+- **MEMBER:** Can use templates, generate documents
+
+### Permission Checks
+```typescript
+import { hasPermission } from "@/lib/permissions";
+
+// In API routes
+if (!hasPermission(context.currentMembership.role, "audit:read")) {
+  return createForbiddenResponse("...");
+}
+```
+
+### Key Permissions
+- `template:*` — create, edit, delete, duplicate templates
+- `member:*` — invite, remove, change roles
+- `settings:*` — org settings, SMTP config
+- `audit:read` — view and export audit logs (OWNER, ADMIN only)
+
+---
+
+## Audit Log System
+
+### Location
+- **Library:** `src/lib/audit.ts`
+- **API:** `src/app/api/audit-logs/`
+- **UI:** `src/app/(dashboard)/settings/audit-log/`
+- **Components:** `src/components/audit-log/`
+
+### Action Types
+```typescript
+type AuditAction =
+  // Templates
+  | "TEMPLATE_CREATED" | "TEMPLATE_EDITED" | "TEMPLATE_DELETED"
+  | "TEMPLATE_DUPLICATED" | "TEMPLATE_SET_DEFAULT"
+  // Documents
+  | "DOCUMENT_GENERATED" | "DOCUMENT_BATCH_GENERATED"
+  | "DOCUMENT_SENT" | "DOCUMENT_BATCH_SENT" | "EXCEL_IMPORTED"
+  // Team
+  | "MEMBER_INVITED" | "INVITE_REVOKED" | "MEMBER_REMOVED"
+  | "MEMBER_ROLE_CHANGED" | "OWNERSHIP_TRANSFERRED" | "MEMBER_LEFT"
+  // Organization
+  | "ORG_UPDATED" | "ORG_DELETED"
+  // Settings
+  | "SMTP_CONFIG_ADDED" | "SMTP_CONFIG_UPDATED" | "SMTP_CONFIG_DELETED"
+  // Audit
+  | "AUDIT_LOGS_EXPORTED";
+```
+
+### Usage Pattern
+```typescript
+import { logAuditEvent, createAuditUserContext } from "@/lib/audit";
+
+await logAuditEvent({
+  action: "TEMPLATE_CREATED",
+  user: createAuditUserContext(context),
+  resource: { type: "template", id: template.id, name: template.name },
+  metadata: { /* action-specific details */ },
+});
+```
+
+### Design Decisions
+- **No IP tracking:** Unreliable (proxies, CDNs) and privacy concerns
+- **No login/logout tracking:** High volume noise, Supabase handles auth logs
+- **No failed action tracking:** Most failures are user errors, not security events
+- **Graceful failures:** `logAuditEvent` never throws — won't break main flows
+- **Structured metadata display:** No raw JSON in UI; use `extractDetails()` for context-aware rendering
+
+---
+
+## Logging System
+
+### Location
+- `src/lib/logging.ts`
+
+### Usage
+```typescript
+import { logInfo, logWarn, logError } from "@/lib/logging";
+
+logInfo("Action completed", { userId, action });
+logWarn("Suspicious activity", { userId, reason });
+logError("Operation failed", error, { context });
+```
+
+---
+
+## MVP Scope (Phase 1) ✅ COMPLETED
+
+### Must Have ✅
+- [x] User authentication (email/password)
+- [x] Organization creation & setup
+- [x] Basic template builder with core blocks
+- [x] Save/load templates
+- [x] Manual payslip data entry form
+- [x] PDF generation & download
+- [x] Basic employee list
+
+### Phase 2 ✅ COMPLETED
+- [x] Excel import for bulk payslip data
+- [x] Excel export of payslip data
+- [x] Batch PDF generation
+- [x] Email payslips to employees (SMTP config)
+- [x] Template duplication
+- [x] Payslip history & search
+
+### Phase 3 ✅ COMPLETED
+- [x] Team member invites & roles (RBAC)
+- [x] Audit logs with export
+- [x] Invite link system
+
+### Future (Phase 4+)
 - [ ] API access for integrations
 - [ ] Payroll calculations engine
-- [ ] Audit logs
 - [ ] White-label options
 
 ---
@@ -363,10 +484,30 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
 ## Notes for Claude
 
+### General Approach
 1. **Always check existing code** before creating new files to avoid duplication
 2. **Follow the established patterns** in the codebase
 3. **Ask clarifying questions** if requirements are ambiguous
 4. **Suggest improvements** if you see better approaches
 5. **Test critical paths** — especially PDF generation and data mapping
-6. When working on the template builder, **keep the UX simple** — we can add power features later
-7. **Philippine payroll context**: Be aware of common deductions like SSS, PhilHealth, Pag-IBIG, and withholding tax
+
+### UI/UX Guidelines
+6. **Keep the UX simple** — add power features later, not upfront
+7. **Use the frontend-design skill** for UI work to maintain design consistency
+8. **Check mobile responsiveness** — app is used on various devices
+9. **Prefer structured displays over raw data** — no JSON dumps in user-facing UI
+
+### Domain Context
+10. **Philippine payroll context**: Common deductions include SSS, PhilHealth, Pag-IBIG, and withholding tax
+11. **Multi-tenant aware**: Always scope queries by `organizationId`
+12. **RBAC enforcement**: Check permissions in API routes using `hasPermission()`
+
+### Code Quality
+13. **Sync related code**: When adding new action types, update both `src/lib/audit.ts` AND the filter dropdown in the UI
+14. **Graceful degradation**: Audit logging and non-critical operations should never break main user flows
+15. **Use existing utilities**: `createAuditUserContext()`, `logInfo/Warn/Error()`, `cn()` for Tailwind classes
+
+### What NOT to Build
+- IP address tracking (privacy concerns, unreliable)
+- Login/logout audit events (handled by Supabase, high noise)
+- Failed action tracking (user errors, not security)

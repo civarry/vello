@@ -20,34 +20,34 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { Sheet } from "@/components/ui/sheet";
 import {
   Loader2,
-  ClipboardList,
   Download,
   Search,
   ChevronLeft,
   ChevronRight,
   RefreshCw,
+  FileText,
+  UserPlus,
+  UserMinus,
+  Settings,
+  Mail,
+  Trash2,
+  Copy,
+  LayoutTemplate,
+  Shield,
+  Eye,
+  Star,
+  FileSpreadsheet,
+  UserX,
+  Crown,
+  LogOut,
+  ClipboardList,
 } from "lucide-react";
 import { toast } from "sonner";
-import { formatDistanceToNow, format } from "date-fns";
-
-interface AuditLog {
-  id: string;
-  timestamp: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
-  userRole: "OWNER" | "ADMIN" | "MEMBER";
-  action: string;
-  actionDescription: string;
-  resourceType: string | null;
-  resourceId: string | null;
-  resourceName: string | null;
-  metadata: Record<string, unknown> | null;
-  ipAddress: string | null;
-}
+import { formatDistanceToNow } from "date-fns";
+import { AuditLog, AuditLogDetails } from "@/components/audit-log/audit-log-details";
 
 interface Pagination {
   page: number;
@@ -58,98 +58,84 @@ interface Pagination {
 
 const ACTION_CATEGORIES = [
   { value: "all", label: "All Actions" },
+  // Templates
   { value: "TEMPLATE_CREATED", label: "Template Created" },
   { value: "TEMPLATE_EDITED", label: "Template Edited" },
   { value: "TEMPLATE_DELETED", label: "Template Deleted" },
   { value: "TEMPLATE_DUPLICATED", label: "Template Duplicated" },
+  { value: "TEMPLATE_SET_DEFAULT", label: "Template Set as Default" },
+  // Documents
   { value: "DOCUMENT_GENERATED", label: "Document Generated" },
   { value: "DOCUMENT_BATCH_GENERATED", label: "Batch Documents Generated" },
+  { value: "EXCEL_IMPORTED", label: "Excel Data Imported" },
   { value: "DOCUMENT_SENT", label: "Document Sent" },
   { value: "DOCUMENT_BATCH_SENT", label: "Batch Documents Sent" },
+  // Team
   { value: "MEMBER_INVITED", label: "Member Invited" },
+  { value: "INVITE_REVOKED", label: "Invite Revoked" },
   { value: "MEMBER_REMOVED", label: "Member Removed" },
   { value: "MEMBER_ROLE_CHANGED", label: "Role Changed" },
+  { value: "OWNERSHIP_TRANSFERRED", label: "Ownership Transferred" },
+  { value: "MEMBER_LEFT", label: "Member Left" },
+  // Organization
   { value: "ORG_UPDATED", label: "Organization Updated" },
+  { value: "ORG_DELETED", label: "Organization Deleted" },
+  // Settings
   { value: "SMTP_CONFIG_ADDED", label: "Email Config Added" },
   { value: "SMTP_CONFIG_UPDATED", label: "Email Config Updated" },
   { value: "SMTP_CONFIG_DELETED", label: "Email Config Deleted" },
+  // Audit
+  { value: "AUDIT_LOGS_EXPORTED", label: "Audit Logs Exported" },
 ];
 
-function getRoleBadgeVariant(role: string): "default" | "secondary" | "outline" {
-  switch (role) {
-    case "OWNER":
-      return "default";
-    case "ADMIN":
-      return "secondary";
-    default:
-      return "outline";
+function getActionIcon(action: string) {
+  // Templates
+  if (action.includes("TEMPLATE")) {
+    if (action.includes("DELETED")) return <Trash2 className="h-4 w-4 text-destructive" />;
+    if (action.includes("DUPLICATED")) return <Copy className="h-4 w-4 text-blue-500" />;
+    if (action.includes("SET_DEFAULT")) return <Star className="h-4 w-4 text-amber-500" />;
+    return <LayoutTemplate className="h-4 w-4 text-purple-500" />;
   }
-}
-
-function getActionColor(action: string): string {
-  if (action.includes("DELETED") || action.includes("REMOVED")) {
-    return "text-destructive";
+  // Documents
+  if (action.includes("EXCEL")) {
+    return <FileSpreadsheet className="h-4 w-4 text-green-600" />;
   }
-  if (action.includes("CREATED") || action.includes("ADDED") || action.includes("INVITED")) {
-    return "text-green-600 dark:text-green-400";
+  if (action.includes("DOCUMENT")) {
+    if (action.includes("SENT")) return <Mail className="h-4 w-4 text-green-500" />;
+    return <FileText className="h-4 w-4 text-blue-500" />;
   }
-  if (action.includes("SENT")) {
-    return "text-blue-600 dark:text-blue-400";
+  // Team
+  if (action.includes("OWNERSHIP")) {
+    return <Crown className="h-4 w-4 text-amber-500" />;
   }
-  return "text-muted-foreground";
-}
-
-function renderMetadataDetails(log: AuditLog) {
-  if (!log.metadata) return null;
-
-  // Handle Role Changes
-  if (log.action === "MEMBER_ROLE_CHANGED") {
-    const { previousRole, newRole } = log.metadata;
-    if (previousRole && newRole) {
-      return (
-        <div className="mt-1.5 text-xs bg-muted/40 p-1.5 rounded border border-border/40 inline-block">
-          <span className="text-muted-foreground line-through mr-1">{String(previousRole)}</span>
-          <span className="text-muted-foreground mr-1">→</span>
-          <span className="font-medium text-foreground">{String(newRole)}</span>
-        </div>
-      );
-    }
+  if (action.includes("INVITE_REVOKED")) {
+    return <UserX className="h-4 w-4 text-orange-500" />;
   }
-
-  // Handle "changes" array (Templates, Org, SMTP)
-  const changes = log.metadata.changes as Array<any> | undefined;
-  if (changes && Array.isArray(changes) && changes.length > 0) {
-    return (
-      <div className="mt-1.5 space-y-1">
-        {changes.map((change, i) => {
-          // Handle legacy format (array of strings)
-          if (typeof change === "string") {
-            return (
-              <div key={i} className="text-xs bg-muted/40 p-1.5 rounded border border-border/40">
-                <span className="text-muted-foreground">Changed field: </span>
-                <span className="font-medium text-foreground">{change}</span>
-              </div>
-            );
-          }
-          // Handle new format (array of objects)
-          return (
-            <div key={i} className="text-xs bg-muted/40 p-1.5 rounded border border-border/40">
-              <span className="font-medium text-foreground mr-1.5">{change.field}:</span>
-              <span className="text-muted-foreground line-through mr-1">{String(change.old)}</span>
-              <span className="text-muted-foreground mr-1">→</span>
-              <span className="font-medium text-foreground">{String(change.new)}</span>
-            </div>
-          );
-        })}
-      </div>
-    );
+  if (action.includes("MEMBER_LEFT")) {
+    return <LogOut className="h-4 w-4 text-muted-foreground" />;
   }
-
-  return null;
+  if (action.includes("MEMBER") || action.includes("INVITE")) {
+    if (action.includes("INVITED")) return <UserPlus className="h-4 w-4 text-green-600" />;
+    if (action.includes("REMOVED")) return <UserMinus className="h-4 w-4 text-destructive" />;
+    if (action.includes("ROLE")) return <Shield className="h-4 w-4 text-orange-500" />;
+  }
+  // Organization & Settings
+  if (action.includes("ORG_DELETED")) {
+    return <Trash2 className="h-4 w-4 text-destructive" />;
+  }
+  if (action.includes("SMTP") || action.includes("ORG")) {
+    return <Settings className="h-4 w-4 text-muted-foreground" />;
+  }
+  // Audit
+  if (action.includes("AUDIT")) {
+    return <ClipboardList className="h-4 w-4 text-primary" />;
+  }
+  return <FileText className="h-4 w-4 text-muted-foreground" />;
 }
 
 export default function AuditLogPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
     limit: 20,
@@ -200,7 +186,7 @@ export default function AuditLogPage() {
 
   useEffect(() => {
     fetchLogs(1);
-  }, [actionFilter, startDate, endDate]);
+  }, [fetchLogs]);
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -249,30 +235,53 @@ export default function AuditLogPage() {
   };
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Header */}
-      <div className="hidden md:flex h-14 items-center justify-between border-b bg-background px-6 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="rounded-lg bg-primary/10 p-2">
-            <ClipboardList className="h-4 w-4 text-primary" />
+    <Sheet open={!!selectedLog} onOpenChange={(open) => !open && setSelectedLog(null)}>
+      <div className="flex h-full flex-col">
+        {/* Header */}
+        <div className="hidden md:flex h-14 items-center justify-between border-b bg-background px-6 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-primary/10 p-2">
+              <Shield className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <h1 className="font-semibold text-base">Audit Log</h1>
+              <p className="text-xs text-muted-foreground">
+                Track activity and changes in your organization
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-semibold text-base">Audit Log</h1>
-            <p className="text-xs text-muted-foreground">
-              Track activity and changes in your organization
-            </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchLogs(pagination.page)}
+              disabled={isLoading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              disabled={isExporting || isLoading}
+            >
+              {isExporting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              Export CSV
+            </Button>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fetchLogs(pagination.page)}
-            disabled={isLoading}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
+
+        {/* Mobile header */}
+        <div className="md:hidden flex justify-between items-center px-4 py-3 border-b bg-background">
+          <div className="flex items-center gap-2">
+            <Shield className="h-4 w-4 text-primary" />
+            <span className="font-medium text-sm">Audit Log</span>
+          </div>
           <Button
             variant="outline"
             size="sm"
@@ -280,200 +289,183 @@ export default function AuditLogPage() {
             disabled={isExporting || isLoading}
           >
             {isExporting ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Download className="h-4 w-4 mr-2" />
+              <Download className="h-4 w-4" />
             )}
-            Export CSV
           </Button>
         </div>
-      </div>
 
-      {/* Mobile header */}
-      <div className="md:hidden flex justify-between items-center px-4 py-3 border-b bg-background">
-        <div className="flex items-center gap-2">
-          <ClipboardList className="h-4 w-4 text-primary" />
-          <span className="font-medium text-sm">Audit Log</span>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleExport}
-          disabled={isExporting || isLoading}
-        >
-          {isExporting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Download className="h-4 w-4" />
-          )}
-        </Button>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-auto bg-muted/30">
-        <div className="p-4 md:p-6 space-y-4 max-w-6xl mx-auto">
-          {/* Filters */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1">
-                  <Label htmlFor="action-filter" className="text-xs text-muted-foreground mb-1.5 block">
-                    Action Type
-                  </Label>
-                  <Select value={actionFilter} onValueChange={setActionFilter}>
-                    <SelectTrigger id="action-filter">
-                      <SelectValue placeholder="Filter by action" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ACTION_CATEGORIES.map((cat) => (
-                        <SelectItem key={cat.value} value={cat.value}>
-                          {cat.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex-1">
-                  <Label htmlFor="start-date" className="text-xs text-muted-foreground mb-1.5 block">
-                    Start Date
-                  </Label>
-                  <Input
-                    id="start-date"
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                  />
-                </div>
-                <div className="flex-1">
-                  <Label htmlFor="end-date" className="text-xs text-muted-foreground mb-1.5 block">
-                    End Date
-                  </Label>
-                  <Input
-                    id="end-date"
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Audit Log Table */}
-          <Card>
-            <CardContent className="p-0">
-              {isLoading ? (
-                <div className="flex h-64 items-center justify-center">
-                  <div className="flex flex-col items-center space-y-4">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">Loading audit logs...</p>
+        {/* Content */}
+        <div className="flex-1 overflow-auto bg-muted/30">
+          <div className="p-4 md:p-6 space-y-4 max-w-6xl mx-auto">
+            {/* Filters */}
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <Label htmlFor="action-filter" className="text-xs text-muted-foreground mb-1.5 block">
+                      Action Type
+                    </Label>
+                    <Select value={actionFilter} onValueChange={setActionFilter}>
+                      <SelectTrigger id="action-filter">
+                        <SelectValue placeholder="Filter by action" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ACTION_CATEGORIES.map((cat) => (
+                          <SelectItem key={cat.value} value={cat.value}>
+                            {cat.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex-1">
+                    <Label htmlFor="start-date" className="text-xs text-muted-foreground mb-1.5 block">
+                      Start Date
+                    </Label>
+                    <Input
+                      id="start-date"
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <Label htmlFor="end-date" className="text-xs text-muted-foreground mb-1.5 block">
+                      End Date
+                    </Label>
+                    <Input
+                      id="end-date"
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                    />
                   </div>
                 </div>
-              ) : logs.length === 0 ? (
-                <div className="flex h-64 items-center justify-center">
-                  <div className="flex flex-col items-center space-y-2 text-center">
-                    <Search className="h-8 w-8 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">No audit logs found</p>
-                    <p className="text-xs text-muted-foreground">
-                      Try adjusting your filters or check back later
-                    </p>
+              </CardContent>
+            </Card>
+
+            {/* Audit Log Table */}
+            <Card>
+              <CardContent className="p-0">
+                {isLoading ? (
+                  <div className="flex h-64 items-center justify-center">
+                    <div className="flex flex-col items-center space-y-4">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">Loading audit logs...</p>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[180px]">Timestamp</TableHead>
-                        <TableHead>User</TableHead>
-                        <TableHead>Action</TableHead>
-                        <TableHead>Resource</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {logs.map((log) => (
-                        <TableRow key={log.id}>
-                          <TableCell className="text-xs">
-                            <div className="space-y-1">
-                              <div>{format(new Date(log.timestamp), "MMM d, yyyy")}</div>
-                              <div className="text-muted-foreground">
-                                {format(new Date(log.timestamp), "h:mm a")}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              <div className="font-medium text-sm">{log.userName}</div>
-                              <div className="flex items-center gap-2">
-                                <Badge variant={getRoleBadgeVariant(log.userRole)} className="text-[10px] px-1.5 py-0">
-                                  {log.userRole}
-                                </Badge>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              <div className={`text-sm font-medium ${getActionColor(log.action)}`}>
-                                {log.actionDescription}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                {formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}
-                              </div>
-                              {renderMetadataDetails(log)}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {log.resourceName && (
-                              <div className="space-y-1">
-                                <div className="text-sm">{log.resourceName}</div>
-                                <div className="text-xs text-muted-foreground">
-                                  {log.resourceType}
+                ) : logs.length === 0 ? (
+                  <div className="flex h-64 items-center justify-center">
+                    <div className="flex flex-col items-center space-y-2 text-center">
+                      <Search className="h-8 w-8 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">No audit logs found</p>
+                      <p className="text-xs text-muted-foreground">
+                        Try adjusting your filters or check back later
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[200px] p-4">User</TableHead>
+                          <TableHead className="p-4">Action</TableHead>
+                          <TableHead className="hidden md:table-cell p-4">Resource</TableHead>
+                          <TableHead className="w-[100px] text-right p-4">Details</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {logs.map((log) => (
+                          <TableRow
+                            key={log.id}
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => setSelectedLog(log)}
+                          >
+                            <TableCell className="p-4">
+                              <div className="flex items-center gap-3">
+                                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-medium uppercase">
+                                  {log.userName.slice(0, 2)}
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium">{log.userName}</span>
+                                  <span className="text-xs text-muted-foreground">{log.userEmail.split('@')[0]}</span>
                                 </div>
                               </div>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
+                            </TableCell>
+                            <TableCell className="p-4">
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                  {getActionIcon(log.action)}
+                                  <span className="text-sm font-medium">{log.actionDescription}</span>
+                                </div>
+                                <span className="text-xs text-muted-foreground pl-6">
+                                  {formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell p-4">
+                              {log.resourceName ? (
+                                <div className="flex flex-col">
+                                  <span className="text-sm">{log.resourceName}</span>
+                                  <span className="text-xs text-muted-foreground">{log.resourceType || 'Resource'}</span>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right p-4">
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <Eye className="h-4 w-4" />
+                                <span className="sr-only">View Details</span>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
 
-              {/* Pagination */}
-              {pagination.totalPages > 1 && (
-                <div className="flex items-center justify-between border-t px-4 py-3">
-                  <div className="text-sm text-muted-foreground">
-                    Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
-                    {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
-                    {pagination.total} entries
+                {/* Pagination */}
+                {pagination.totalPages > 1 && (
+                  <div className="flex items-center justify-between border-t px-4 py-3">
+                    <div className="text-sm text-muted-foreground">
+                      Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
+                      {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
+                      {pagination.total} entries
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(pagination.page - 1)}
+                        disabled={pagination.page === 1}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span className="text-sm">
+                        Page {pagination.page} of {pagination.totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(pagination.page + 1)}
+                        disabled={pagination.page === pagination.totalPages}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(pagination.page - 1)}
-                      disabled={pagination.page === 1}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <span className="text-sm">
-                      Page {pagination.page} of {pagination.totalPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(pagination.page + 1)}
-                      disabled={pagination.page === pagination.totalPages}
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
-    </div>
+      <AuditLogDetails log={selectedLog} />
+    </Sheet>
   );
 }

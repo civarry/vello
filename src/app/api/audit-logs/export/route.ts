@@ -8,6 +8,7 @@ import {
   createErrorResponse,
 } from "@/lib/errors";
 import { logInfo, logError, logWarn } from "@/lib/logging";
+import { logAuditEvent, createAuditUserContext } from "@/lib/audit";
 
 /**
  * GET /api/audit-logs/export
@@ -123,6 +124,22 @@ export async function GET(request: NextRequest) {
       organizationId: context.currentMembership.organization.id,
       recordCount: auditLogs.length,
       action: "export_audit_logs",
+    });
+
+    // Log audit event for the export action
+    await logAuditEvent({
+      action: "AUDIT_LOGS_EXPORTED",
+      user: createAuditUserContext(context),
+      metadata: {
+        recordCount: auditLogs.length,
+        filters: {
+          userId: userId || undefined,
+          action: action || undefined,
+          resourceType: resourceType || undefined,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
+        },
+      },
     });
 
     // Return CSV file
