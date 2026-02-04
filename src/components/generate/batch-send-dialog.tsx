@@ -294,8 +294,12 @@ export function BatchSendDialog({
             // Check if we should use single send or batch send
             if (finalBatchData.length === 1) {
                 const record = finalBatchData[0];
-                const email = record["Email"] || record[emailField || ""] || record["{{employee.email}}"];
-                const name = record["Name"] || record[nameField || ""] || record["{{employee.fullName}}"];
+                const email = emailField
+                    ? getValue(record, emailField)
+                    : (record.Email || record.email || record["{{employee.email}}"]);
+                const name = nameField
+                    ? getValue(record, nameField)
+                    : (record.Name || record.name || record["{{employee.fullName}}"] || record["{{employee.firstName}}"]);
 
                 const response = await fetch(`/api/templates/${templateId}/send`, {
                     method: "POST",
