@@ -6,7 +6,7 @@ import {
   useTemplateBuilderStore,
   PAPER_DIMENSIONS,
 } from "@/stores/template-builder-store";
-import { Block, BlockType, DEFAULT_BLOCK_SIZES } from "@/types/template";
+import { Block, BlockType, DEFAULT_BLOCK_SIZES, TableBlockProperties } from "@/types/template";
 import { BlockRenderer } from "../blocks/block-renderer";
 import { cn } from "@/lib/utils";
 import { Trash2, Copy, AlignLeft, AlignCenter, AlignRight, ArrowUpToLine, ArrowDownToLine, AlignCenterVertical, Loader2 } from "lucide-react";
@@ -22,6 +22,21 @@ type SnapGuide = {
   orientation: "vertical" | "horizontal";
   position: number;
 };
+
+// Calculate the minimum dimensions for a table block based on its content
+function getTableMinDimensions(block: Block): { minWidth: number; minHeight: number } {
+  if (block.type !== "table") return { minWidth: 50, minHeight: 20 };
+  const props = block.properties as TableBlockProperties;
+  const rowCount = props.rows?.length || 1;
+  const colCount = props.rows?.[0]?.cells?.length || 1;
+  const rowHeight = props.compact ? 20 : 35;
+  // Minimum height = rows * rowHeight
+  const minHeight = Math.max(40, rowCount * rowHeight);
+  // Minimum width = columns * minColWidth (60px per column minimum for readability)
+  const minColWidth = 60;
+  const minWidth = Math.max(100, colCount * minColWidth);
+  return { minWidth, minHeight };
+}
 
 interface DraggableBlockProps {
   block: Block;
@@ -302,6 +317,11 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
       blockY: block.style.y,
     };
 
+    // Calculate minimum dimensions for table blocks based on content
+    const tableDimensions = block.type === "table" ? getTableMinDimensions(block) : null;
+    const minWidth = tableDimensions?.minWidth ?? 50;
+    const minHeight = tableDimensions?.minHeight ?? 20;
+
     const handleMouseMove = (e: MouseEvent) => {
       if (!resizeStartRef.current) return;
       const dx = (e.clientX - resizeStartRef.current.x) / scale;
@@ -312,16 +332,20 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
       let newX = resizeStartRef.current.blockX;
       let newY = resizeStartRef.current.blockY;
 
-      // Calculate unconstrained dimensions first
-      if (handle.includes("e")) newWidth = Math.max(50, resizeStartRef.current.width + dx);
+      // Calculate unconstrained dimensions first (use table-aware minimums)
+      if (handle.includes("e")) newWidth = Math.max(minWidth, resizeStartRef.current.width + dx);
       if (handle.includes("w")) {
-        newWidth = Math.max(50, resizeStartRef.current.width - dx);
-        newX = resizeStartRef.current.blockX + dx;
+        const proposedWidth = resizeStartRef.current.width - dx;
+        newWidth = Math.max(minWidth, proposedWidth);
+        // Only adjust X based on actual width change
+        newX = resizeStartRef.current.blockX + (resizeStartRef.current.width - newWidth);
       }
-      if (handle.includes("s")) newHeight = Math.max(20, resizeStartRef.current.height + dy);
+      if (handle.includes("s")) newHeight = Math.max(minHeight, resizeStartRef.current.height + dy);
       if (handle.includes("n")) {
-        newHeight = Math.max(20, resizeStartRef.current.height - dy);
-        newY = resizeStartRef.current.blockY + dy;
+        const proposedHeight = resizeStartRef.current.height - dy;
+        newHeight = Math.max(minHeight, proposedHeight);
+        // Only adjust Y based on actual height change
+        newY = resizeStartRef.current.blockY + (resizeStartRef.current.height - newHeight);
       }
 
       // Shift key = lock aspect ratio
@@ -359,8 +383,8 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
         }
 
         // Ensure minimums are still respected
-        newWidth = Math.max(50, newWidth);
-        newHeight = Math.max(20, newHeight);
+        newWidth = Math.max(minWidth, newWidth);
+        newHeight = Math.max(minHeight, newHeight);
       }
 
       // Use proportional scaling for containers with children
@@ -426,6 +450,11 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
       Array.isArray((block.properties as { children?: unknown[] }).children) &&
       ((block.properties as { children?: unknown[] }).children?.length ?? 0) > 0;
 
+    // Calculate minimum dimensions for table blocks based on content
+    const tableDimensions = block.type === "table" ? getTableMinDimensions(block) : null;
+    const minWidth = tableDimensions?.minWidth ?? 50;
+    const minHeight = tableDimensions?.minHeight ?? 20;
+
     if (mobileToolMode === "move") {
       // Move mode: reposition the block
       const newX = Math.max(0, touchStartRef.current.blockX + dx);
@@ -433,8 +462,8 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
       updateBlockPosition(block.id, newX, newY);
     } else if (mobileToolMode === "resize") {
       // Resize mode: change dimensions freely
-      const newWidth = Math.max(50, touchStartRef.current.width + dx);
-      const newHeight = Math.max(20, touchStartRef.current.height + dy);
+      const newWidth = Math.max(minWidth, touchStartRef.current.width + dx);
+      const newHeight = Math.max(minHeight, touchStartRef.current.height + dy);
 
       // Use proportional scaling for containers with children
       if (isContainerWithChildren) {
@@ -451,18 +480,18 @@ function DraggableBlock({ block, scale, otherBlocks, canvasWidth, canvasHeight, 
 
       let newWidth, newHeight;
       if (absDx > absDy) {
-        newWidth = Math.max(50, touchStartRef.current.width + dx);
+        newWidth = Math.max(minWidth, touchStartRef.current.width + dx);
         newHeight = newWidth / aspectRatio;
       } else {
-        newHeight = Math.max(20, touchStartRef.current.height + dy);
+        newHeight = Math.max(minHeight, touchStartRef.current.height + dy);
         newWidth = newHeight * aspectRatio;
       }
 
       // Use proportional scaling for containers with children
       if (isContainerWithChildren) {
-        resizeContainerProportionally(block.id, Math.max(50, newWidth), Math.max(20, newHeight));
+        resizeContainerProportionally(block.id, Math.max(minWidth, newWidth), Math.max(minHeight, newHeight));
       } else {
-        updateBlockSize(block.id, Math.max(50, newWidth), Math.max(20, newHeight));
+        updateBlockSize(block.id, Math.max(minWidth, newWidth), Math.max(minHeight, newHeight));
       }
     }
   }, [block.id, block.type, block.properties, zoom, mobileToolMode, updateBlockPosition, updateBlockSize, resizeContainerProportionally]);

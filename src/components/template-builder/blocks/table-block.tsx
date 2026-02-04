@@ -282,7 +282,7 @@ export function TableBlock({ block, isPreview, data }: TableBlockProps) {
 
   return (
     <>
-      <div className="relative group h-full flex flex-col">
+      <div className="relative group h-full flex flex-col overflow-hidden">
         {/* Table */}
         <table
           className={cn(
@@ -293,6 +293,7 @@ export function TableBlock({ block, isPreview, data }: TableBlockProps) {
             borderColor: "#e5e7eb",
             borderCollapse: "collapse",
             tableLayout: "fixed",
+            minWidth: 0, // Allows table to shrink with fixed layout
           }}
         >
           <tbody className="h-full">
@@ -330,6 +331,10 @@ export function TableBlock({ block, isPreview, data }: TableBlockProps) {
                       style={{
                         borderColor: "#e5e7eb",
                         verticalAlign: "middle",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        wordBreak: "break-word",
+                        maxWidth: 0, // Forces table-layout: fixed to work properly
                       }}
                       colSpan={cell.colSpan}
                       rowSpan={cell.rowSpan}
