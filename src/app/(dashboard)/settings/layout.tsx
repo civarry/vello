@@ -26,7 +26,7 @@ export default async function SettingsLayout({
         <div className="flex h-full bg-background">
             <div className="flex w-full md:pl-6">
                 <SettingsSidebar canViewAuditLogs={canViewAuditLogs} />
-                <Separator orientation="vertical" className="h-full hidden lg:block" />
+                <Separator orientation="vertical" className="h-full hidden xl:block" />
                 <div className="flex-1 min-w-0 h-full overflow-y-auto flex flex-col">
                     <div className="flex-1">
                         {children}

@@ -507,6 +507,12 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"
 14. **Graceful degradation**: Audit logging and non-critical operations should never break main user flows
 15. **Use existing utilities**: `createAuditUserContext()`, `logInfo/Warn/Error()`, `cn()` for Tailwind classes
 
+### Navigation Architecture
+16. **Mobile navigation lives in `MobileNav` (`src/components/shared/mobile-nav.tsx`)** — this is the single mobile hamburger menu for the entire app. Do NOT add a second hamburger via `MobileSettingsNav` in the settings layout; it creates redundant overlapping menus.
+17. **Desktop settings sidebar (`SettingsSidebar`) uses `hidden lg:flex`** — only visible at >= 1024px. On mobile/tablet, the dashboard `MobileNav` handles all navigation including settings sub-pages.
+18. **When adding new settings pages**, add the nav link to ALL THREE navigation components: `SettingsSidebar` (desktop >= 1024px), `settingsNavigation` in `sidebar.tsx` (tablet 768px–1023px), and `settingsNavigation` in `mobile-nav.tsx` (mobile < 768px). Use `requiredRole` for permission-gated items in the mobile nav.
+19. **Responsive breakpoint rule for settings content**: The main `Sidebar` takes ~256px at `md`+, so settings page content (filters, tables, cards) should use `lg` not `md` as the breakpoint for horizontal layouts. Example: filter rows use `lg:flex-row`, table columns use `hidden lg:table-cell`.
+
 ### What NOT to Build
 - IP address tracking (privacy concerns, unreliable)
 - Login/logout audit events (handled by Supabase, high noise)

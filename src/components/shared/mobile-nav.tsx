@@ -19,6 +19,7 @@ import {
     Users,
     Mail,
     Building2,
+    ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -73,6 +74,7 @@ const settingsNavigation = [
     { name: "General", href: "/settings/general", icon: Building2 },
     { name: "Members", href: "/settings/members", icon: Users },
     { name: "Email", href: "/settings/email", icon: Mail },
+    { name: "Audit Log", href: "/settings/audit-log", icon: ClipboardList, requiredRole: ["OWNER", "ADMIN"] as string[] },
 ];
 
 export function MobileNav({
@@ -342,7 +344,9 @@ export function MobileNav({
                                         </button>
                                     </CollapsibleTrigger>
                                     <CollapsibleContent className="pl-4 pt-1 space-y-1">
-                                        {settingsNavigation.map((item) => {
+                                        {settingsNavigation
+                                            .filter((item) => !item.requiredRole || item.requiredRole.includes(currentRole))
+                                            .map((item) => {
                                             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
                                             return (
                                                 <Link

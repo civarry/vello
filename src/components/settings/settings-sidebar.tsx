@@ -82,7 +82,7 @@ export function SettingsSidebar({ canViewAuditLogs = false }: SettingsSidebarPro
     }, [canViewAuditLogs]);
 
     return (
-        <nav className="hidden lg:flex flex-col space-y-1 w-64 pr-6 shrink-0 h-[calc(100vh-4rem)] overflow-y-auto pt-6">
+        <nav className="hidden xl:flex flex-col space-y-1 w-64 pr-6 shrink-0 h-[calc(100vh-4rem)] overflow-y-auto pt-6">
             <h3 className="font-semibold text-lg px-2 mb-4">Settings</h3>
             <NavItems items={items} />
         </nav>
@@ -103,7 +103,7 @@ export function MobileSettingsNav({ canViewAuditLogs = false }: SettingsSidebarP
     );
 
     return (
-        <div className="md:hidden flex items-center gap-2 px-4 py-3 border-b bg-background sticky top-0 z-10">
+        <div className="xl:hidden flex items-center gap-2 px-4 py-3 border-b bg-background sticky top-0 z-10">
             <Sheet open={open} onOpenChange={setOpen}>
                 <SheetTrigger asChild>
                     <Button variant="ghost" size="icon" className="shrink-0">

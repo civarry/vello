@@ -302,7 +302,7 @@ export default function AuditLogPage() {
             {/* Filters */}
             <Card>
               <CardContent className="p-4">
-                <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex flex-col xl:flex-row gap-4">
                   <div className="flex-1">
                     <Label htmlFor="action-filter" className="text-xs text-muted-foreground mb-1.5 block">
                       Action Type
@@ -371,10 +371,10 @@ export default function AuditLogPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[200px] p-4">User</TableHead>
+                          <TableHead className="w-[180px] p-4">User</TableHead>
                           <TableHead className="p-4">Action</TableHead>
-                          <TableHead className="hidden md:table-cell p-4">Resource</TableHead>
-                          <TableHead className="w-[100px] text-right p-4">Details</TableHead>
+                          <TableHead className="hidden xl:table-cell p-4">Resource</TableHead>
+                          <TableHead className="w-[80px] text-right p-4">Details</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -406,7 +406,7 @@ export default function AuditLogPage() {
                                 </span>
                               </div>
                             </TableCell>
-                            <TableCell className="hidden md:table-cell p-4">
+                            <TableCell className="hidden xl:table-cell p-4">
                               {log.resourceName ? (
                                 <div className="flex flex-col">
                                   <span className="text-sm">{log.resourceName}</span>

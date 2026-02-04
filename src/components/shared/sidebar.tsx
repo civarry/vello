@@ -20,6 +20,7 @@ import {
   UserPlus,
   Mail,
   Building2,
+  ClipboardList,
 } from "lucide-react";
 import { InviteDialog } from "./invite-dialog";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,7 @@ const settingsNavigation = [
   { name: "General", href: "/settings/general", icon: Building2 },
   { name: "Members", href: "/settings/members", icon: Users },
   { name: "Email", href: "/settings/email", icon: Mail },
+  { name: "Audit Log", href: "/settings/audit-log", icon: ClipboardList },
 ];
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed";
@@ -465,7 +467,7 @@ export function Sidebar({
 
         {/* Settings with collapsible sub-nav - Only show for OWNER and ADMIN */}
         {(currentRole === "OWNER" || currentRole === "ADMIN") && (
-          <div className="lg:hidden">
+          <div className="xl:hidden">
             {collapsed ? (
               <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
