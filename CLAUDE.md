@@ -509,9 +509,9 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
 ### Navigation Architecture
 16. **Mobile navigation lives in `MobileNav` (`src/components/shared/mobile-nav.tsx`)** — this is the single mobile hamburger menu for the entire app. Do NOT add a second hamburger via `MobileSettingsNav` in the settings layout; it creates redundant overlapping menus.
-17. **Desktop settings sidebar (`SettingsSidebar`) uses `hidden lg:flex`** — only visible at >= 1024px. On mobile/tablet, the dashboard `MobileNav` handles all navigation including settings sub-pages.
-18. **When adding new settings pages**, add the nav link to ALL THREE navigation components: `SettingsSidebar` (desktop >= 1024px), `settingsNavigation` in `sidebar.tsx` (tablet 768px–1023px), and `settingsNavigation` in `mobile-nav.tsx` (mobile < 768px). Use `requiredRole` for permission-gated items in the mobile nav.
-19. **Responsive breakpoint rule for settings content**: The main `Sidebar` takes ~256px at `md`+, so settings page content (filters, tables, cards) should use `lg` not `md` as the breakpoint for horizontal layouts. Example: filter rows use `lg:flex-row`, table columns use `hidden lg:table-cell`.
+17. **Desktop settings sidebar (`SettingsSidebar`) uses `hidden xl:flex`** — only visible at >= 1280px. At `lg` (1024px, e.g. iPad Pro) the main sidebar + settings sidebar would both be visible and leave too little content space. The main `Sidebar`'s settings collapsible section uses `xl:hidden` to hide once the `SettingsSidebar` takes over.
+18. **When adding new settings pages**, add the nav link to ALL THREE navigation components: `SettingsSidebar` (desktop >= 1280px), `settingsNavigation` in `sidebar.tsx` (tablet 768px–1279px), and `settingsNavigation` in `mobile-nav.tsx` (mobile < 768px). Use `requiredRole` for permission-gated items in the mobile nav.
+19. **Responsive breakpoint rule for settings content**: The main `Sidebar` takes ~256px at `md`+, and the `SettingsSidebar` adds another ~256px at `xl`+. Settings page content (filters, tables, cards) should use `xl` as the breakpoint for horizontal layouts. Example: filter rows use `xl:flex-row`, table columns use `hidden xl:table-cell`.
 
 ### What NOT to Build
 - IP address tracking (privacy concerns, unreliable)
