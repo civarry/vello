@@ -129,7 +129,7 @@ export function SMTPConfigForm({
     );
     const [senderEmail, setSenderEmail] = useState(initialConfig?.senderEmail || "");
     const [senderName, setSenderName] = useState(initialConfig?.senderName || "");
-    const [smtpUsername, setSmtpUsername] = useState(initialConfig?.smtpUsername || "");
+    // smtpUsername is now same as senderEmail
     const [smtpPassword, setSmtpPassword] = useState("");
     const [emailSubject, setEmailSubject] = useState(
         initialConfig?.emailSubject || DEFAULT_EMAIL_SUBJECT
@@ -187,13 +187,9 @@ export function SMTPConfigForm({
         }
 
         if (!senderEmail) {
-            newErrors.senderEmail = "Sender email is required";
+            newErrors.senderEmail = "Email address is required";
         } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
             newErrors.senderEmail = "Please enter a valid email address";
-        }
-
-        if (!smtpUsername) {
-            newErrors.smtpUsername = "Username is required";
         }
 
         const selectedProvider = providers.find((p) => p.id === selectedProviderId);
@@ -244,7 +240,7 @@ export function SMTPConfigForm({
                 providerId: selectedProviderId,
                 senderEmail,
                 senderName: senderName || undefined,
-                smtpUsername,
+                smtpUsername: senderEmail, // Use senderEmail as username
                 emailSubject: emailSubject || undefined,
                 emailBody: emailBody || undefined,
             };
@@ -496,12 +492,12 @@ export function SMTPConfigForm({
                 </Card>
             )}
 
-            {/* Sender Configuration */}
+            {/* Account Information */}
             <Card>
                 <CardHeader className="pb-4">
                     <CardTitle className="text-base flex items-center gap-2">
                         <Mail className="h-4 w-4" />
-                        Sender Information
+                        Account Information
                     </CardTitle>
                     <CardDescription>
                         This will appear in the "From" field of sent emails
@@ -510,7 +506,7 @@ export function SMTPConfigForm({
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="senderEmail">Sender Email *</Label>
+                            <Label htmlFor="senderEmail">Email Address *</Label>
                             <Input
                                 id="senderEmail"
                                 type="email"
@@ -562,34 +558,6 @@ export function SMTPConfigForm({
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="smtpUsername" className="flex items-center gap-1">
-                                <User className="h-3 w-3" />
-                                {selectedProvider?.name === "Gmail" || selectedProvider?.name === "Outlook"
-                                    ? "Email Address *"
-                                    : "Username *"}
-                            </Label>
-                            <Input
-                                id="smtpUsername"
-                                type="text"
-                                placeholder={
-                                    selectedProvider?.name === "Gmail"
-                                        ? "your.email@gmail.com"
-                                        : selectedProvider?.name === "Outlook"
-                                            ? "your.email@outlook.com"
-                                            : "username"
-                                }
-                                value={smtpUsername}
-                                onChange={(e) => setSmtpUsername(e.target.value)}
-                                className={cn(errors.smtpUsername && "border-destructive")}
-                            />
-                            {errors.smtpUsername && (
-                                <p className="text-xs text-destructive flex items-center gap-1">
-                                    <AlertCircle className="h-3 w-3" />
-                                    {errors.smtpUsername}
-                                </p>
-                            )}
-                        </div>
                         <div className="space-y-2">
                             <Label htmlFor="smtpPassword">
                                 {initialConfig ? "App Password (leave empty to keep current)" : "App Password *"}

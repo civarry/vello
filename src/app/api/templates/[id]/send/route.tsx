@@ -18,6 +18,7 @@ const sendSchema = z.object({
     recipientName: z.string().optional(),
     documentType: z.string().optional(),
     period: z.string().optional(),
+    providerId: z.string().optional(),
 });
 
 export async function POST(
@@ -63,28 +64,42 @@ export async function POST(
         }
 
         // Get SMTP configuration
-        // Get SMTP configuration
-        // Try to find default config first
-        let smtpConfig = await prisma.sMTPConfiguration.findFirst({
-            where: {
-                organizationId: context.currentMembership.organization.id,
-                isDefault: true,
-            },
-            include: {
-                provider: true,
-            },
-        });
+        let smtpConfig;
 
-        // If no default, try to find any config
-        if (!smtpConfig) {
+        if (validated.providerId) {
+            // Find specific configuration
             smtpConfig = await prisma.sMTPConfiguration.findFirst({
                 where: {
+                    id: validated.providerId,
                     organizationId: context.currentMembership.organization.id,
                 },
                 include: {
                     provider: true,
                 },
             });
+        } else {
+            // Try to find default config first
+            smtpConfig = await prisma.sMTPConfiguration.findFirst({
+                where: {
+                    organizationId: context.currentMembership.organization.id,
+                    isDefault: true,
+                },
+                include: {
+                    provider: true,
+                },
+            });
+
+            // If no default, try to find any config
+            if (!smtpConfig) {
+                smtpConfig = await prisma.sMTPConfiguration.findFirst({
+                    where: {
+                        organizationId: context.currentMembership.organization.id,
+                    },
+                    include: {
+                        provider: true,
+                    },
+                });
+            }
         }
 
         if (!smtpConfig) {

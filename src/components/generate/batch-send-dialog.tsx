@@ -310,6 +310,7 @@ export function BatchSendDialog({
                         recipientName: name,
                         documentType,
                         period,
+                        providerId: selectedProviderId,
                     }),
                 });
 
