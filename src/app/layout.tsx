@@ -42,15 +42,6 @@ export const metadata: Metadata = {
   authors: [{ name: "Vello" }],
   creator: "Vello",
   publisher: "Vello",
-  icons: {
-    icon: [
-      { url: "/icon.png", sizes: "512x512", type: "image/png" },
-    ],
-    apple: [
-      { url: "/apple-icon.png", sizes: "512x512", type: "image/png" },
-    ],
-  },
-  manifest: "/manifest.webmanifest",
   robots: {
     index: true,
     follow: true,
