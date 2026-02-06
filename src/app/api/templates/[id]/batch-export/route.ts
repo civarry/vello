@@ -1,11 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import JSZip from "jszip";
+import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { TemplatePDF, preprocessBlocksForPdf } from "@/lib/pdf/template-pdf";
 import { applyDataToBlocks } from "@/lib/template-utils";
 import { Block, GlobalStyles } from "@/types/template";
 import { logAuditEvent, createAuditUserContext } from "@/lib/audit";
+
+// Validation schema for batch export
+const MAX_BATCH_SIZE = 100;
+
+const batchExportSchema = z.object({
+    blocks: z.array(z.object({
+        id: z.string(),
+        type: z.string(),
+        properties: z.record(z.string(), z.unknown()).optional(),
+        style: z.record(z.string(), z.unknown()).optional(),
+    })).max(500, "Maximum 500 blocks allowed"),
+    globalStyles: z.object({
+        fontFamily: z.string().optional(),
+        fontSize: z.number().optional(),
+        primaryColor: z.string().optional(),
+    }).passthrough(),
+    paperSize: z.enum(["A4", "LETTER", "LEGAL"]).optional(),
+    orientation: z.enum(["PORTRAIT", "LANDSCAPE"]).optional(),
+    name: z.string().max(200, "Name must be 200 characters or less"),
+    batchData: z.array(z.record(z.string(), z.string()))
+        .min(1, "At least one record is required")
+        .max(MAX_BATCH_SIZE, `Maximum ${MAX_BATCH_SIZE} records per batch`),
+});
 
 export async function POST(
     request: NextRequest,
@@ -19,28 +43,28 @@ export async function POST(
         }
 
         const body = await request.json();
+
+        // Validate request body with Zod
+        const parseResult = batchExportSchema.safeParse(body);
+        if (!parseResult.success) {
+            return NextResponse.json(
+                { error: parseResult.error.issues[0]?.message || "Invalid request data" },
+                { status: 400 }
+            );
+        }
+
         const {
-            blocks,
-            globalStyles,
+            blocks: rawBlocks,
+            globalStyles: rawGlobalStyles,
             paperSize,
             orientation,
             name,
             batchData
-        } = body as {
-            blocks: Block[];
-            globalStyles: GlobalStyles;
-            paperSize: "A4" | "LETTER" | "LEGAL";
-            orientation: "PORTRAIT" | "LANDSCAPE";
-            name: string;
-            batchData: Record<string, string>[];
-        };
+        } = parseResult.data;
 
-        if (!blocks || !globalStyles || !batchData || !Array.isArray(batchData)) {
-            return NextResponse.json(
-                { error: "Missing required fields or invalid batch data" },
-                { status: 400 }
-            );
-        }
+        // Cast to proper types (Zod validates structure, we trust the data)
+        const blocks = rawBlocks as unknown as Block[];
+        const globalStyles = rawGlobalStyles as unknown as GlobalStyles;
 
         // Pre-process blocks to convert remote image URLs to data URLs
         const processedBlocks = await preprocessBlocksForPdf(blocks);

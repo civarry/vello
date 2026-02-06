@@ -179,7 +179,10 @@ export async function POST(
 /**
  * GET /api/invites/accept/[token]
  * Get invite details (for showing on the accept page).
- * Does NOT require authentication.
+ *
+ * Security: To prevent information disclosure, unauthenticated requests
+ * only receive { valid: true/false }. Full details (email, organization,
+ * inviter) are only returned after authentication.
  */
 export async function GET(
     request: NextRequest,
@@ -187,6 +190,12 @@ export async function GET(
 ) {
     try {
         const { token } = await params;
+        const supabase = await createClient();
+
+        // Check if user is authenticated
+        const {
+            data: { user: authUser },
+        } = await supabase.auth.getUser();
 
         // Find the invite
         const invite = await prisma.invite.findUnique({
@@ -207,6 +216,25 @@ export async function GET(
             },
         });
 
+        // For unauthenticated requests, only return validity status
+        // This prevents reconnaissance attacks that could reveal org names and user emails
+        if (!authUser) {
+            if (!invite) {
+                return NextResponse.json({ valid: false });
+            }
+
+            if (invite.expiresAt < new Date()) {
+                return NextResponse.json({ valid: false, expired: true });
+            }
+
+            if (invite.acceptedAt) {
+                return NextResponse.json({ valid: false, used: true });
+            }
+
+            return NextResponse.json({ valid: true });
+        }
+
+        // Authenticated requests get full details
         if (!invite) {
             return createNotFoundResponse("Invite not found");
         }

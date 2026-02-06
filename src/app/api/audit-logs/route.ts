@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
@@ -8,6 +9,21 @@ import {
   createErrorResponse,
 } from "@/lib/errors";
 import { logError, logWarn } from "@/lib/logging";
+
+// Validation schema for audit log query parameters
+const queryParamsSchema = z.object({
+  page: z.coerce.number().int().min(1).max(1000).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  userId: z.string().cuid().optional(),
+  action: z.string().max(100).optional(),
+  resourceType: z.string().max(50).optional(),
+  startDate: z.string().refine((val) => !val || !isNaN(Date.parse(val)), {
+    message: "Invalid start date format",
+  }).optional(),
+  endDate: z.string().refine((val) => !val || !isNaN(Date.parse(val)), {
+    message: "Invalid end date format",
+  }).optional(),
+});
 
 /**
  * GET /api/audit-logs
@@ -36,15 +52,27 @@ export async function GET(request: NextRequest) {
       return createForbiddenResponse("You don't have permission to view audit logs");
     }
 
-    // Parse query parameters for filtering
+    // Parse and validate query parameters
     const { searchParams } = new URL(request.url);
-    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "50", 10)));
-    const userId = searchParams.get("userId");
-    const action = searchParams.get("action");
-    const resourceType = searchParams.get("resourceType");
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
+    const rawParams = {
+      page: searchParams.get("page") || undefined,
+      limit: searchParams.get("limit") || undefined,
+      userId: searchParams.get("userId") || undefined,
+      action: searchParams.get("action") || undefined,
+      resourceType: searchParams.get("resourceType") || undefined,
+      startDate: searchParams.get("startDate") || undefined,
+      endDate: searchParams.get("endDate") || undefined,
+    };
+
+    const parseResult = queryParamsSchema.safeParse(rawParams);
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: parseResult.error.issues[0]?.message || "Invalid query parameters" },
+        { status: 400 }
+      );
+    }
+
+    const { page, limit, userId, action, resourceType, startDate, endDate } = parseResult.data;
 
     // Build where clause
     const where: Record<string, unknown> = {

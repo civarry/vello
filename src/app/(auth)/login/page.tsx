@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { getSafeRedirectUrl } from "@/lib/url-validation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +14,7 @@ import { Loader2 } from "lucide-react";
 function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const redirect = searchParams.get("redirect") ?? "/templates";
+    const redirect = getSafeRedirectUrl(searchParams.get("redirect"));
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");

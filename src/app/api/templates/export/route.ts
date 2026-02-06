@@ -1,9 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
+import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { TemplatePDF } from "@/lib/pdf/template-pdf";
 import { logAuditEvent, createAuditUserContext } from "@/lib/audit";
-import type { Block } from "@/types/template";
+import type { Block, GlobalStyles } from "@/types/template";
+
+// Validation schema for template export
+const MAX_BLOCKS = 500;
+
+const exportSchema = z.object({
+    blocks: z.array(z.object({
+        id: z.string(),
+        type: z.string(),
+        properties: z.record(z.string(), z.unknown()).optional(),
+        style: z.record(z.string(), z.unknown()).optional(),
+    })).max(MAX_BLOCKS, `Maximum ${MAX_BLOCKS} blocks allowed`),
+    globalStyles: z.object({
+        fontFamily: z.string().optional(),
+        fontSize: z.number().optional(),
+        primaryColor: z.string().optional(),
+    }).passthrough(),
+    paperSize: z.enum(["A4", "LETTER", "LEGAL"]).optional(),
+    orientation: z.enum(["PORTRAIT", "LANDSCAPE"]).optional(),
+    name: z.string().max(200, "Name must be 200 characters or less").optional(),
+});
 
 // Helper to add timeout to a promise
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
@@ -93,14 +114,21 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { blocks, globalStyles, paperSize, orientation, name } = body;
 
-    if (!blocks || !globalStyles) {
+    // Validate request body with Zod
+    const parseResult = exportSchema.safeParse(body);
+    if (!parseResult.success) {
       return NextResponse.json(
-        { error: "Missing required fields: blocks and globalStyles" },
+        { error: parseResult.error.issues[0]?.message || "Invalid request data" },
         { status: 400 }
       );
     }
+
+    const { blocks: rawBlocks, globalStyles: rawGlobalStyles, paperSize, orientation, name } = parseResult.data;
+
+    // Cast to proper types (Zod validates structure, we trust the data)
+    const blocks = rawBlocks as unknown as Block[];
+    const globalStyles = rawGlobalStyles as unknown as GlobalStyles;
 
     console.log('[Export API] Starting PDF generation, orientation:', orientation, 'blocks:', blocks.length);
 

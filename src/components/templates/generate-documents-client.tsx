@@ -216,6 +216,9 @@ export function GenerateDocumentsClient({
 
   // --- Export Actions ---
 
+  // Maximum records per batch request (matches server-side limit)
+  const MAX_BATCH_SIZE = 100;
+
   const handleGenerate = async () => {
     const validRecords = records.filter(row =>
       Object.values(row).some(val => val.trim() !== "")
@@ -248,26 +251,68 @@ export function GenerateDocumentsClient({
         toast.success("Payslip exported successfully");
 
       } else {
-        toast.info(`Generating ${validRecords.length} payslips...`);
+        // Split into chunks if exceeding batch limit
+        const chunks: Record<string, string>[][] = [];
+        for (let i = 0; i < validRecords.length; i += MAX_BATCH_SIZE) {
+          chunks.push(validRecords.slice(i, i + MAX_BATCH_SIZE));
+        }
 
-        const response = await fetch(`/api/templates/${templateId}/batch-export`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            blocks: template.schema.blocks,
-            globalStyles: template.schema.globalStyles,
-            paperSize: template.paperSize,
-            orientation: template.orientation,
-            name: template.name,
-            batchData: validRecords
-          }),
-        });
+        if (chunks.length === 1) {
+          // Single batch - simple case
+          toast.info(`Generating ${validRecords.length} payslips...`);
 
-        if (!response.ok) throw new Error((await response.json()).error);
+          const response = await fetch(`/api/templates/${templateId}/batch-export`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              blocks: template.schema.blocks,
+              globalStyles: template.schema.globalStyles,
+              paperSize: template.paperSize,
+              orientation: template.orientation,
+              name: template.name,
+              batchData: validRecords
+            }),
+          });
 
-        const blob = await response.blob();
-        downloadBlob(blob, `${template.name}-batch-export.zip`);
-        toast.success("Batch export completed successfully");
+          if (!response.ok) throw new Error((await response.json()).error);
+
+          const blob = await response.blob();
+          downloadBlob(blob, `${template.name}-batch-export.zip`);
+          toast.success("Batch export completed successfully");
+        } else {
+          // Multiple batches needed
+          toast.info(`Generating ${validRecords.length} payslips in ${chunks.length} batches...`);
+
+          for (let i = 0; i < chunks.length; i++) {
+            const chunk = chunks[i];
+            const batchNum = i + 1;
+
+            toast.info(`Processing batch ${batchNum} of ${chunks.length} (${chunk.length} records)...`);
+
+            const response = await fetch(`/api/templates/${templateId}/batch-export`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                blocks: template.schema.blocks,
+                globalStyles: template.schema.globalStyles,
+                paperSize: template.paperSize,
+                orientation: template.orientation,
+                name: template.name,
+                batchData: chunk
+              }),
+            });
+
+            if (!response.ok) throw new Error((await response.json()).error);
+
+            const blob = await response.blob();
+            const filename = chunks.length > 1
+              ? `${template.name}-batch-${batchNum}-of-${chunks.length}.zip`
+              : `${template.name}-batch-export.zip`;
+            downloadBlob(blob, filename);
+          }
+
+          toast.success(`Exported ${validRecords.length} payslips in ${chunks.length} ZIP files`);
+        }
       }
     } catch (error) {
       console.error("Export error:", error);
