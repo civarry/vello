@@ -2,14 +2,18 @@ import {
     Block,
     TableBlockProperties,
     ContainerBlockProperties,
-    STANDARD_VARIABLES,
-    TemplateVariable
+    SYSTEM_VARIABLES,
+    TemplateVariable,
+    OrganizationParameter,
+    orgParamToTemplateVariable,
 } from "@/types/template";
 
 export interface VariableInfo {
     key: string;
     label: string;
     category: string;
+    dataType?: string;
+    isRequired?: boolean;
 }
 
 // Extract all variables used in a template (both standard and custom)
@@ -23,7 +27,12 @@ function getSortIndex(key: string) {
 }
 
 // Extract all variables used in a template (both standard and custom)
-export function extractUsedVariables(blocks: Block[]): VariableInfo[] {
+export function extractUsedVariables(blocks: Block[], orgParams?: OrganizationParameter[]): VariableInfo[] {
+    // Build a combined lookup from system + org variables
+    const allKnownVars: TemplateVariable[] = [
+        ...SYSTEM_VARIABLES,
+        ...(orgParams?.map(orgParamToTemplateVariable) ?? []),
+    ];
     const usedVariables = new Set<string>();
     const labelMap = new Map<string, string>(); // labelId -> label content
     const variableLabelOverride = new Map<string, string>(); // variable key -> inferred label from adjacent cell
@@ -77,21 +86,25 @@ export function extractUsedVariables(blocks: Block[]): VariableInfo[] {
         // Check for inferred label override FIRST
         const inferredLabel = variableLabelOverride.get(key);
         if (inferredLabel) {
-            const standardVar = STANDARD_VARIABLES.find((v: TemplateVariable) => v.key === key);
+            const standardVar = allKnownVars.find((v: TemplateVariable) => v.key === key);
             return {
                 key,
                 label: inferredLabel,
                 category: standardVar?.category || "custom",
+                dataType: standardVar?.dataType,
+                isRequired: standardVar?.isRequired,
             };
         }
 
-        // Check if it's a standard variable
-        const standardVar = STANDARD_VARIABLES.find((v: TemplateVariable) => v.key === key);
+        // Check if it's a known variable (system or organization)
+        const standardVar = allKnownVars.find((v: TemplateVariable) => v.key === key);
         if (standardVar) {
             return {
                 key,
                 label: standardVar.label,
                 category: standardVar.category,
+                dataType: standardVar?.dataType,
+                isRequired: standardVar?.isRequired,
             };
         }
 
@@ -282,4 +295,39 @@ export function applyDataToBlocks(blocks: Block[], data: Record<string, string>)
 
         return block;
     });
+}
+
+/** Validate a cell value against a data type. Returns an error message or null. */
+export function validateCellValue(
+    value: string,
+    dataType?: string,
+    isRequired?: boolean
+): string | null {
+    if (!value || value.trim() === "") {
+        if (isRequired) return "This field is required";
+        return null;
+    }
+
+    if (dataType === "number") {
+        const cleaned = value.replace(/,/g, "");
+        if (isNaN(Number(cleaned))) return "Expected a number";
+    }
+
+    if (dataType === "date") {
+        if (isNaN(new Date(value).getTime())) return "Expected a valid date";
+    }
+
+    return null;
+}
+
+/** Build a combined list of all variables from system + org params + dynamic custom vars */
+export function buildAllVariables(
+    orgParams?: OrganizationParameter[],
+    dynamicVars?: TemplateVariable[]
+): TemplateVariable[] {
+    return [
+        ...SYSTEM_VARIABLES,
+        ...(orgParams?.map(orgParamToTemplateVariable) ?? []),
+        ...(dynamicVars ?? []),
+    ];
 }

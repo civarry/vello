@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Users, Mail, Settings, Menu, ClipboardList } from "lucide-react";
+import { Users, Mail, Settings, Menu, ClipboardList, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Sheet,
@@ -24,6 +24,12 @@ const baseItems = [
         href: "/settings/general",
         icon: Settings,
         description: "Organization profile and preferences",
+    },
+    {
+        title: "Parameters",
+        href: "/settings/parameters",
+        icon: SlidersHorizontal,
+        description: "Define organization variables and data types",
     },
     {
         title: "Members",

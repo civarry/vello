@@ -23,6 +23,7 @@ model Organization {
   payslips      Payslip[]
   smtpConfigs   SMTPConfiguration[]
   auditLogs     AuditLog[]
+  parameters    OrganizationParameter[]
   currentUsers  User[] @relation("CurrentOrganization") // Users who have this as their current org
 }
 
@@ -236,4 +237,22 @@ model AuditLog {
   @@index([action])
   @@index([timestamp])
   @@map("audit_logs")
+}
+
+model OrganizationParameter {
+  id             String   @id @default(cuid())
+  key            String   // e.g., "earnings.basicSalary" (no braces)
+  label          String   // e.g., "Basic Salary"
+  category       String   // Free-form: "earnings", "deductions", "company", etc.
+  dataType       String   @default("text") // "text" | "number" | "date"
+  isRequired     Boolean  @default(false)
+  sortOrder      Int      @default(0)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, key])
+  @@index([organizationId])
+  @@map("organization_parameters")
 }

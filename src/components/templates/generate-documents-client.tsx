@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
@@ -25,6 +26,7 @@ import {
   MoreVertical,
   Maximize2,
   Info,
+  AlertCircle,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -46,8 +48,10 @@ import { LivePdfPreview } from "@/components/previews/live-pdf-preview";
 import {
   extractUsedVariables,
   applyDataToBlocks,
+  validateCellValue,
   type VariableInfo
 } from "@/lib/template-utils";
+import { useParameters } from "@/hooks/use-queries";
 import { BatchSendDialog } from "@/components/generate/batch-send-dialog";
 import { GeneralSendDialog } from "@/components/generate/general-send-dialog";
 
@@ -80,8 +84,13 @@ export function GenerateDocumentsClient({
   const [isImporting, setIsImporting] = useState(false);
   const [showSendDialog, setShowSendDialog] = useState(false);
 
+  const { data: orgParams } = useParameters();
+
   // Data Grid State
-  const usedVariables = extractUsedVariables(template.schema.blocks);
+  const usedVariables = useMemo(() =>
+    extractUsedVariables(template.schema.blocks, orgParams),
+    [template.schema.blocks, orgParams]
+  );
   const [records, setRecords] = useState<Record<string, string>[]>(() => {
     const initialRow: Record<string, string> = {};
     usedVariables.forEach((v) => {
@@ -506,14 +515,38 @@ export function GenerateDocumentsClient({
             <thead className="bg-muted sticky top-0 z-10 shadow-sm">
               <tr>
                 <th className="p-2 w-10 border-b text-center text-muted-foreground font-medium">#</th>
-                {usedVariables.map(v => (
-                  <th key={v.key} className="p-2 border-b text-left font-medium min-w-[150px] whitespace-nowrap">
-                    <div className="flex flex-col">
-                      <span>{v.label}</span>
-                      <span className="text-[10px] text-muted-foreground font-normal opacity-70">{v.key}</span>
-                    </div>
-                  </th>
-                ))}
+                {usedVariables.map(v => {
+                  const hasErrorInColumn = records.some(row => {
+                    const value = row[v.key];
+                    return validateCellValue(value, v.dataType, v.isRequired) !== null;
+                  });
+
+                  return (
+                    <th key={v.key} className="p-2 border-b text-left font-medium min-w-[150px] whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <div className="flex flex-col">
+                          <span className={cn(hasErrorInColumn && "text-destructive")}>
+                            {v.label}
+                            {v.isRequired && <span className="text-destructive ml-0.5">*</span>}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground font-normal opacity-70">{v.key}</span>
+                        </div>
+                        {hasErrorInColumn && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <AlertCircle className="h-3 w-3 text-destructive" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Column contains invalid values</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
+                    </th>
+                  );
+                })}
                 <th className="p-2 w-10 border-b"></th>
               </tr>
             </thead>
@@ -529,16 +562,39 @@ export function GenerateDocumentsClient({
                     <td className="p-2 text-center text-xs text-muted-foreground select-none">
                       {rowIndex + 1}
                     </td>
-                    {usedVariables.map(v => (
-                      <td key={v.key} className="p-1 border-r relative min-w-[150px]">
-                        <input
-                          className="w-full h-full p-1.5 bg-transparent outline-none focus:bg-background focus:ring-1 ring-primary/20 rounded-sm transition-all text-sm"
-                          value={row[v.key] || ""}
-                          onChange={(e) => handleCellChange(rowIndex, v.key, e.target.value)}
-                          placeholder="..."
-                        />
-                      </td>
-                    ))}
+                    {usedVariables.map(v => {
+                      const error = validateCellValue(row[v.key], v.dataType, v.isRequired);
+
+                      return (
+                        <td key={v.key} className="p-1 border-r relative min-w-[150px]">
+                          <div className="relative w-full h-full">
+                            <input
+                              className={cn(
+                                "w-full h-full p-1.5 bg-transparent outline-none focus:bg-background focus:ring-1 ring-primary/20 rounded-sm transition-all text-sm",
+                                error && "bg-destructive/10 ring-1 ring-destructive placeholder:text-destructive/50"
+                              )}
+                              value={row[v.key] || ""}
+                              onChange={(e) => handleCellChange(rowIndex, v.key, e.target.value)}
+                              placeholder={v.dataType === "number" ? "0.00" : "..."}
+                            />
+                            {error && (
+                              <div className="absolute right-1 top-1/2 -translate-y-1/2">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <AlertCircle className="h-3 w-3 text-destructive cursor-help" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p className="text-destructive font-medium">{error}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      );
+                    })}
                     <td className="p-1 text-center">
                       <Button
                         variant="ghost"

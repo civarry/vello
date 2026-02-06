@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { STANDARD_VARIABLES, TemplateVariable } from "@/types/template";
+import { useState, useMemo } from "react";
+import { SYSTEM_VARIABLES, TemplateVariable, orgParamToTemplateVariable } from "@/types/template";
 import {
   Popover,
   PopoverContent,
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Variable, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useParameters } from "@/hooks/use-queries";
 
 interface VariablePickerProps {
   value?: string;
@@ -18,29 +19,40 @@ interface VariablePickerProps {
   trigger?: React.ReactNode;
 }
 
-const categoryLabels: Record<string, string> = {
+const SYSTEM_CATEGORY_LABELS: Record<string, string> = {
   employee: "Employee",
   period: "Period",
-  company: "Company",
-  earnings: "Earnings",
-  deductions: "Deductions",
   computed: "Computed",
 };
 
-const categoryColors: Record<string, string> = {
-  employee: "bg-blue-100 text-blue-800",
-  period: "bg-purple-100 text-purple-800",
-  company: "bg-green-100 text-green-800",
-  earnings: "bg-emerald-100 text-emerald-800",
-  deductions: "bg-red-100 text-red-800",
-  computed: "bg-orange-100 text-orange-800",
+const SYSTEM_CATEGORY_COLORS: Record<string, string> = {
+  employee: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300",
+  period: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300",
+  computed: "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300",
 };
+
+const ORG_CATEGORY_COLORS = "bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300";
+
+function getCategoryLabel(category: string): string {
+  return SYSTEM_CATEGORY_LABELS[category] || category.charAt(0).toUpperCase() + category.slice(1);
+}
+
+function getCategoryColor(category: string, source?: string): string {
+  if (source === "organization") return ORG_CATEGORY_COLORS;
+  return SYSTEM_CATEGORY_COLORS[category] || ORG_CATEGORY_COLORS;
+}
 
 export function VariablePicker({ value, onChange, trigger }: VariablePickerProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const { data: orgParams } = useParameters();
 
-  const filteredVariables = STANDARD_VARIABLES.filter(
+  const allVariables = useMemo(() => {
+    const orgVars = (orgParams ?? []).map(orgParamToTemplateVariable);
+    return [...SYSTEM_VARIABLES, ...orgVars];
+  }, [orgParams]);
+
+  const filteredVariables = allVariables.filter(
     (v) =>
       v.label.toLowerCase().includes(search.toLowerCase()) ||
       v.key.toLowerCase().includes(search.toLowerCase())
@@ -54,7 +66,7 @@ export function VariablePicker({ value, onChange, trigger }: VariablePickerProps
     return acc;
   }, {} as Record<string, TemplateVariable[]>);
 
-  const selectedVariable = STANDARD_VARIABLES.find((v) => v.key === value);
+  const selectedVariable = allVariables.find((v) => v.key === value);
 
   const handleSelect = (variable: TemplateVariable) => {
     onChange(variable.key);
@@ -110,7 +122,7 @@ export function VariablePicker({ value, onChange, trigger }: VariablePickerProps
           {Object.entries(groupedVariables).map(([category, variables]) => (
             <div key={category} className="mb-2">
               <div className="px-2 py-1 text-xs font-semibold text-muted-foreground uppercase">
-                {categoryLabels[category] || category}
+                {getCategoryLabel(category)}
               </div>
               {variables.map((variable) => (
                 <button
@@ -124,7 +136,7 @@ export function VariablePicker({ value, onChange, trigger }: VariablePickerProps
                   <span
                     className={cn(
                       "px-1.5 py-0.5 rounded text-xs font-mono",
-                      categoryColors[variable.category]
+                      getCategoryColor(variable.category, variable.source)
                     )}
                   >
                     {variable.key.replace(/[{}]/g, "")}

@@ -84,6 +84,10 @@ const ACTION_CATEGORIES = [
   { value: "SMTP_CONFIG_ADDED", label: "Email Config Added" },
   { value: "SMTP_CONFIG_UPDATED", label: "Email Config Updated" },
   { value: "SMTP_CONFIG_DELETED", label: "Email Config Deleted" },
+  // Parameters
+  { value: "PARAMETER_CREATED", label: "Parameter Created" },
+  { value: "PARAMETER_UPDATED", label: "Parameter Updated" },
+  { value: "PARAMETER_DELETED", label: "Parameter Deleted" },
   // Audit
   { value: "AUDIT_LOGS_EXPORTED", label: "Audit Logs Exported" },
 ];
@@ -118,6 +122,11 @@ function getActionIcon(action: string) {
     if (action.includes("INVITED")) return <UserPlus className="h-4 w-4 text-green-600" />;
     if (action.includes("REMOVED")) return <UserMinus className="h-4 w-4 text-destructive" />;
     if (action.includes("ROLE")) return <Shield className="h-4 w-4 text-orange-500" />;
+  }
+  // Parameters
+  if (action.includes("PARAMETER")) {
+    if (action.includes("DELETED")) return <Trash2 className="h-4 w-4 text-destructive" />;
+    return <Settings className="h-4 w-4 text-teal-500" />;
   }
   // Organization & Settings
   if (action.includes("ORG_DELETED")) {

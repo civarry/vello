@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Block, TableBlockProperties, TableCell, STANDARD_VARIABLES, TemplateVariable } from "@/types/template";
+import { Block, TableBlockProperties, TableCell, SYSTEM_VARIABLES, TemplateVariable, orgParamToTemplateVariable } from "@/types/template";
+import { useParameters } from "@/hooks/use-queries";
 import { useTemplateBuilderStore } from "@/stores/template-builder-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,15 +34,16 @@ interface TableBlockProps {
   data?: Record<string, unknown>;
 }
 
-const categoryLabels: Record<string, string> = {
+const CATEGORY_LABELS: Record<string, string> = {
   employee: "Employee",
   period: "Period",
-  company: "Company",
-  earnings: "Earnings",
-  deductions: "Deductions",
   computed: "Computed",
   custom: "Custom (Row Labels)",
 };
+
+function getCategoryLabel(category: string): string {
+  return CATEGORY_LABELS[category] || category.charAt(0).toUpperCase() + category.slice(1);
+}
 
 // Score how well a variable matches the cell content
 function getMatchScore(cellContent: string, variable: { key: string; label: string }): number {
@@ -105,6 +107,7 @@ export function TableBlock({ block, isPreview, data }: TableBlockProps) {
     addTableColumn,
     removeTableColumn,
   } = useTemplateBuilderStore();
+  const { data: orgParams } = useParameters();
 
   const isSelected = selectedBlockId === block.id;
   const [editingCell, setEditingCell] = useState<{ row: number; col: number } | null>(null);
@@ -170,7 +173,7 @@ export function TableBlock({ block, isPreview, data }: TableBlockProps) {
             variables.push({
               key,
               label: displayLabel,
-              category: "custom" as TemplateVariable["category"],
+              category: "custom",
             });
           });
         }
@@ -180,10 +183,11 @@ export function TableBlock({ block, isPreview, data }: TableBlockProps) {
     return variables;
   }, [props.rows]);
 
-  // Combine standard and dynamic variables
+  // Combine system, organization, and dynamic variables
   const allVariables = useMemo(() => {
-    return [...STANDARD_VARIABLES, ...dynamicVariables];
-  }, [dynamicVariables]);
+    const orgVars = (orgParams ?? []).map(orgParamToTemplateVariable);
+    return [...SYSTEM_VARIABLES, ...orgVars, ...dynamicVariables];
+  }, [orgParams, dynamicVariables]);
 
   // Group all variables by category
   const variablesByCategory = useMemo(() => {
@@ -434,7 +438,7 @@ export function TableBlock({ block, isPreview, data }: TableBlockProps) {
                             {Object.entries(variablesByCategory).map(([category, variables]) => (
                               <div key={category}>
                                 <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">
-                                  {categoryLabels[category] || category}
+                                  {getCategoryLabel(category)}
                                 </div>
                                 {variables.map((variable) => {
                                   const isSuggested = suggestedVariables.some(s => s.key === variable.key);

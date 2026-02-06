@@ -20,6 +20,7 @@ import {
     Mail,
     Building2,
     ClipboardList,
+    SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -72,6 +73,7 @@ const mainNavigation = [
 
 const settingsNavigation = [
     { name: "General", href: "/settings/general", icon: Building2 },
+    { name: "Parameters", href: "/settings/parameters", icon: SlidersHorizontal },
     { name: "Members", href: "/settings/members", icon: Users },
     { name: "Email", href: "/settings/email", icon: Mail },
     { name: "Audit Log", href: "/settings/audit-log", icon: ClipboardList, requiredRole: ["OWNER", "ADMIN"] as string[] },

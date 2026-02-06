@@ -9,6 +9,7 @@ export const queryKeys = {
   invites: ["invites"] as const,
   smtpConfigs: ["smtp-configs"] as const,
   smtpConfig: (id: string) => ["smtp-config", id] as const,
+  parameters: ["parameters"] as const,
 };
 
 // ============ Types ============
@@ -60,28 +61,28 @@ export interface Invite {
 async function fetchTemplates(): Promise<Template[]> {
   const response = await fetch("/api/templates");
   const result = await response.json();
-  if (!response.ok) throw new Error(result.error || "Failed to fetch templates");
+  if (!response.ok) throw new Error(result.details?.message || result.error || "Failed to fetch templates");
   return result.data;
 }
 
 async function fetchOrganization(): Promise<Organization> {
   const response = await fetch("/api/organization");
   const result = await response.json();
-  if (!response.ok) throw new Error(result.error || "Failed to fetch organization");
+  if (!response.ok) throw new Error(result.details?.message || result.error || "Failed to fetch organization");
   return result.data;
 }
 
 async function fetchMembers(): Promise<Member[]> {
   const response = await fetch("/api/members");
   const result = await response.json();
-  if (!response.ok) throw new Error(result.error || "Failed to fetch members");
+  if (!response.ok) throw new Error(result.details?.message || result.error || "Failed to fetch members");
   return result.data;
 }
 
 async function fetchInvites(): Promise<Invite[]> {
   const response = await fetch("/api/invites");
   const result = await response.json();
-  if (!response.ok) throw new Error(result.error || "Failed to fetch invites");
+  if (!response.ok) throw new Error(result.details?.message || result.error || "Failed to fetch invites");
   return result.data;
 }
 
@@ -103,7 +104,7 @@ export function useDeleteTemplate() {
       const response = await fetch(`/api/templates/${id}`, { method: "DELETE" });
       if (!response.ok) {
         const result = await response.json();
-        throw new Error(result.error || "Failed to delete template");
+        throw new Error(result.details?.message || result.error || "Failed to delete template");
       }
     },
     onSuccess: () => {
@@ -119,7 +120,7 @@ export function useDuplicateTemplate() {
     mutationFn: async (id: string) => {
       const response = await fetch(`/api/templates/${id}/duplicate`, { method: "POST" });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Failed to duplicate template");
+      if (!response.ok) throw new Error(result.details?.message || result.error || "Failed to duplicate template");
       return result.data;
     },
     onSuccess: () => {
@@ -147,7 +148,7 @@ export function useUpdateOrganization() {
         body: JSON.stringify(data),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Failed to update organization");
+      if (!response.ok) throw new Error(result.details?.message || result.error || "Failed to update organization");
       return result.data;
     },
     onSuccess: (data) => {
@@ -172,7 +173,7 @@ export function useRemoveMember() {
       const response = await fetch(`/api/members/${id}`, { method: "DELETE" });
       if (!response.ok) {
         const result = await response.json();
-        throw new Error(result.error || "Failed to remove member");
+        throw new Error(result.details?.message || result.error || "Failed to remove member");
       }
     },
     onSuccess: () => {
@@ -192,7 +193,7 @@ export function useUpdateMemberRole() {
         body: JSON.stringify({ role }),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Failed to update role");
+      if (!response.ok) throw new Error(result.details?.message || result.error || "Failed to update role");
       return result.data;
     },
     onSuccess: () => {
@@ -217,7 +218,7 @@ export function useCancelInvite() {
       const response = await fetch(`/api/invites/${id}`, { method: "DELETE" });
       if (!response.ok) {
         const result = await response.json();
-        throw new Error(result.error || "Failed to cancel invite");
+        throw new Error(result.details?.message || result.error || "Failed to cancel invite");
       }
     },
     onSuccess: () => {
@@ -237,7 +238,7 @@ export function useCreateInvite() {
         body: JSON.stringify(data),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Failed to send invite");
+      if (!response.ok) throw new Error(result.details?.message || result.error || "Failed to send invite");
       return result.data;
     },
     onSuccess: () => {
@@ -251,8 +252,100 @@ export function useGetInviteLink() {
     mutationFn: async (inviteId: string): Promise<{ token: string }> => {
       const response = await fetch(`/api/invites/${inviteId}/link`);
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Failed to get invite link");
+      if (!response.ok) throw new Error(result.details?.message || result.error || "Failed to get invite link");
       return result.data;
+    },
+  });
+}
+
+// ============ Parameters ============
+
+import type { OrganizationParameter } from "@/types/template";
+
+async function fetchParameters(): Promise<OrganizationParameter[]> {
+  const response = await fetch("/api/parameters");
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.details?.message || result.error || "Failed to fetch parameters");
+  return result.data;
+}
+
+export function useParameters() {
+  return useQuery({
+    queryKey: queryKeys.parameters,
+    queryFn: fetchParameters,
+  });
+}
+
+export function useCreateParameter() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: {
+      key: string;
+      label: string;
+      category: string;
+      dataType: string;
+      isRequired: boolean;
+    }) => {
+      const response = await fetch("/api/parameters", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.details?.message || result.error || "Failed to create parameter");
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.parameters });
+    },
+  });
+}
+
+export function useUpdateParameter() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      ...data
+    }: {
+      id: string;
+      key?: string;
+      label?: string;
+      category?: string;
+      dataType?: string;
+      isRequired?: boolean;
+      sortOrder?: number;
+    }) => {
+      const response = await fetch(`/api/parameters/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.details?.message || result.error || "Failed to update parameter");
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.parameters });
+    },
+  });
+}
+
+export function useDeleteParameter() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/parameters/${id}`, { method: "DELETE" });
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.details?.message || result.error || "Failed to delete parameter");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.parameters });
     },
   });
 }

@@ -21,6 +21,7 @@ import {
   Mail,
   Building2,
   ClipboardList,
+  SlidersHorizontal,
 } from "lucide-react";
 import { InviteDialog } from "./invite-dialog";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,7 @@ const navigation = [
 
 const settingsNavigation = [
   { name: "General", href: "/settings/general", icon: Building2 },
+  { name: "Parameters", href: "/settings/parameters", icon: SlidersHorizontal },
   { name: "Members", href: "/settings/members", icon: Users },
   { name: "Email", href: "/settings/email", icon: Mail },
   { name: "Audit Log", href: "/settings/audit-log", icon: ClipboardList },

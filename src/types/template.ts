@@ -108,7 +108,10 @@ export interface Block {
 export interface TemplateVariable {
   key: string;
   label: string;
-  category: "employee" | "period" | "company" | "earnings" | "deductions" | "computed";
+  category: string;
+  dataType?: "text" | "number" | "date";
+  isRequired?: boolean;
+  source?: "system" | "organization" | "custom";
 }
 
 // Guide line for canvas alignment
@@ -151,45 +154,51 @@ export interface TemplateSchema {
   recipientNameField?: string | null;
 }
 
-export const STANDARD_VARIABLES: TemplateVariable[] = [
+export const SYSTEM_VARIABLES: TemplateVariable[] = [
   // Employee
-  { key: "{{employee.id}}", label: "Employee ID", category: "employee" },
-  { key: "{{employee.firstName}}", label: "First Name", category: "employee" },
-  { key: "{{employee.lastName}}", label: "Last Name", category: "employee" },
-  { key: "{{employee.fullName}}", label: "Full Name", category: "employee" },
-  { key: "{{employee.department}}", label: "Department", category: "employee" },
-  { key: "{{employee.position}}", label: "Position", category: "employee" },
-  { key: "{{employee.email}}", label: "Email", category: "employee" },
+  { key: "{{employee.id}}", label: "Employee ID", category: "employee", source: "system" },
+  { key: "{{employee.firstName}}", label: "First Name", category: "employee", source: "system" },
+  { key: "{{employee.lastName}}", label: "Last Name", category: "employee", source: "system" },
+  { key: "{{employee.fullName}}", label: "Full Name", category: "employee", source: "system" },
+  { key: "{{employee.department}}", label: "Department", category: "employee", source: "system" },
+  { key: "{{employee.position}}", label: "Position", category: "employee", source: "system" },
+  { key: "{{employee.email}}", label: "Email", category: "employee", source: "system" },
 
   // Period
-  { key: "{{period.start}}", label: "Period Start", category: "period" },
-  { key: "{{period.end}}", label: "Period End", category: "period" },
-  { key: "{{period.month}}", label: "Pay Month", category: "period" },
-  { key: "{{period.year}}", label: "Pay Year", category: "period" },
-
-  // Company
-  { key: "{{company.name}}", label: "Company Name", category: "company" },
-  { key: "{{company.address}}", label: "Company Address", category: "company" },
-  { key: "{{company.logo}}", label: "Company Logo", category: "company" },
-
-  // Earnings (dynamic)
-  { key: "{{earnings.basicSalary}}", label: "Basic Salary", category: "earnings" },
-  { key: "{{earnings.overtime}}", label: "Overtime Pay", category: "earnings" },
-  { key: "{{earnings.allowances}}", label: "Allowances", category: "earnings" },
-  { key: "{{earnings.bonus}}", label: "Bonus", category: "earnings" },
-  { key: "{{earnings.total}}", label: "Total Earnings", category: "earnings" },
-
-  // Deductions (Philippine-specific)
-  { key: "{{deductions.sss}}", label: "SSS", category: "deductions" },
-  { key: "{{deductions.philhealth}}", label: "PhilHealth", category: "deductions" },
-  { key: "{{deductions.pagibig}}", label: "Pag-IBIG", category: "deductions" },
-  { key: "{{deductions.tax}}", label: "Withholding Tax", category: "deductions" },
-  { key: "{{deductions.total}}", label: "Total Deductions", category: "deductions" },
+  { key: "{{period.start}}", label: "Period Start", category: "period", source: "system" },
+  { key: "{{period.end}}", label: "Period End", category: "period", source: "system" },
+  { key: "{{period.month}}", label: "Pay Month", category: "period", source: "system" },
+  { key: "{{period.year}}", label: "Pay Year", category: "period", source: "system" },
 
   // Computed
-  { key: "{{netPay}}", label: "Net Pay", category: "computed" },
-  { key: "{{currentDate}}", label: "Current Date", category: "computed" },
+  { key: "{{currentDate}}", label: "Current Date", category: "computed", source: "system" },
 ];
+
+/** @deprecated Use SYSTEM_VARIABLES instead */
+export const STANDARD_VARIABLES = SYSTEM_VARIABLES;
+
+/** Client-side type for organization parameters */
+export interface OrganizationParameter {
+  id: string;
+  key: string;
+  label: string;
+  category: string;
+  dataType: "text" | "number" | "date";
+  isRequired: boolean;
+  sortOrder: number;
+}
+
+/** Convert an OrganizationParameter to a TemplateVariable */
+export function orgParamToTemplateVariable(param: OrganizationParameter): TemplateVariable {
+  return {
+    key: `{{${param.key}}}`,
+    label: param.label,
+    category: param.category,
+    dataType: param.dataType,
+    isRequired: param.isRequired,
+    source: "organization",
+  };
+}
 
 export const DEFAULT_GLOBAL_STYLES: GlobalStyles = {
   fontFamily: "Inter",

@@ -33,6 +33,10 @@ export type AuditAction =
   | "SMTP_CONFIG_ADDED"
   | "SMTP_CONFIG_UPDATED"
   | "SMTP_CONFIG_DELETED"
+  // Parameters
+  | "PARAMETER_CREATED"
+  | "PARAMETER_UPDATED"
+  | "PARAMETER_DELETED"
   // Audit
   | "AUDIT_LOGS_EXPORTED";
 
@@ -61,6 +65,9 @@ const ACTION_DESCRIPTIONS: Record<AuditAction, string> = {
   SMTP_CONFIG_ADDED: "Added email configuration",
   SMTP_CONFIG_UPDATED: "Updated email configuration",
   SMTP_CONFIG_DELETED: "Deleted email configuration",
+  PARAMETER_CREATED: "Created an organization parameter",
+  PARAMETER_UPDATED: "Updated an organization parameter",
+  PARAMETER_DELETED: "Deleted an organization parameter",
   AUDIT_LOGS_EXPORTED: "Exported audit logs",
 };
 
