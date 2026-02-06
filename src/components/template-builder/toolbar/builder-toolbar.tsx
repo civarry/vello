@@ -61,10 +61,12 @@ import {
   BringToFront,
   SendToBack,
   Keyboard,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { clearDraft } from "@/lib/draft";
 import { KeyboardShortcutsDialog } from "../keyboard-shortcuts-dialog";
+import { TemplateGenerationDialog } from "../template-generation-dialog";
 import {
   useTemplateBuilderStore,
   PaperSize,
@@ -126,6 +128,7 @@ export function BuilderToolbar() {
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [isAiDialogOpen, setIsAiDialogOpen] = useState(false);
 
   const handleBack = () => {
     if (isDirty) {
@@ -298,6 +301,21 @@ export function BuilderToolbar() {
           {isDesktop ? (
             // Desktop: Full toolbar
             <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsAiDialogOpen(true)}
+                    className="gap-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:text-indigo-300 dark:hover:bg-indigo-950/30"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    <span className="hidden xl:inline font-medium">Generate</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Generate Template with AI</TooltipContent>
+              </Tooltip>
+
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -631,6 +649,10 @@ export function BuilderToolbar() {
       <KeyboardShortcutsDialog
         open={isShortcutsOpen}
         onOpenChange={setIsShortcutsOpen}
+      />
+      <TemplateGenerationDialog
+        open={isAiDialogOpen}
+        onOpenChange={setIsAiDialogOpen}
       />
     </>
   );

@@ -54,21 +54,7 @@ export function LivePdfPreview({ template, data, debouncedDelay = 500 }: LivePdf
     }
 
     const blob = await response.blob();
-
-    // Convert blob to base64 data URL for better mobile browser compatibility
-    // Blob URLs don't work reliably in iframes on mobile browsers (especially iOS Safari)
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === "string") {
-          resolve(reader.result);
-        } else {
-          reject(new Error("Failed to convert PDF to data URL"));
-        }
-      };
-      reader.onerror = () => reject(new Error("Failed to read PDF blob"));
-      reader.readAsDataURL(blob);
-    });
+    return URL.createObjectURL(blob);
   }, []);
 
   // Mobile download handler
@@ -135,7 +121,11 @@ export function LivePdfPreview({ template, data, debouncedDelay = 500 }: LivePdf
           return;
         }
 
-        setPdfUrl(dataUrl);
+        // Cleanup previous URL if it exists
+        setPdfUrl((prevUrl) => {
+          if (prevUrl) URL.revokeObjectURL(prevUrl);
+          return dataUrl;
+        });
         setError(null);
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") {
@@ -165,6 +155,10 @@ export function LivePdfPreview({ template, data, debouncedDelay = 500 }: LivePdf
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
+      setPdfUrl((url) => {
+        if (url) URL.revokeObjectURL(url);
+        return null;
+      });
     };
   }, []);
 
