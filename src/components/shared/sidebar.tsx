@@ -346,15 +346,16 @@ export function Sidebar({
           <DropdownMenuContent
             align={collapsed ? "center" : "start"}
             side="bottom"
-            className="w-64"
+            className="w-64 overflow-hidden"
           >
             <DropdownMenuLabel>Organizations</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {allOrganizations.map((org) => (
+            {allOrganizations.map((org, index) => (
               <DropdownMenuItem
                 key={org.id}
                 onClick={() => handleSwitchOrganization(org.id)}
-                className="flex items-center justify-between cursor-pointer"
+                className="flex items-center justify-between cursor-pointer animate-in fade-in slide-in-from-top-1 duration-300 fill-mode-forwards"
+                style={{ animationDelay: `${index * 40}ms` }}
               >
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <div className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 text-primary text-xs font-medium shrink-0">
@@ -379,7 +380,8 @@ export function Sidebar({
             {(currentRole === "OWNER" || currentRole === "ADMIN") && (
               <DropdownMenuItem
                 onClick={() => setShowInviteDialog(true)}
-                className="cursor-pointer"
+                className="cursor-pointer animate-in fade-in slide-in-from-top-1 duration-300 fill-mode-forwards"
+                style={{ animationDelay: `${allOrganizations.length * 40}ms` }}
               >
                 <UserPlus className="h-4 w-4 mr-2" />
                 Invite Member
@@ -387,7 +389,15 @@ export function Sidebar({
             )}
             <DropdownMenuItem
               onClick={handleCreateOrganization}
-              className="cursor-pointer"
+              className="cursor-pointer animate-in fade-in slide-in-from-top-1 duration-300 fill-mode-forwards"
+              style={{
+                animationDelay: `${(allOrganizations.length +
+                  (currentRole === "OWNER" || currentRole === "ADMIN"
+                    ? 1
+                    : 0)) *
+                  40
+                  }ms`,
+              }}
             >
               <Plus className="h-4 w-4 mr-2" />
               Create Organization
