@@ -280,7 +280,7 @@ export function Sidebar({
   return (
     <div
       className={cn(
-        "hidden md:flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out",
+        "hidden md:flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out overflow-hidden",
         collapsed ? "w-16" : "w-64"
       )}
     >
@@ -510,22 +510,34 @@ export function Sidebar({
                     </div>
                     <ChevronRight
                       className={cn(
-                        "h-4 w-4 transition-transform",
+                        "h-4 w-4 transition-transform duration-300",
                         settingsOpen && "rotate-90"
                       )}
                     />
                   </button>
                 </CollapsibleTrigger>
                 {!collapsed && (
-                  <CollapsibleContent className="pl-4 pt-1 space-y-1">
-                    {settingsNavigation.map((item) => {
+                  <CollapsibleContent
+                    className={cn(
+                      "pl-4 pt-1 space-y-1 overflow-hidden",
+                      "data-[state=open]:animate-accordion-down",
+                      "data-[state=closed]:animate-accordion-up"
+                    )}
+                  >
+                    {settingsNavigation.map((item, index) => {
                       const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
                       return (
                         <Link
                           key={item.name}
                           href={item.href}
+                          style={{
+                            transitionDelay: settingsOpen ? `${index * 60}ms` : "0ms",
+                          }}
                           className={cn(
-                            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
+                            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium",
+                            "transition-all duration-300 ease-out",
+                            "opacity-0 translate-y-2",
+                            settingsOpen && "opacity-100 translate-y-0",
                             isActive
                               ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
                               : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
